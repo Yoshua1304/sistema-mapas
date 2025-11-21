@@ -92,144 +92,144 @@ const VIGILANCIA_LAYER_DATA: Layer = {
     subLayers: [
         {
             id: 'enf-transmisibles', name: 'Enfermedades Transmisibles', subLayers: [
-                { id: 'zoonosis', name: 'Zoonosis', subLayers: [
-                    { id: 'fasciolosis-humana', name: 'Fasciolosis humana' },
-                    { id: 'carbunco', name: 'Carbunco' },
-                    { id: 'peste', name: 'Peste' },
-                    { id: 'rabia-humana', name: 'Rabia humana urbana y silvestre' },
-                    { id: 'leptospirosis', name: 'Leptospirosis' },
-                    { id: 'ofidismo', name: 'Ofidismo' },
+                { id: 'diagnostico-zoonosis', name: 'Zoonosis', subLayers: [
+                    { id: 'diagnostico-fasciolosis-humana', name: 'Fasciolosis humana' },
+                    { id: 'diagnostico-carbunco', name: 'Carbunco' },
+                    { id: 'diagnostico-peste', name: 'Peste' },
+                    { id: 'diagnostico-rabia-humana', name: 'Rabia humana urbana y silvestre' },
+                    { id: 'diagnostico-leptospirosis', name: 'Leptospirosis' },
+                    { id: 'diagnostico-ofidismo', name: 'Ofidismo' },
                 ]},
                 {
-                  id: 'metaxenicas',
+                  id: 'diagnostico-metaxenicas',
                   name: 'Metaxénicas',
                   subLayers: [
                       {
-                          id: 'arbovirosis',
+                          id: 'diagnostico-arbovirosis',
                           name: 'Arbovirosis',
                           subLayers: [
-                              { id: 'carrion-aguda', name: 'Enfermedad de Carrión Aguda' },
-                              { id: 'carrion-eruptiva', name: 'Enfermedad de Carrión Eruptiva' },
-                              { id: 'carrion-no-deter', name: 'Enfermedad de Carrión No Determinada' },
+                              { id: 'diagnostico-carrion-aguda', name: 'Enfermedad de Carrión Aguda' },
+                              { id: 'diagnostico-carrion-eruptiva', name: 'Enfermedad de Carrión Eruptiva' },
+                              { id: 'diagnostico-carrion-no-deter', name: 'Enfermedad de Carrión No Determinada' },
 
-                              { id: 'chikungunya', name: 'Fiebre de Chikungunya' },
-                              { id: 'chikungunya-grave', name: 'Fiebre de Chikungunya Grave' },
+                              { id: 'diagnostico-chikungunya', name: 'Fiebre de Chikungunya' },
+                              { id: 'diagnostico-chikungunya-grave', name: 'Fiebre de Chikungunya Grave' },
 
-                              { id: 'zika', name: 'Zika' },
-                              { id: 'zika-gestantes', name: 'Zika en gestantes' },
-                              { id: 'zika-asintomatico', name: 'Zika asintomático' },
-                              { id: 'zika-asintomatico-gestantes', name: 'Zika asintomático en gestantes' },
+                              { id: 'diagnostico-zika', name: 'Zika' },
+                              { id: 'diagnostico-zika-gestantes', name: 'Zika en gestantes' },
+                              { id: 'diagnostico-zika-asintomatico', name: 'Zika asintomático' },
+                              { id: 'diagnostico-zika-asintomatico-gestantes', name: 'Zika asintomático en gestantes' },
 
-                              { id: 'dengue-sin-signos', name: 'Dengue sin signos de alarma' },
-                              { id: 'dengue-con-signos', name: 'Dengue con signos de alarma' },
-                              { id: 'dengue-grave', name: 'Dengue grave' },
+                              { id: 'diagnostico-dengue-sin-signos', name: 'Dengue sin signos de alarma' },
+                              { id: 'diagnostico-dengue-con-signos', name: 'Dengue con signos de alarma' },
+                              { id: 'diagnostico-dengue-grave', name: 'Dengue grave' },
 
-                              { id: 'malaria-falciparum', name: 'Malaria P. falciparum' },
-                              { id: 'malaria-vivax', name: 'Malaria por P. vivax' },
-                              { id: 'malaria-malariae', name: 'Malaria por P. malariae' },
-                              { id: 'malaria-ovale', name: 'Malaria por P. ovale' },
+                              { id: 'diagnostico-malaria-falciparum', name: 'Malaria P. falciparum' },
+                              { id: 'diagnostico-malaria-vivax', name: 'Malaria por P. vivax' },
+                              { id: 'diagnostico-malaria-malariae', name: 'Malaria por P. malariae' },
+                              { id: 'diagnostico-malaria-ovale', name: 'Malaria por P. ovale' },
 
-                              { id: 'leishmaniasis-cutanea', name: 'Leishmaniasis cutánea' },
-                              { id: 'leishmaniasis-mucocutanea', name: 'Leishmaniasis mucocutánea' },
+                              { id: 'diagnostico-leishmaniasis-cutanea', name: 'Leishmaniasis cutánea' },
+                              { id: 'diagnostico-leishmaniasis-mucocutanea', name: 'Leishmaniasis mucocutánea' },
 
-                              { id: 'chagas', name: 'Enfermedad de Chagas' },
+                              { id: 'diagnostico-chagas', name: 'Enfermedad de Chagas' },
 
-                              { id: 'mayaro', name: 'Mayaro' },
-                              { id: 'oropuche', name: 'Oropuche' },
+                              { id: 'diagnostico-mayaro', name: 'Mayaro' },
+                              { id: 'diagnostico-oropuche', name: 'Oropuche' },
                           ]},
                   ]
               },
-                { id: 'vih-sida-ets', name: 'VIH/SIDA/ETS', subLayers: [
-                    { id: 'gonococica', name: 'Infección gonocócica' },
-                    { id: 'hepatitis-b', name: 'Hepatitis B' },
-                    { id: 'nino-expuesto-vih', name: 'Niño expuesto al VIH' },
-                    { id: 'infeccion-vih', name: 'Infección por VIH' },
-                    { id: 'sida', name: 'Sida' },
-                    { id: 'sifilis', name: 'Sífilis' },
+                { id: 'diagnostico-vih-sida-ets', name: 'VIH/SIDA/ETS', subLayers: [
+                    { id: 'diagnostico-gonococica', name: 'Infección gonocócica' },
+                    { id: 'diagnostico-hepatitis-b', name: 'Hepatitis B' },
+                    { id: 'diagnostico-nino-expuesto-vih', name: 'Niño expuesto al VIH' },
+                    { id: 'diagnostico-infeccion-vih', name: 'Infección por VIH' },
+                    { id: 'diagnostico-sida', name: 'Sida' },
+                    { id: 'diagnostico-sifilis', name: 'Sífilis' },
                 ]},
-                { id: 'inmunoprevenibles', name: 'Inmunoprevenibles', subLayers: [
-                    { id: 'fiebre-amarilla', name: 'Fiebre amarilla selvática' },
-                    { id: 'tetanos-neonatal', name: 'Tétanos neonatal' },
-                    { id: 'viruela-mono', name: 'Viruela del mono' },
-                    { id: 'esavi', name: 'ESAVI' },
-                    { id: 'tetanos', name: 'Tétanos' },
-                    { id: 'difteria', name: 'Difteria' },
-                    { id: 'rubeola-congenita', name: 'Rubeola congénita' },
-                    { id: 'rubeola', name: 'Rubeola' },
-                    { id: 'sarampion', name: 'Sarampión' },
-                    { id: 'tos-ferina', name: 'Tos ferina' },
-                    { id: 'varicela', name: 'Varicela' },
-                    { id: 'parotiditis', name: 'Parotiditis y sus complicaciones' },
-                    { id: 'meningitis-meningococica', name: 'Meningitis meningocócica' },
-                    { id: 'influenza', name: 'Enfermedad tipo Influenza' },
-                    { id: 'polio', name: 'Poliomielitis aguda (Parálisis flácida aguda)' },
+                { id: 'diagnostico-inmunoprevenibles', name: 'Inmunoprevenibles', subLayers: [
+                    { id: 'diagnostico-fiebre-amarilla', name: 'Fiebre amarilla selvática' },
+                    { id: 'diagnostico-tetanos-neonatal', name: 'Tétanos neonatal' },
+                    { id: 'diagnostico-viruela-mono', name: 'Viruela del mono' },
+                    { id: 'diagnostico-esavi', name: 'ESAVI' },
+                    { id: 'diagnostico-tetanos', name: 'Tétanos' },
+                    { id: 'diagnostico-difteria', name: 'Difteria' },
+                    { id: 'diagnostico-rubeola-congenita', name: 'Rubeola congénita' },
+                    { id: 'diagnostico-rubeola', name: 'Rubeola' },
+                    { id: 'diagnostico-sarampion', name: 'Sarampión' },
+                    { id: 'diagnostico-tos-ferina', name: 'Tos ferina' },
+                    { id: 'diagnostico-varicela', name: 'Varicela' },
+                    { id: 'diagnostico-parotiditis', name: 'Parotiditis y sus complicaciones' },
+                    { id: 'diagnostico-meningitis-meningococica', name: 'Meningitis meningocócica' },
+                    { id: 'diagnostico-influenza', name: 'Enfermedad tipo Influenza' },
+                    { id: 'diagnostico-polio', name: 'Poliomielitis aguda (Parálisis flácida aguda)' },
                 ]},
-                { id: 'tuberculosis-group', name: 'Tuberculosis', subLayers: [
-                    { id: 'tuberculosis', name: 'Tuberculosis' },
-                    { id: 'metales-pesados', name: 'Efecto tóxico de metales pesados' },
+                { id: 'diagnostico-tuberculosis-group', name: 'Tuberculosis', subLayers: [
+                    { id: 'diagnostico-tuberculosis', name: 'Tuberculosis' },
+                    { id: 'diagnostico-metales-pesados', name: 'Efecto tóxico de metales pesados' },
                 ]},
-                { id: 'ira-eda-etc', name: 'IRA/EDA/Febriles/SGB', subLayers: [
-                    { id: 'iras', name: 'Infecciones respiratorias agudas' },
-                    { id: 'neumonias', name: 'Neumonías' },
-                    { id: 'covid-19', name: 'COVID-19' },
-                    { id: 'sob-asma', name: 'SOB/ASMA' },
-                    { id: 'febriles', name: 'Febriles' },
-                    { id: 'sindrome-resp-agudo', name: 'Síndrome respiratorio agudo severo' },
-                    { id: 'gripe-humana', name: 'Gripe humana causada por un nuevo subtipo de virus' },
-                    { id: 'guillain-barre', name: 'Síndrome de Guillain Barré' },
-                    { id: 'colera', name: 'Cólera' },
-                    { id: 'edas', name: 'Enfermedades diarreicas agudas' },
+                { id: 'diagnostico-ira-eda-etc', name: 'IRA/EDA/Febriles/SGB', subLayers: [
+                    { id: 'diagnostico-iras', name: 'Infecciones respiratorias agudas' },
+                    { id: 'diagnostico-neumonias', name: 'Neumonías' },
+                    { id: 'diagnostico-covid-19', name: 'COVID-19' },
+                    { id: 'diagnostico-sob-asma', name: 'SOB/ASMA' },
+                    { id: 'diagnostico-febriles', name: 'Febriles' },
+                    { id: 'diagnostico-sindrome-resp-agudo', name: 'Síndrome respiratorio agudo severo' },
+                    { id: 'diagnostico-gripe-humana', name: 'Gripe humana causada por un nuevo subtipo de virus' },
+                    { id: 'diagnostico-guillain-barre', name: 'Síndrome de Guillain Barré' },
+                    { id: 'diagnostico-colera', name: 'Cólera' },
+                    { id: 'diagnostico-edas', name: 'Enfermedades diarreicas agudas' },
                 ]},
-                { id: 'riesgos-alimentarios', name: 'Riesgos Alimentarios', subLayers: [
-                    { id: 'eta', name: 'Enfermedades Transmitidas por Alimentos' }
-                ]},
-            ]
-        },
-        {
-            id: 'enf-no-transmisibles', name: 'Enfermedades No Transmisibles', subLayers: [
-                { id: 'salud-mental', name: 'Salud Mental', subLayers: [
-                    { id: 'intento-suicidio', name: 'Intento de suicidio' },
-                    { id: 'episodio-depresivo', name: 'Episodio depresivo' },
-                    { id: 'primer-episodio-psicotico', name: 'Primer episodio psicótico' },
-                    { id: 'violencia-familiar', name: 'Violencia familiar' },
-                ]},
-                { id: 'accidentes-transito', name: 'Accidentes de Tránsito', subLayers: [
-                    { id: 'lesiones-transito', name: 'Lesiones por accidente de tránsito' }
-                ]},
-                { id: 'enf-cronicas', name: 'Enfermedades Crónicas', subLayers: [
-                    { id: 'cancer', name: 'Cáncer' },
-                    { id: 'diabetes-mellitus', name: 'Diabetes mellitus' },
+                { id: 'diagnostico-riesgos-alimentarios', name: 'Riesgos Alimentarios', subLayers: [
+                    { id: 'diagnostico-eta', name: 'Enfermedades Transmitidas por Alimentos' }
                 ]},
             ]
         },
         {
-            id: 'vigilancia-hospitalaria', name: 'Vigilancia Hospitalaria', subLayers: [
-                { id: 'iaas', name: 'Infecciones Asociadas a la Atención de la Salud', subLayers: [
-                    { id: 'iaas-sub', name: 'Infecciones Asociadas a la Atención de la Salud' }
+            id: 'diagnostico-enf-no-transmisibles', name: 'Enfermedades No Transmisibles', subLayers: [
+                { id: 'diagnostico-salud-mental', name: 'Salud Mental', subLayers: [
+                    { id: 'diagnostico-intento-suicidio', name: 'Intento de suicidio' },
+                    { id: 'diagnostico-episodio-depresivo', name: 'Episodio depresivo' },
+                    { id: 'diagnostico-primer-episodio-psicotico', name: 'Primer episodio psicótico' },
+                    { id: 'diagnostico-violencia-familiar', name: 'Violencia familiar' },
+                ]},
+                { id: 'diagnostico-accidentes-transito', name: 'Accidentes de Tránsito', subLayers: [
+                    { id: 'diagnostico-lesiones-transito', name: 'Lesiones por accidente de tránsito' }
+                ]},
+                { id: 'diagnostico-enf-cronicas', name: 'Enfermedades Crónicas', subLayers: [
+                    { id: 'diagnostico-cancer', name: 'Cáncer' },
+                    { id: 'diagnostico-diabetes-mellitus', name: 'Diabetes mellitus' },
                 ]},
             ]
         },
         {
-            id: 'materno-perinatal', name: 'Materno Perinatal', subLayers: [
-                { id: 'madre-nino', name: 'Madre Niño', subLayers: [
-                    { id: 'muerte-neonatal-fetal', name: 'Muerte neonatal/Muerte fetal' },
-                    { id: 'gvi', name: 'Gestante vacunada inadvertidamente (GVI)' },
-                    { id: 'muerte-materna-inmediata', name: 'Muerte materna inmediata' },
-                    { id: 'morbilidad-materna-extrema', name: 'Morbilidad materna extrema' },
+            id: 'diagnostico-vigilancia-hospitalaria', name: 'Vigilancia Hospitalaria', subLayers: [
+                { id: 'diagnostico-iaas', name: 'Infecciones Asociadas a la Atención de la Salud', subLayers: [
+                    { id: 'diagnostico-iaas-sub', name: 'Infecciones Asociadas a la Atención de la Salud' }
+                ]},
+            ]
+        },
+        {
+            id: 'diagnostico-materno-perinatal', name: 'Materno Perinatal', subLayers: [
+                { id: 'diagnostico-madre-nino', name: 'Madre Niño', subLayers: [
+                    { id: 'diagnostico-muerte-neonatal-fetal', name: 'Muerte neonatal/Muerte fetal' },
+                    { id: 'diagnostico-gvi', name: 'Gestante vacunada inadvertidamente (GVI)' },
+                    { id: 'diagnostico-muerte-materna-inmediata', name: 'Muerte materna inmediata' },
+                    { id: 'diagnostico-morbilidad-materna-extrema', name: 'Morbilidad materna extrema' },
                 ]}
             ]
         },
         {
-            id: 'riesgos-ambientales', name: 'Riesgos Ambientales', subLayers: [
-                { id: 'plaguicidas-metales', name: 'Plaguicidas y Metales', subLayers: [
-                    { id: 'efecto-plaguicidas', name: 'Efecto tóxico de plaguicidas' }
+            id: 'diagnostico-riesgos-ambientales', name: 'Riesgos Ambientales', subLayers: [
+                { id: 'diagnostico-plaguicidas-metales', name: 'Plaguicidas y Metales', subLayers: [
+                    { id: 'diagnostico-efecto-plaguicidas', name: 'Efecto tóxico de plaguicidas' }
                 ]}
             ]
         },
         {
-            id: 'otras-vigilancias', name: 'Otras Vigilancias', subLayers: [
-                { id: 'brotes-epidemias', name: 'Brotes, epidemias y emergencias sanitarias' },
-                { id: 'cambio-climatico', name: 'Cambio Climático-Emergencias y Desastres' },
+            id: 'diagnostico-otras-vigilancias', name: 'Otras Vigilancias', subLayers: [
+                { id: 'diagnostico-brotes-epidemias', name: 'Brotes, epidemias y emergencias sanitarias' },
+                { id: 'diagnostico-cambio-climatico', name: 'Cambio Climático-Emergencias y Desastres' },
             ]
         }
     ]
@@ -345,6 +345,7 @@ const cargarCasosPorDiagnostico = async (diagnostico: string) => {
 
   const handleDiagnosticoSelect = async (diagnostico: string | null) => {
     setDiagnosticoSeleccionado(diagnostico);
+    console.log("🎯 Diagnóstico seleccionado:", diagnostico);
 
     if (diagnostico) {
       await cargarCasosPorDiagnostico(diagnostico);  // ← 🔥 carga número de casos
@@ -398,7 +399,6 @@ useEffect(() => {
     .then(res => res.json())
     .then(data => {
       setEnfermedades(data.enfermedades || []);
-      console.log("ENFERMEDADES CARGADAS:", data.enfermedades);
     });
 }, []);
 
@@ -598,6 +598,10 @@ const onEachDistrict = (feature: Feature, layer: LeafletLayer) => {
 
   const isSearchActive = layerSearchTerm.trim() !== '';
 
+  const handleDiagnosticoData = (detalle: any[]) => {
+    console.log("📥 Datos recibidos desde LayerItem:", detalle);
+  };
+
 
   return (
   <div className="app-container">
@@ -670,18 +674,16 @@ const onEachDistrict = (feature: Feature, layer: LeafletLayer) => {
               {/* LISTA DE CAPAS */}
               <ul className="layer-list">
                 {filteredLayers.map((layer) => (
-              <LayerItem
-                key={layer.id}
-                layer={layer}
-                selectedLayers={selectedLayers}
-                onSelectionChange={handleLayerSelection}
+                <LayerItem
+                  key={layer.id}
+                  layer={layer}
+                  selectedLayers={selectedLayers}
+                  onSelectionChange={handleLayerSelection}
+                  onDiagnosticoSelect={handleDiagnosticoSelect}
+                  diagnosticoSeleccionado={diagnosticoSeleccionado}
+                  isSearchActive={isSearchActive}
+                />
 
-                // 🔥 Necesarias para pintar mapa por diagnóstico
-                onDiagnosticoSelect={handleDiagnosticoSelect}
-                diagnosticoSeleccionado={diagnosticoSeleccionado}
-
-                isSearchActive={isSearchActive}
-              />
                 ))}
               </ul>
             </>

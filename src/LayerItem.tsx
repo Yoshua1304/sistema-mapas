@@ -26,6 +26,7 @@ const LayerItem: React.FC<LayerItemProps> = ({
   diagnosticoSeleccionado,
   isSearchActive
 }) => {
+console.log("🧩 ID de la capa:", layer.id);
 
   const isInitiallyExpanded =
     layer.id === 'vigilancia-salud-publica' || layer.id === 'distritos';
@@ -58,6 +59,17 @@ const LayerItem: React.FC<LayerItemProps> = ({
     e.stopPropagation();
     const nuevoEstado = !isSelected;
     onSelectionChange(layer.id, nuevoEstado);
+    console.log("🔥 CLICK en checkbox:", layer.name);
+
+    // ⭐ Si es un diagnóstico
+if (layer.id.startsWith("diagnostico-")) {
+  if (nuevoEstado) {
+    onDiagnosticoSelect?.(layer.name);    // activar diagnóstico
+  } else {
+    onDiagnosticoSelect?.(null);          // desactivar
+    onDiagnosticoData?.([]);              // limpiar mapa
+  }
+}
   };
 
   return (
