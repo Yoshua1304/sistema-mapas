@@ -1,0 +1,359 @@
+/* === BASE & LAYOUT === */
+body, html, #root {
+  margin: 0;
+  font-family: sans-serif;
+  height: 100%;
+  overflow: hidden;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+.map-container {
+  flex: 1;
+  position: relative; /* Crucial for positioning floating elements */
+}
+
+/* === HEADER === */
+.header {
+  background-color: #CC0000;
+  color: white;
+  padding: 5px 20px;
+  display: flex;
+  align-items: center;
+  z-index: 1050;
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.logo-container img {
+    height: 70px;
+    width: 70px;
+    margin-right: 10px;
+    filter: invert(1);
+}
+
+.brand-text {
+  font-size: 1.6rem;
+  font-weight: 500;
+  margin-right: 15px;
+}
+
+.separator {
+    border-left: 1px solid rgba(255, 255, 255, 0.7);
+    height: 65px;
+    margin-right: 15px;
+}
+
+.logo-container h1 {
+    font-size: 1.5rem;
+}
+
+/* === FLOATING SIDEBAR (CAPAS) === */
+.sidebar-floating {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 320px;
+  height: 72vh; /* Altura fija */
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  z-index: 1020;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease-in-out;
+}
+
+.sidebar-floating:not(.open) {
+  transform: translate(-305px, -50%);
+}
+
+.sidebar-header {
+  background-color: #CC0000;
+  color: white;
+  padding: 10px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.sidebar-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.sidebar-toggle-button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 5px 10px;
+    border-radius: 3px;
+    background-color: rgba(0,0,0,0.2);
+}
+
+.layer-search {
+  padding: 10px;
+  display: flex;
+  border-bottom: 1px solid #ddd;
+}
+
+.layer-search input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid black;
+  background-color: white;
+  color: black;
+  border-radius: 3px 0 0 3px;
+  box-sizing: border-box;
+}
+
+.layer-search button {
+  border: 1px solid black;
+  border-left: none;
+  background-color: white;
+  padding: 0 10px;
+  cursor: pointer;
+  border-radius: 0 3px 3px 0;
+}
+
+/* === NEW HIERARCHICAL LAYER LIST === */
+.layer-list, .sub-layer-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.layer-list {
+  padding: 10px;
+}
+
+.sub-layer-list {
+  padding-left: 20px; /* Indent sub-layers */
+}
+
+.layer-item {
+  margin-bottom: 5px;
+}
+
+.layer-header {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.layer-name {
+  flex-grow: 1;
+  padding: 4px;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.arrow {
+  width: 20px;
+  text-align: center;
+  font-size: 0.7rem;
+  color: #555;
+  transition: transform 0.2s;
+}
+
+.arrow.clickable:hover {
+  color: #000;
+}
+
+.arrow.expanded {
+  transform: rotate(90deg);
+}
+
+.layer-checkbox {
+  margin-right: 8px;
+}
+
+/* === FLOATING TOP-RIGHT WIDGETS === */
+.map-search-bar {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  display: flex;
+  background-color: white;
+  padding: 5px;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  border: 1px solid black;
+  z-index: 1020;
+}
+
+.map-search-bar input {
+  border: none;
+  padding: 5px;
+  outline: none;
+  width: 250px;
+  color: black;
+  background-color: white;
+}
+
+.map-search-bar button {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* === FLOATING MAP TOOLS (RIGHT) === */
+.map-tools {
+  position: absolute;
+  top: 70px;
+  right: 15px;
+  display: flex;
+  flex-direction: column;
+  z-index: 1018;
+}
+
+.map-tools button {
+  background-color: white;
+  border: 1px solid #aaa;
+  padding: 8px;
+  margin-bottom: -1px;
+  cursor: pointer;
+  font-size: 1.4rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.map-tools button:first-child { border-radius: 4px 4px 0 0; }
+.map-tools button:last-child { border-radius: 0 0 4px 4px; }
+.map-tools button:hover { background-color: #f4f4f4; }
+
+
+/* === COMPASS (TOP-LEFT) === */
+.compass {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  z-index: 1010;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
+
+.compass-n {
+  font-size: 14px;
+  font-weight: bold;
+  color: #333;
+  background-color: white;
+  width: 20px;
+  height: 20px;
+  text-align: center;
+  line-height: 20px;
+  border-radius: 3px;
+  margin-bottom: 2px;
+  border: 1px solid #aaa;
+}
+
+.compass-arrow-up {
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 12px solid #D5191C; /* Red part */
+}
+
+.compass-arrow-down {
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 12px solid white; /* White part */
+}
+
+
+/* === LEAFLET OVERRIDES === */
+.leaflet-control-container {
+    display: none;
+}
+
+
+/* === RESPONSIVE DESIGN === */
+@media (max-width: 992px) {
+  .brand-text { font-size: 1.2rem; }
+  .logo-container h1 { font-size: 1rem; }
+}
+
+@media (max-width: 768px) {
+  .brand-text, .separator {
+    display: none;
+  }
+  .logo-container h1 {
+    font-size: 0.9rem;
+  }
+  .map-search-bar {
+      top: auto;
+      bottom: 15px;
+      left: 15px;
+      right: 15px;
+      width: auto;
+  }
+  .map-search-bar input { width: 100%; }
+  .base-maps-widget, .map-tools, .compass, .sidebar-floating {
+      display: none;
+  }
+}
+/* === MOUSE COORDINATES DISPLAY === */
+.mouse-coordinates {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1010;
+  display: flex;
+  font-family: sans-serif;
+  font-size: 11px;
+  pointer-events: none;
+  border: 1px solid #000;
+  
+  /* Reset properties */
+  padding: 0;
+  gap: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background-color: transparent;
+}
+
+.coord-item {
+  padding: 4px 10px;
+  background-color: white;
+  color: black;
+  border-right: 1px solid #777;
+  white-space: nowrap;
+}
+
+.mouse-coordinates .coord-item:last-child {
+  border-right: none;
+}
+
+/* Special style for the DATUM field */
+.coord-item.datum {
+  background-color: #4B4B4B;
+  color: white;
+  font-weight: normal;
+}
+
+/* Placeholder text color */
+.layer-search input::placeholder,
+.map-search-bar input::placeholder {
+  color: grey;
+  opacity: 1; /* Override Firefox\'s default opacity */
+}

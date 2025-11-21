@@ -1,0 +1,57 @@
+.district-popup-container {
+  font-family: sans-serif;
+  font-size: 14px;
+  min-width: 250px;
+}
+
+.district-popup-header {
+  background-color: #CC0000;
+  color: white;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+}
+
+.district-popup-close-button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.district-popup-content {
+  padding: 10px;
+}
+
+.district-popup-content h4 {
+  margin: 0 0 10px 0;
+  font-size: 15px;
+  color: #333;
+  font-weight: bold;
+}
+
+.district-popup-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.district-popup-table th, .district-popup-table td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: left;
+}
+
+.district-popup-table th {
+  background-color: #888888;
+  color: white;
+  font-weight: bold;
+}
+
+.district-popup-table td {
+  background-color: #f9f9f9;
+  color: #333;
+}

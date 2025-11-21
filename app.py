@@ -1,0 +1,673 @@
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from database import connect    # tu función centralizada de conexión
+
+app = Flask(__name__)
+CORS(app)
+
+
+# ============================================================
+# 1. ENDPOINT: POBLACIÓN POR DISTRITO
+# ============================================================
+@app.route("/api/poblacion")
+def api_poblacion():
+    distrito = request.args.get("distrito", "").strip()
+
+    conn = connect("EPI_TABLAS_MAESTRO")
+    if conn is None:
+        return jsonify({"error": "Error al conectar a BD"}), 500
+
+    cursor = conn.cursor()
+
+    sql = """
+        SELECT
+            SUM([MASCULINO] + [FEMENINO]) AS POBLACION_TOTAL,
+            SUM([MASCULINO]) AS MASCULINO,
+            SUM([FEMENINO]) AS FEMENINO,
+            SUM([NIÑO]) AS NIÑO,
+            SUM([Adolescente]) AS Adolescente,
+            SUM([Joven]) AS Joven,
+            SUM([Adulto]) AS Adulto,
+            SUM([Adulto Mayor]) AS Adulto_Mayor
+        FROM [POBLACION_2025_DIRIS_LIMA_CENTRO]
+        WHERE UPPER([DISTRITO]) = UPPER(?)
+    """
+
+    try:
+        cursor.execute(sql, (distrito,))
+        row = cursor.fetchone()
+
+        if not row or row[0] is None:
+            return jsonify({"error": f"Distrito '{distrito}' no encontrado"}), 404
+
+        resultado = dict(zip([col[0] for col in cursor.description], row))
+        resultado["distrito"] = distrito
+
+        return jsonify(resultado)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+# ============================================================
+# 2. ENDPOINT: CASOS POR ENFERMEDAD
+# ============================================================
+@app.route("/api/casos_enfermedad")
+def casos_enfermedad():
+    distrito = request.args.get('distrito')
+    enfermedad = request.args.get('enfermedad')
+
+    if not distrito or not enfermedad:
+        return jsonify({"error": "Faltan parámetros"}), 400
+
+    conn = connect("EPI_TABLAS_MAESTRO")
+    if conn is None:
+        return jsonify({"error": "Error de conexión"}), 500
+
+    try:
+        cursor = conn.cursor()
+
+        sql = """
+            SELECT
+                [TIPO_DX],
+                COUNT(*) AS Cantidad
+            FROM [NOTIWEB_2025]
+            WHERE UPPER([distrito]) = UPPER(?)
+              AND UPPER([DIAGNOSTICO]) = UPPER(?)
+              AND [subregion] = 'DIRIS LIMA CENTRO'
+            GROUP BY [TIPO_DX]
+            ORDER BY Cantidad DESC
+        """
+
+        cursor.execute(sql, (distrito, enfermedad))
+        rows = cursor.fetchall()
+
+        total = sum(r[1] for r in rows)
+
+        return jsonify({
+            "distrito": distrito,
+            "enfermedad": enfermedad,
+            "total": total,
+            "detalle": [
+                {"tipo_dx": r[0], "cantidad": r[1]}
+                for r in rows
+            ]
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+# ============================================================
+# 3. ENDPOINT: CASOS TOTALES (REPARADO)
+# ============================================================
+@app.route('/api/casos_totales', methods=['GET'])
+def casos_totales():
+    distrito = request.args.get('distrito')
+    if not distrito:
+        return jsonify({"error": "Falta el distrito"}), 400
+
+    conn = connect("EPI_TABLAS_MAESTRO")
+    if conn is None:
+        return jsonify({"error": "Error al conectar a BD"}), 500
+
+    cursor = conn.cursor()
+
+    query = """
+        SELECT COUNT(*) 
+        FROM NOTIWEB_2025
+        WHERE UPPER(distrito) = UPPER(?)
+    """
+
+    cursor.execute(query, (distrito,))
+    total = cursor.fetchone()[0]
+
+    conn.close()
+
+    return jsonify({"total": total})
+
+
+@app.route('/api/enfermedades')
+def enfermedades():
+    conn = connect("EPI_TABLAS_MAESTRO")
+    if conn is None:
+        return jsonify({"error": "Error al conectar a BD"}), 500
+
+    try:
+        cursor = conn.cursor()
+        sql = """
+            SELECT DISTINCT UPPER(DIAGNOSTICO)
+            FROM NOTIWEB_2025
+            WHERE DIAGNOSTICO IS NOT NULL
+            ORDER BY 1
+        """
+        cursor.execute(sql)
+        enfermedades = [row[0] for row in cursor.fetchall()]
+
+        return jsonify({"enfermedades": enfermedades})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+@app.route("/api/casos_por_distrito")
+def casos_por_distrito():
+    enfermedad = request.args.get("enfermedad")
+
+    if not enfermedad:
+        return jsonify({"error": "Falta parámetro 'enfermedad'"}), 400
+
+    conn = connect("EPI_TABLAS_MAESTRO")
+    if conn is None:
+        return jsonify({"error": "Error de conexión"}), 500
+
+    try:
+        cursor = conn.cursor()
+
+        sql = """
+            SELECT
+                UPPER(distrito) AS distrito,
+                COUNT(*) AS casos
+            FROM NOTIWEB_2025
+            WHERE UPPER(DIAGNOSTICO) = UPPER(?)
+              AND subregion = 'DIRIS LIMA CENTRO'
+            GROUP BY distrito
+        """
+
+        cursor.execute(sql, (enfermedad,))
+        rows = cursor.fetchall()
+
+        resultado = {row[0]: row[1] for row in rows}
+
+        return jsonify(resultado)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route("/casos-diagnostico", methods=["GET"])
+def casos_diagnostico():
+    diagnostico = request.args.get("diagnostico")
+
+    if not diagnostico:
+        return jsonify({"error": "Falta parámetro 'diagnostico'"}), 400
+
+    conn = connect("EPI_TABLAS_MAESTRO")
+    if conn is None:
+        return jsonify({"error": "Error de conexión"}), 500
+
+    cursor = conn.cursor()
+
+    query = """
+        SELECT COUNT(*) 
+        FROM NOTIWEB_2025
+        WHERE UPPER(DIAGNOSTICO) = UPPER(?)
+    """
+    cursor.execute(query, (diagnostico,))
+    total = cursor.fetchone()[0]
+
+    cursor.close()
+    conn.close()
+
+    return jsonify({"diagnostico": diagnostico, "total": total})
+
+@app.route("/api/casos_por_diagnostico")
+def api_casos_por_diagnostico():
+    diagnostico = request.args.get("diagnostico")
+
+    if not diagnostico:
+        return jsonify({"error": "Falta parámetro 'diagnostico'"}), 400
+
+    conn = connect("EPI_TABLAS_MAESTRO")
+    if conn is None:
+        return jsonify({"error": "Error al conectar a BD"}), 500
+
+    try:
+        cursor = conn.cursor()
+
+        sql = """
+            SELECT 
+                UPPER(distrito) AS distrito,
+                COUNT(*) AS cantidad
+            FROM NOTIWEB_2025
+            WHERE UPPER(DIAGNOSTICO) = UPPER(?)
+              AND subregion = 'DIRIS LIMA CENTRO'
+            GROUP BY distrito
+            ORDER BY cantidad DESC
+        """
+
+        cursor.execute(sql, (diagnostico,))
+        rows = cursor.fetchall()
+
+        # Total de casos
+        total = sum([r[1] for r in rows])
+
+        # Desglose por distrito
+        detalle = [
+            {"distrito": r[0], "cantidad": r[1]}
+            for r in rows
+        ]
+
+        return jsonify({
+            "diagnostico": diagnostico,
+            "total": total,
+            "detalle": detalle
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+# ============================================================
+# 🚀 INICIAR SERVER
+# ============================================================
+if __name__ == "__main__":
+    app.run(host="127.0.0.1", port=5000, debug=True)
+
+
+
+# import pyodbc
+# import os
+# import re 
+# from flask import Flask, render_template
+
+# app = Flask(__name__)
+
+# @app.route("/")
+# def home():
+#     return render_template("index.html")
+
+# if __name__ == "__main__":
+#     app.run(debug=True)
+    
+# # --- 1. CONFIGURACIÓN DE CONEXIONES ---
+
+# # Credenciales (se asume que son las mismas para ambas bases)
+# SERVER = os.getenv('DB_SERVER', '10.0.0.10')
+# USERNAME = os.getenv('DB_USERNAME', 'knuñes')
+# PASSWORD = os.getenv('DB_PASSWORD', '123456')
+# DRIVER = '{ODBC Driver 17 for SQL Server}'
+
+# # BASE DE DATOS 1: POBLACIÓN (EPI_TABLAS_MAESTRO)
+# DB_POBLACION = os.getenv('DB_DATABASE_POB', 'EPI_TABLAS_MAESTRO')
+# CONNECTION_POBLACION = (
+#     f"DRIVER={DRIVER};SERVER={SERVER};DATABASE={DB_POBLACION};UID={USERNAME};PWD={PASSWORD}"
+# )
+
+# # BASE DE DATOS 2: FEBRILES (EPI_BD_FEBRILES)
+# DB_FEBRILES = 'EPI_BD_FEBRILES' 
+# CONNECTION_FEBRILES = (
+#     f"DRIVER={DRIVER};SERVER={SERVER};DATABASE={DB_FEBRILES};UID={USERNAME};PWD={PASSWORD}"
+# )
+
+# # BASE DE DATOS 3: EDAS (EPI_BD_EDAS)
+# DB_EDAS = 'EPI_BD_EDAS' # Nueva base de datos
+# CONNECTION_EDAS = (
+#     f"DRIVER={DRIVER};SERVER={SERVER};DATABASE={DB_EDAS};UID={USERNAME};PWD={PASSWORD}"
+# )
+
+
+# def get_poblacion_connection():
+#     """Establece y retorna la conexión a la base de datos de Población."""
+#     try:
+#         conn = pyodbc.connect(CONNECTION_POBLACION)
+#         return conn
+#     except pyodbc.Error:
+#         return None
+
+# def get_febriles_connection():
+#     """Establece y retorna la conexión a la base de datos de Febriles."""
+#     try:
+#         conn = pyodbc.connect(CONNECTION_FEBRILES)
+#         return conn
+#     except pyodbc.Error:
+#         return None
+
+# def get_edas_connection():
+#     """Establece y retorna la conexión a la base de datos de EDAs."""
+#     try:
+#         conn = pyodbc.connect(CONNECTION_EDAS)
+#         return conn
+#     except pyodbc.Error:
+#         return None
+
+# # --- 2. FUNCIÓN DE RANGO DE EDAD (Se mantiene) ---
+# # ... (Se mantiene la función obtener_columnas_por_rango) ...
+# def obtener_columnas_por_rango(rango_input):
+#     COLUMNAS_EDAD = [
+#         '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 
+#         '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', 
+#         '20-24', '25-29', '30-34', '35-39', '40-44', '45-49', '50-54', 
+#         '55-59', '60-64', '65-69', '70-74', '75-79', '80-84', '85-+'
+#     ]
+#     rango_input = rango_input.upper().strip()
+#     match = re.search(r'(MAYOR DE|MENOR DE|MENOR A|MAYOR A)\s*(\d+)', rango_input)
+#     if not match: return None, "Formato no reconocido. Usa 'Mayor de X' o 'Menor de Y'."
+#     condicion = match.group(1).replace(' ', '_') 
+#     valor_edad = int(match.group(2))
+#     columnas_a_sumar = []
+    
+#     for col in COLUMNAS_EDAD:
+#         try:
+#             edad_inicio = int(col); edad_fin = edad_inicio
+#         except ValueError:
+#             if col == '85-+': edad_inicio = 85; edad_fin = 999 
+#             else:
+#                 inicio, fin = map(int, col.split('-')); edad_inicio = inicio; edad_fin = fin
+
+#         if 'MAYOR' in condicion and edad_inicio >= valor_edad:
+#             columnas_a_sumar.append(col)
+#         elif 'MENOR' in condicion and edad_fin <= valor_edad:
+#             columnas_a_sumar.append(col)
+
+#     if not columnas_a_sumar:
+#         return None, f"No se encontraron grupos de edad para la condición '{rango_input}'."
+#     sum_clause = " + ".join([f"[{c}]" for c in columnas_a_sumar])
+#     return f"SUM({sum_clause})", f"POBLACION {rango_input.replace('DE', '').replace('A', '')} AÑOS"
+
+# # ----------------------------------------------------------------------
+# # --- 3. NUEVA FUNCIÓN: CONSULTA DE EDAS ---
+# # ----------------------------------------------------------------------
+
+# def consultar_edas_por_distrito():
+#     """
+#     Consulta el total de casos de EDA (DAA + DIS) por distrito desde 
+#     la base de datos EPI_BD_EDAS.
+#     """
+#     # Usar la nueva función de conexión
+#     conn = get_edas_connection()
+#     if conn is None:
+#         print("❌ No se pudo establecer la conexión a la base de datos EPI_BD_EDAS.")
+#         return
+
+#     # 1. Obtener el parámetro del usuario
+#     distrito_nombre = input("\n❓ Ingresa el nombre del distrito para la consulta de EDAs (Ej. BREÑA): ").upper().strip()
+
+#     # Definir las columnas a sumar
+#     COLUMNAS_EDA = [
+#         'DAA_C1', 'DAA_C1_4', 'DAA_C5', 'DAA_C5_11', 'DAA_C12_17', 'DAA_C18_29', 'DAA_C30_59', 'DAA_C60',
+#         'DIS_C1', 'DIS_C1_4', 'DIS_C5', 'DIS_C5_11', 'DIS_C12_17', 'DIS_C18_29', 'DIS_C30_59', 'DIS_C60'
+#     ]
+    
+#     # Crear la sentencia SUM de todas las columnas (Total de EDAs)
+#     total_sum_clause = " + ".join([f"[{col}]" for col in COLUMNAS_EDA])
+    
+#     try:
+#         cursor = conn.cursor()
+
+#         # Consulta SQL: 
+#         # 1. SUMA de todos los grupos de EDA (DAA y DIS).
+#         # 2. Filtro por el distrito ingresado.
+#         sql_query = f"""
+#         SELECT
+#             SUM({total_sum_clause}) AS Total_EDAs
+#         FROM
+#             [REPORTE_EDA_2025]
+#         WHERE
+#             ano = 2025 and [UBIGEO.1.distrito] = ?
+#         """
+        
+#         # Ejecutar la consulta con el parámetro del distrito
+#         cursor.execute(sql_query, distrito_nombre)
+#         row = cursor.fetchone()
+
+#         # 2. Procesar y mostrar el resultado
+#         print("\n" + "💧" * 25)
+#         print(f"📊 REPORTE DE VIGILANCIA DE EDAS PARA: **{distrito_nombre}**")
+#         print("=" * 60)
+        
+#         if row and row[0] is not None:
+#             total_edas = int(row[0])
+#             print(f"El total de casos de EDA (DAA + DIS, en todos los grupos de edad) en **{distrito_nombre}** es: **{total_edas:,}**")
+#         else:
+#             print(f"⚠️ No se encontraron reportes de EDA en el distrito '{distrito_nombre}'.")
+#         print("💧" * 25)
+
+#     except pyodbc.ProgrammingError as pe:
+#         print(f"❌ Error en la consulta SQL. Detalle: {pe}")
+#     except Exception as e:
+#         print(f"❌ Ocurrió un error inesperado: {e}")
+#     finally:
+#         if conn:
+#             conn.close()
+
+# # ----------------------------------------------------------------------
+# # --- 4. FUNCIONES DE POBLACIÓN Y VIGILANCIA (Se mantienen) ---
+# # ----------------------------------------------------------------------
+
+# (Las funciones de febriles, población y casos por enfermedad se mantienen igual,
+# usando sus respectivas funciones de conexión: get_febriles_connection() y get_poblacion_connection().)
+
+# def obtener_resumen_distrito():
+#     conn = get_poblacion_connection()
+#     if conn is None:
+#         print("❌ No se pudo establecer la conexión a la base de datos de Población.")
+#         return
+#     distrito_nombre = input("\n❓ Ingresa el nombre del distrito para el resumen (Ej. BREÑA): ").upper().strip()
+#     try:
+#         cursor = conn.cursor()
+#         sql_query = """
+#         SELECT
+#             SUM([MASCULINO] + [FEMENINO]) AS POBLACION_TOTAL,
+#             SUM([MASCULINO]) AS MASCULINO,
+#             SUM([FEMENINO]) AS FEMENINO,
+#             SUM([NIÑO]) AS NIÑO,
+#             SUM([Adolescente]) AS Adolescente,
+#             SUM([Joven]) AS Joven,
+#             SUM([Adulto]) AS Adulto,
+#             SUM([Adulto Mayor]) AS Adulto_Mayor
+#         FROM [POBLACION_2025_DIRIS_LIMA_CENTRO]
+#         WHERE [DISTRITO] = ?
+#         """
+#         cursor.execute(sql_query, distrito_nombre)
+#         row = cursor.fetchone()
+#         print("\n" + "🌟" * 25)
+#         if row and row[0] is not None:
+#             column_names = [col[0] for col in cursor.description]
+#             data = dict(zip(column_names, row))
+#             print(f"✨ RESUMEN DE POBLACIÓN PARA: **{distrito_nombre}** ✨")
+#             print("=" * 60)
+#             print(f"**POBLACIÓN TOTAL:** {data['POBLACION_TOTAL']:,}")
+#             print("-" * 25)
+#             print("**Población por Sexo:**")
+#             print(f"  MASCULINO: {data['MASCULINO']:,}")
+#             f"  FEMENINO: {data['FEMENINO']:,}"
+#             print("-" * 25)
+#             print("**Población por Curso de Vida:**")
+#             print(f"  NIÑO: {data['NIÑO']:,}")
+#             print(f"  ADOLESCENTE: {data['Adolescente']:,}")
+#             print(f"  JOVEN: {data['Joven']:,}")
+#             print(f"  ADULTO: {data['Adulto']:,}")
+#             print(f"  ADULTO MAYOR: {data['Adulto_Mayor']:,}")
+#         else:
+#             print(f"⚠️ No se encontró el distrito '{distrito_nombre}' en la base de datos.")
+#         print("🌟" * 25)
+#     except pyodbc.ProgrammingError as pe:
+#         print(f"❌ Error en la consulta SQL. Detalle: {pe}")
+#     except Exception as e:
+#         print(f"❌ Ocurrió un error inesperado: {e}")
+#     finally:
+#         if conn: conn.close()
+
+# def consultar_casos_enfermedad():
+#     conn = get_poblacion_connection()
+#     if conn is None:
+#         print("❌ No se pudo establecer la conexión a la base de datos de Población (NOTIWEB).")
+#         return
+#     distrito_nombre = input("\n❓ Ingresa el nombre del distrito (Ej. BREÑA): ").upper().strip()
+#     enfermedad = input("❓ Ingresa el nombre del DIAGNOSTICO (Ej. TOS FERINA): ").upper().strip()
+#     try:
+#         cursor = conn.cursor()
+#         sql_query = """
+#         SELECT
+#             [TIPO_DX],
+#             COUNT(*) AS Cantidad
+#         FROM
+#             [NOTIWEB_2025]
+#         WHERE
+#             [distrito] = ?
+#             AND [DIAGNOSTICO] = ?
+#             AND [subregion] = 'DIRIS LIMA CENTRO' 
+#         GROUP BY
+#             [TIPO_DX]
+#         ORDER BY
+#             Cantidad DESC
+#         """
+#         cursor.execute(sql_query, distrito_nombre, enfermedad)
+#         resultados = cursor.fetchall()
+#         print("\n" + "🦠" * 20)
+#         print(f"🔬 CASOS DE **{enfermedad}** EN **{distrito_nombre}**")
+#         print("=" * 60)
+#         if resultados:
+#             total_casos = 0
+#             detalle_casos = []
+#             for tipo_dx, cantidad in resultados:
+#                 detalle_casos.append(f"{cantidad}{tipo_dx[0]}")
+#                 total_casos += cantidad
+#             detalle_str = ', '.join(detalle_casos)
+#             print(f"Del distrito de **{distrito_nombre}** hay **{total_casos}** casos de **{enfermedad}** ({detalle_str}).")
+#             print("\nDetalle por Tipo de Diagnóstico:")
+#             for tipo_dx, cantidad in resultados:
+#                 print(f"  - {tipo_dx}: {cantidad:,} casos")
+#         else:
+#             print(f"⚠️ No se encontraron casos de '{enfermedad}' en el distrito '{distrito_nombre}'.")
+#         print("🦠" * 20)
+#     except pyodbc.ProgrammingError as pe:
+#         print(f"❌ Error en la consulta SQL. Detalle: {pe}")
+#     except Exception as e:
+#         print(f"❌ Ocurrió un error inesperado: {e}")
+#     finally:
+#         if conn: conn.close()
+
+# def consultar_febriles_por_distrito():
+#     conn = get_febriles_connection()
+#     if conn is None:
+#         print("❌ No se pudo establecer la conexión a la base de datos EPI_BD_FEBRILES.")
+#         return
+#     distrito_nombre = input("\n❓ Ingresa el nombre del distrito para la consulta de febriles (Ej. BREÑA): ").upper().strip()
+#     COLUMNAS_FEBRILES = ['feb_m1', 'feb_1_4', 'feb_5_9', 'feb_10_19', 'feb_20_59', 'feb_m60']
+#     select_columns = [f"SUM([{col}]) AS {col}" for col in COLUMNAS_FEBRILES]
+#     select_columns_str = ", ".join(select_columns)
+#     total_sum_clause = " + ".join([f"[{col}]" for col in COLUMNAS_FEBRILES])
+#     try:
+#         cursor = conn.cursor()
+#         sql_query = f"""
+#         SELECT
+#             {select_columns_str},
+#             SUM({total_sum_clause}) AS Total_Febriles
+#         FROM
+#             [REPORTE_FEBRILES_2025]
+#         WHERE
+#             [UBIGEO.1.distrito] = ?
+#             AND [UBIGEO.1.subregion] = 'DIRIS LIMA CENTRO'
+#             and ano = 2025
+#         """
+#         cursor.execute(sql_query, distrito_nombre)
+#         row = cursor.fetchone()
+#         print("\n" + "🔥" * 25)
+#         print(f"🌡️ REPORTE DE VIGILANCIA DE ENFERMEDADES FEBRILES PARA: **{distrito_nombre}**")
+#         print("=" * 60)
+#         if row and row[0] is not None:
+#             column_names = [col[0] for col in cursor.description]
+#             data = dict(zip(column_names, row))
+#             total_febriles = int(data['Total_Febriles'])
+#             print(f"**TOTAL DE CASOS FEBRILES:** **{total_febriles:,}**")
+#             print("-" * 25)
+#             print("**Desglose por Grupo de Edad:**")
+#             for col in COLUMNAS_FEBRILES:
+#                 valor = int(data[col]) if data[col] is not None else 0
+#                 print(f"  [{col}]: {valor:,}")
+#         else:
+#             print(f"⚠️ No se encontraron reportes de febriles en el distrito '{distrito_nombre}' para la subregión 'DIRIS LIMA CENTRO'.")
+#         print("🔥" * 25)
+#     except pyodbc.ProgrammingError as pe:
+#         print(f"❌ Error en la consulta SQL. Detalle: {pe}")
+#     except Exception as e:
+#         print(f"❌ Ocurrió un error inesperado: {e}")
+#     finally:
+#         if conn: conn.close()
+
+# def consultar_poblacion_detallada():
+#     conn = get_poblacion_connection()
+#     if conn: conn.close()
+
+#     print("\n--- TIPOS DE CONSULTA ---")
+#     print("1: Por Curso de Vida (Población)")
+#     print("2: Por Sexo (Población)")
+#     print("3: Población Total")
+#     print("4: Por Rango de Edad (Población)")
+#     print("5: Resumen Completo por Distrito (Población)")
+#     print("6: Casos por Enfermedad y Tipo de DX (Vigilancia - NOTIWEB)")
+#     print("7: Casos Febriles por Distrito (Vigilancia - FEBRILES)")
+#     print("8: **Casos de EDA por Distrito (Vigilancia - EDAS)**") # Opción 8
+    
+#     tipo_consulta = input("Elige el número de la consulta (1-8): ").strip()
+
+#     if tipo_consulta == '5':
+#         obtener_resumen_distrito()
+#     elif tipo_consulta == '6':
+#         consultar_casos_enfermedad()
+#     elif tipo_consulta == '7':
+#         consultar_febriles_por_distrito()
+#     elif tipo_consulta == '8':
+#         consultar_edas_por_distrito() # Llamada a la nueva función
+#     elif tipo_consulta in ['1', '2', '3', '4']:
+#         conn = get_poblacion_connection()
+#         if conn is None: return
+        
+#         CURSOS_VIDA = ['NIÑO', 'ADOLESCENTE', 'JOVEN', 'ADULTO', 'ADULTO MAYOR']
+#         SEXOS = ['MASCULINO', 'FEMENINO']
+#         distrito_nombre = input("❓ Ingresa el nombre del distrito: ").upper().strip()
+#         columna_sql = ""
+#         alias_columna = "VALOR_CONSULTADO"
+        
+#         if tipo_consulta == '1':
+#             print(f"\nCursos de Vida disponibles: {', '.join(CURSOS_VIDA)}")
+#             campo = input("Ingresa el Curso de Vida a consultar: ").upper().strip()
+#             if campo not in CURSOS_VIDA: print(f"⚠️ Error: '{campo}' no es válido."); conn.close(); return
+#             columna_sql = f"SUM([{campo}])"; alias_columna = campo
+#         elif tipo_consulta == '2':
+#             print(f"\nSexos disponibles: {', '.join(SEXOS)}")
+#             campo = input("Ingresa el Sexo a consultar: ").upper().strip()
+#             if campo not in SEXOS: print(f"⚠️ Error: '{campo}' no es válido."); conn.close(); return
+#             columna_sql = f"SUM([{campo}])"; alias_columna = campo
+#         elif tipo_consulta == '3':
+#             columna_sql = "SUM([MASCULINO] + [FEMENINO])"; alias_columna = "POBLACION TOTAL"
+#         elif tipo_consulta == '4':
+#             rango_input = input("Ingresa la condición de edad (Ej. Mayor de 30 o Menor de 10): ")
+#             columna_sql, alias_columna = obtener_columnas_por_rango(rango_input)
+#             if columna_sql is None: print(f"⚠️ Error al procesar el rango: {alias_columna}"); conn.close(); return
+        
+#         try:
+#             cursor = conn.cursor()
+#             sql_query = f"SELECT {columna_sql} AS RESULTADO FROM [POBLACION_2025_DIRIS_LIMA_CENTRO] WHERE [DISTRITO] = ?"
+#             cursor.execute(sql_query, distrito_nombre)
+#             row = cursor.fetchone()
+#             print("\n" + "=" * 60)
+#             if row and row[0] is not None:
+#                 valor = int(row[0])
+#                 print(f"Resultados para el distrito: **{distrito_nombre}**")
+#                 print(f"Criterio: **{alias_columna}**")
+#                 print(f"Población: **{valor:,}**")
+#             else:
+#                 print(f"⚠️ No se encontró el distrito '{distrito_nombre}' o no hay datos para esa selección.")
+#             print("=" * 60)
+#         except Exception as e:
+#             print(f"❌ Ocurrió un error: {e}")
+#         finally:
+#             if conn: conn.close()
+#     else:
+#         print("⚠️ Opción de consulta no válida.")
+
+# # --- 5. EJECUTAR EL PROGRAMA ---
+
+# if __name__ == "__main__":
+#     consultar_poblacion_detallada()
