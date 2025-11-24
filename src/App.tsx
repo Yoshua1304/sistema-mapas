@@ -245,6 +245,7 @@ function App() {
   const [mapSearchTerm, setMapSearchTerm] = useState('');
   const [searchedDistrictId, setSearchedDistrictId] = useState<string | null>(null);
   const [clickedDistrictId, setClickedDistrictId] = useState<string | null>(null);
+  const [selectedDistrictLayerIds, setSelectedDistrictLayerIds] = useState<Set<string>>(new Set());
   const [map, setMap] = useState<any>(null);
   const [suggestionResults, setSuggestionResults] = useState<string[]>([]);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
@@ -451,6 +452,7 @@ const handleDiagnosticoSelect = (diagnostico: string, checked: boolean) => {
 
   const handleLayerSelection = (layerId: string, isSelected: boolean) => {
     const newSelectedLayers = new Set(selectedLayers);
+    const newSelectedDistrictLayerIds = new Set(selectedDistrictLayerIds);
 
     const findLayerById = (id: string, layersToSearch: Layer[]): Layer | undefined => {
         for (const layer of layersToSearch) {
@@ -488,7 +490,22 @@ const handleDiagnosticoSelect = (diagnostico: string, checked: boolean) => {
         });
     }
 
+    // Si la capa seleccionada es un distrito individual
+    if (allDistricts?.features.some(f => f.properties.NM_DIST === layerId)) {
+        if (isSelected) {
+            newSelectedDistrictLayerIds.add(layerId.toUpperCase());
+        } else {
+            newSelectedDistrictLayerIds.delete(layerId.toUpperCase());
+        }
+    }
+    
+    // Si se hace clic en la capa principal 'distritos', limpia la selección individual
+    if (layerId === 'distritos' && !isSelected) {
+        newSelectedDistrictLayerIds.clear();
+    }
+
     setSelectedLayers(newSelectedLayers);
+    setSelectedDistrictLayerIds(newSelectedDistrictLayerIds);
   };
 
   const handleMapSearch = () => {
@@ -593,6 +610,9 @@ const getDistrictStyle = (feature: any) => {
   const distrito = feature.properties.NM_DIST?.toUpperCase();
   const isSearched = searchedDistrictId === distrito;
   const isClicked = clickedDistrictId === distrito;
+
+  // ⭐ NUEVO: Resaltado por selección en el panel de Capas ⭐
+  const isLayerSelected = selectedDistrictLayerIds.has(distrito);
   
   // 🚨 ESTILO BASE
   const baseStyle = {
@@ -603,7 +623,7 @@ const getDistrictStyle = (feature: any) => {
   };
 
   // --- 1. RESALTE DE BÚSQUEDA (MÁXIMA PRIORIDAD) ---
-  if (isSearched || isClicked) {
+  if (isSearched || isClicked || isLayerSelected) {
     return {
       ...baseStyle,
       color: "#000000ff",
@@ -675,6 +695,7 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
 
       setClickedDistrictId(districtName.toUpperCase());
       setSearchedDistrictId(null);
+      setSelectedDistrictLayerIds(new Set());
 
       const layer = e.target;
     
