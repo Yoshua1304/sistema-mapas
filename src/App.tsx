@@ -244,6 +244,7 @@ function App() {
   const [layerSearchTerm, setLayerSearchTerm] = useState('');
   const [mapSearchTerm, setMapSearchTerm] = useState('');
   const [searchedDistrictId, setSearchedDistrictId] = useState<string | null>(null);
+  const [clickedDistrictId, setClickedDistrictId] = useState<string | null>(null);
   const [map, setMap] = useState<any>(null);
   const [suggestionResults, setSuggestionResults] = useState<string[]>([]);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
@@ -566,6 +567,7 @@ const handleDiagnosticoSelect = (diagnostico: string, checked: boolean) => {
 
     if (foundDistrict && map) {
       const tempLayer = L.geoJson(foundDistrict);
+      setClickedDistrictId(null);
 
       // 2. Obtener los límites del polígono
       const bounds = tempLayer.getBounds();
@@ -589,7 +591,8 @@ const handleDiagnosticoSelect = (diagnostico: string, checked: boolean) => {
 
 const getDistrictStyle = (feature: any) => {
   const distrito = feature.properties.NM_DIST?.toUpperCase();
-  const isSearched = searchedDistrictId === distrito; // Estado de búsqueda de la barra superior
+  const isSearched = searchedDistrictId === distrito;
+  const isClicked = clickedDistrictId === distrito;
   
   // 🚨 ESTILO BASE
   const baseStyle = {
@@ -600,13 +603,13 @@ const getDistrictStyle = (feature: any) => {
   };
 
   // --- 1. RESALTE DE BÚSQUEDA (MÁXIMA PRIORIDAD) ---
-  if (isSearched) {
+  if (isSearched || isClicked) {
     return {
       ...baseStyle,
       color: "#000000ff",
       weight: 3, // Borde más grueso
       fillOpacity: 0.9,
-      fillColor: "#f7a52bff",
+      fillColor: "#f7a52bff", // Color naranja
     };
   }
 
@@ -669,6 +672,9 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
       e.target.setStyle(getDistrictStyle(feature));
     },
     click: async (e) => {
+
+      setClickedDistrictId(districtName.toUpperCase());
+      setSearchedDistrictId(null);
 
       const layer = e.target;
     
