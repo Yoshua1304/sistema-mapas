@@ -244,6 +244,8 @@ function App() {
   const [mapSearchTerm, setMapSearchTerm] = useState('');
   const [searchedDistrictId, setSearchedDistrictId] = useState<string | null>(null);
   const [map, setMap] = useState<any>(null);
+  const [suggestionResults, setSuggestionResults] = useState<string[]>([]);
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [isBaseMapSelectorOpen, setBaseMapSelectorOpen] = useState(false);
   const [currentBaseMap, setCurrentBaseMap] = useState<BaseMap>(BASE_MAPS[0]);
   const position: [number, number] = [-12.08, -77.02];
@@ -518,9 +520,47 @@ const handleDiagnosticoSelect = (diagnostico: string, checked: boolean) => {
   const handleMapSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setMapSearchTerm(value);
+    
     if (value.trim() === '' && map) {
         setSearchedDistrictId(null);
+        setSuggestionResults([]); // Limpia la lista
+        setIsSuggestionsOpen(false); // Cierra las sugerencias
         map.flyTo(position, zoomLevel);
+        return;
+    }
+    
+    // ⭐ Lógica de Autocompletado (solo si hay distritos cargados)
+    if (allDistricts && value.trim() !== '') {
+      const searchTermLower = value.trim().toLowerCase();
+      const filteredNames = allDistricts.features
+        .map(feature => feature.properties.NM_DIST) // Obtener solo el nombre
+        .filter(name => name && name.toLowerCase().includes(searchTermLower)); // Filtrar
+
+      setSuggestionResults(filteredNames.slice(0, 10)); // Mostrar hasta 10 sugerencias
+      setIsSuggestionsOpen(true);
+    } else {
+        setSuggestionResults([]);
+        setIsSuggestionsOpen(false);
+    }
+  };
+
+  const handleSuggestionSelect = (districtName: string) => {
+    setMapSearchTerm(districtName); // Establece el input con el nombre completo
+    setIsSuggestionsOpen(false); // Cierra las sugerencias
+    
+    // Ejecuta la búsqueda de inmediato
+    const foundDistrict = allDistricts?.features.find(feature =>
+      feature.properties.NM_DIST.toLowerCase() === districtName.toLowerCase()
+    );
+
+    if (foundDistrict && map) {
+      const lat = foundDistrict.properties.auxiliar_1;
+      const lng = foundDistrict.properties.auxiliary_;
+
+      if (lat && lng) {
+        map.flyTo([lat, lng], 14);
+        setSearchedDistrictId(`${foundDistrict.properties.NM_DIST?.toUpperCase()}`);
+      }
     }
   };
 
@@ -533,7 +573,9 @@ const handleDiagnosticoSelect = (diagnostico: string, checked: boolean) => {
 
 const getDistrictStyle = (feature: any) => {
   const distrito = feature.properties.NM_DIST?.toUpperCase();
-
+  const isSearched = searchedDistrictId === distrito; // Estado de búsqueda de la barra superior
+  
+  // 🚨 ESTILO BASE
   const baseStyle = {
     weight: 1,
     color: "#555",
@@ -541,8 +583,18 @@ const getDistrictStyle = (feature: any) => {
     fillColor: "#D3D3D3",
   };
 
-  if (!diagnosticoSeleccionado) return baseStyle;
+  // --- 1. RESALTE DE BÚSQUEDA (MÁXIMA PRIORIDAD) ---
+  if (isSearched) {
+    return {
+      ...baseStyle,
+      color: "#00BFFF", // Azul Cian brillante
+      weight: 3, // Borde más grueso
+      fillOpacity: 0.9,
+      fillColor: "#00BFFF",
+    };
+  }
 
+  // --- 2. RESALTE POR CASOS (Prioridad Media) ---
   const casos = casosPorDistrito[distrito] ?? 0;
 
   if (casos === 0) {
@@ -553,12 +605,12 @@ const getDistrictStyle = (feature: any) => {
     };
   }
 
-  // Escala simple
+  // Escala simple (se mantiene tu lógica)
   const escala = casos > 50 ? "#800026" :
                  casos > 20 ? "#BD0026" :
                  casos > 10 ? "#E31A1C" :
-                 casos > 5  ? "#FC4E2A" :
-                 casos > 1  ? "#FD8D3C" :
+                 casos > 5  ? "#FC4E2A" :
+                 casos > 1  ? "#FD8D3C" :
                               "#FEB24C";
 
   return {
@@ -573,47 +625,63 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
 
   if (!districtName) return;
 
-  layer.on("click", async () => {
-  const districtName = feature.properties.NM_DIST;
+  // ⭐ NUEVO: Efectos visuales de HOVER
+  layer.on({
+    mouseover: (e) => {
+      // Resaltar el borde del distrito
+      e.target.setStyle({
+        weight: 3, 
+        color: '#666', 
+        dashArray: '',
+        fillOpacity: 0.9
+      });
 
-  // 1. población
-  const dataPoblacion = await obtenerPoblacion(districtName);
+      // Asegurarse de que el distrito "flote" por encima de los demás
+      e.target.bringToFront(); 
+    },
+    mouseout: (e) => {
+      // Restablecer el estilo al salir del hover (pide a Leaflet que recalcule el estilo)
+      e.target.setStyle(getDistrictStyle(feature));
+    },
+    click: async () => {
+      // 1. población
+      const dataPoblacion = await obtenerPoblacion(districtName);
 
-  // 2. total de casos
-  const caseCount = await obtenerCasosTotales(districtName);
+      // 2. total de casos
+      const caseCount = await obtenerCasosTotales(districtName);
 
-  // 3. detalles múltiples diagnósticos
-  const detalleDiagnostico: Record<string, any> = {};
+      // 3. detalles múltiples diagnósticos
+      const detalleDiagnostico: Record<string, any> = {};
 
-  for (const diag of diagnosticoSeleccionado) {
-    const data = await obtenerCasosEnfermedad(districtName, diag);
+      for (const diag of diagnosticoSeleccionado) {
+        const data = await obtenerCasosEnfermedad(districtName, diag);
 
-    detalleDiagnostico[diag] = {
-      total: data.total || 0,
-      detalle: data.detalle || [],
-    };
-  }
+        detalleDiagnostico[diag] = {
+          total: data.total || 0,
+          detalle: data.detalle || [],
+        };
+      }
 
-  // 4. guardar en estado
-  setCasosDetallePorDistrito(prev => ({
-    ...prev,
-    [districtName]: detalleDiagnostico
-  }));
+      // 4. guardar en estado
+      setCasosDetallePorDistrito(prev => ({
+        ...prev,
+        [districtName]: detalleDiagnostico
+      }));
 
-  // 5. render popup
-  const popupContent = ReactDOMServer.renderToString(
-    <DistrictPopup
-      districtName={districtName}
-      caseCount={caseCount}
-      poblacion={dataPoblacion}
-      diagnosticoSeleccionado={diagnosticoSeleccionado}
-      detalleDiagnostico={detalleDiagnostico}
-    />
-  );
+      // 5. render popup
+      const popupContent = ReactDOMServer.renderToString(
+        <DistrictPopup
+          districtName={districtName}
+          caseCount={caseCount}
+          poblacion={dataPoblacion}
+          diagnosticoSeleccionado={diagnosticoSeleccionado}
+          detalleDiagnostico={detalleDiagnostico}
+        />
+      );
 
-  layer.bindPopup(popupContent, { maxWidth: 400 });
-});
-
+      layer.bindPopup(popupContent, { maxWidth: 400 });
+    }
+  });
 };
 
   const filteredLayers = useMemo(() => {
@@ -737,21 +805,45 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
 
         </div>
 
-        {/* BUSCADOR EN MAPA */}
-        <div ref={mapSearchBarRef} className="map-search-bar">
-          <input
-            type="text"
-            placeholder="Departamento, provincia o distrito"
-            value={mapSearchTerm}
-            onChange={handleMapSearchChange}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleMapSearch();
-              }
-            }}
-          />
-          <button onClick={handleMapSearch}>🔍</button>
-        </div>
+        {/* BUSCADOR EN MAPA con Autocompletado */}
+        <div 
+          ref={mapSearchBarRef} 
+          className="map-search-bar-container" // ⭐ Nuevo contenedor para posicionamiento
+        >
+          <div className="map-search-bar">
+            <input
+              type="text"
+              placeholder="Departamento, provincia o distrito"
+              value={mapSearchTerm}
+              onChange={handleMapSearchChange}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleMapSearch(); // Mantiene la funcionalidad de Enter
+                }
+              }}
+              // Añade un evento para cerrar las sugerencias al perder el foco
+              onBlur={() => setTimeout(() => setIsSuggestionsOpen(false), 200)} 
+              onFocus={() => {
+                  if (suggestionResults.length > 0) setIsSuggestionsOpen(true);
+              }}
+            />
+            <button onClick={handleMapSearch}>🔍</button>
+          </div>
+
+          {/* ⭐ MENÚ DE SUGERENCIAS */}
+          {isSuggestionsOpen && suggestionResults.length > 0 && (
+            <ul className="suggestion-list">
+              {suggestionResults.map((district) => (
+                <li 
+                  key={district} 
+                  onClick={() => handleSuggestionSelect(district)}
+                >
+                  {district}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         {/* BOTONERA DEL MAPA */}
         <div className="map-tools">
