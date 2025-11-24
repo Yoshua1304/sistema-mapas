@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { MapContainer, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet';
 import { DomEvent, Layer as LeafletLayer } from 'leaflet';
-//import * as L from 'leaflet';
+import * as L from 'leaflet';
 import proj4 from 'proj4';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
@@ -502,11 +502,21 @@ const handleDiagnosticoSelect = (diagnostico: string, checked: boolean) => {
     );
 
     if (foundDistrict) {
-      const lat = foundDistrict.properties.auxiliar_1;
-      const lng = foundDistrict.properties.auxiliary_;
-
-      if (lat && lng) {
-        map.flyTo([lat, lng], 14);
+    // ⭐ MODIFICACIÓN CLAVE DE ZOOM ⭐
+    if (map) { 
+        // 1. Crear una capa temporal con la geometría del distrito
+        // Asegúrate de que L esté disponible (importa * as L from 'leaflet' si lo necesitas)
+        const tempLayer = L.geoJson(foundDistrict); 
+        
+        // 2. Obtener los límites del polígono
+        const bounds = tempLayer.getBounds();
+        
+        // 3. Ajustar la vista del mapa, usando los mismos parámetros que el zoom por click
+        map.fitBounds(bounds, {
+            padding: [50, 50],
+            maxZoom: 14 // Usa el mismo valor de maxZoom que en onEachDistrict
+        });
+    
         setSearchedDistrictId(`${foundDistrict.properties.NM_DIST}`);
       } else {
         alert('No se pudieron encontrar las coordenadas para este distrito.');
@@ -555,13 +565,18 @@ const handleDiagnosticoSelect = (diagnostico: string, checked: boolean) => {
     );
 
     if (foundDistrict && map) {
-      const lat = foundDistrict.properties.auxiliar_1;
-      const lng = foundDistrict.properties.auxiliary_;
+      const tempLayer = L.geoJson(foundDistrict);
 
-      if (lat && lng) {
-        map.flyTo([lat, lng], 14);
-        setSearchedDistrictId(`${foundDistrict.properties.NM_DIST?.toUpperCase()}`);
-      }
+      // 2. Obtener los límites del polígono
+      const bounds = tempLayer.getBounds();
+      
+      // 3. Ajustar la vista del mapa
+      map.fitBounds(bounds, {
+          padding: [50, 50],
+          maxZoom: 14 // Usa el mismo valor de maxZoom que en onEachDistrict
+      });
+
+      setSearchedDistrictId(`${foundDistrict.properties.NM_DIST?.toUpperCase()}`);
     }
   };
 
