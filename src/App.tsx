@@ -377,15 +377,24 @@ const cargarCasosPorDiagnostico = async (diagnostico: string) => {
 };
 
 
-        const handleDiagnosticoSelect = (diagnostico: string, checked: boolean) => {
-          setDiagnosticoSeleccionado((prev) => {
-            if (checked) {
-              return [...prev, diagnostico]; // agregar
-            } else {
-              return prev.filter((d) => d !== diagnostico); // quitar
-            }
-          });
-        };
+      // En App.tsx
+      const handleDiagnosticoSelect = (diagnostico: string, checked: boolean) => {
+        setDiagnosticoSeleccionado(prev => {
+          let nuevo;
+          if (checked) {
+            // evitar duplicados
+            nuevo = prev.includes(diagnostico) ? prev : [...prev, diagnostico];
+          } else {
+            nuevo = prev.filter(d => d !== diagnostico);
+          }
+
+          // después de actualizar el array, recarga o actualiza los casos/pintado
+          // si tienes una función que carga todos los casos por los diagnósticos actuales:
+          cargarCasosPorDiagnostico(nuevo); // implementa esta función para actualizar casosPorDistrito, estilos, etc.
+
+          return nuevo;
+        });
+      };
 
 
 

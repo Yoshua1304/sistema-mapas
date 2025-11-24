@@ -13,8 +13,7 @@ interface LayerItemProps {
 
   // selector real para pintar mapa por diagnóstico
   onDiagnosticoSelect?: (diagnostico: string, checked: boolean) => void;
-  diagnosticoSeleccionado?: string[];
-
+  diagnosticoSeleccionado?: string[]; // ahora es array
 
   isSearchActive?: boolean;
 }
@@ -27,16 +26,12 @@ const LayerItem: React.FC<LayerItemProps> = ({
   diagnosticoSeleccionado,
   isSearchActive
 }) => {
-//  console.log("🧩 ID de la capa:", layer.id);
-
   const isInitiallyExpanded =
     layer.id === 'vigilancia-salud-publica' || layer.id === 'distritos';
 
   const [isExpanded, setIsExpanded] = useState(isInitiallyExpanded);
-
   const hasSubLayers = layer.subLayers && layer.subLayers.length > 0;
 
-  // Manejo de expandir al buscar
   useEffect(() => {
     if (isSearchActive && hasSubLayers) {
       setIsExpanded(true);
@@ -47,7 +42,6 @@ const LayerItem: React.FC<LayerItemProps> = ({
 
   const isSelected = selectedLayers.has(layer.id);
 
-  // Expandir categoría
   const handleToggleExpand = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (hasSubLayers && !isSearchActive) {
@@ -55,29 +49,24 @@ const LayerItem: React.FC<LayerItemProps> = ({
     }
   };
 
-  // Seleccionar la capa (NO activa diagnóstico)
+  // Manejo del checkbox principal.
+  // Si la capa es diagnostic-*, este checkbox actuará como "seleccionar diagnóstico" Y como "pintar".
   const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
-    const nuevoEstado = !isSelected;
-    onSelectionChange(layer.id, nuevoEstado);
-    console.log("🔥 CLICK en checkbox:", layer.name);
+    const nuevoEstado = e.target.checked;
 
-    // ⭐ Si es un diagnóstico
-if (layer.id.startsWith("diagnostico-")) {
-  if (nuevoEstado) {
-    onDiagnosticoSelect?.(layer.name);    // activar diagnóstico
-  } else {
-    onDiagnosticoSelect?.(null);          // desactivar
-    onDiagnosticoData?.([]);              // limpiar mapa
-  }
-}
+    // 1) Notificar selección de capa (visibilidad)
+    onSelectionChange(layer.id, nuevoEstado);
+
+    // 2) Si es diagnóstico, notificar selección/ deselección del diagnóstico (array)
+    if (layer.id.startsWith("diagnostico-")) {
+      onDiagnosticoSelect?.(layer.name, nuevoEstado);
+    }
   };
 
   return (
     <li className="layer-item">
       <div className="layer-header" onClick={handleToggleExpand}>
-        
-        {/* Flecha */}
         <span
           className={`arrow ${hasSubLayers ? 'clickable' : ''} ${isExpanded ? 'expanded' : ''}`}
         >
@@ -85,31 +74,20 @@ if (layer.id.startsWith("diagnostico-")) {
         </span>
 
         {/* Checkbox principal (mostrar la capa) */}
+        {/* Para capas diagnósticas: este checkbox será la única UI */}
         <input
           type="checkbox"
-          checked={isSelected}
+          checked={
+            layer.id.startsWith("diagnostico-")
+              ? !!diagnosticoSeleccionado?.includes(layer.name)
+              : isSelected
+          }
           onChange={handleSelect}
           onClick={(e) => e.stopPropagation()}
           className="layer-checkbox"
         />
 
         <span className="layer-name">{layer.name}</span>
-
-        {/* Checkbox exclusivo para activar "pintado" por diagnóstico */}
-          {layer.id.startsWith("diagnostico-") && (
-            <div className="diagnostico-checkbox">
-              <input
-                type="checkbox"
-                checked={diagnosticoSeleccionado?.includes(layer.name)}
-                onChange={(e) => {
-                  onDiagnosticoSelect?.(layer.name, e.target.checked);
-                }}
-                onClick={(e) => e.stopPropagation()}
-              />
-              <span>Pintar</span>
-            </div>
-          )}
-
       </div>
 
       {/* Subcapas */}
