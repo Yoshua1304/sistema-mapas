@@ -12,8 +12,9 @@ interface LayerItemProps {
   onSelectionChange: (layerId: string, isSelected: boolean) => void;
 
   // selector real para pintar mapa por diagnóstico
-  onDiagnosticoSelect?: (diagnostico: string | null) => void;
-  diagnosticoSeleccionado?: string | null;
+  onDiagnosticoSelect?: (diagnostico: string, checked: boolean) => void;
+  diagnosticoSeleccionado?: string[];
+
 
   isSearchActive?: boolean;
 }
@@ -26,7 +27,7 @@ const LayerItem: React.FC<LayerItemProps> = ({
   diagnosticoSeleccionado,
   isSearchActive
 }) => {
-console.log("🧩 ID de la capa:", layer.id);
+//  console.log("🧩 ID de la capa:", layer.id);
 
   const isInitiallyExpanded =
     layer.id === 'vigilancia-salud-publica' || layer.id === 'distritos';
@@ -95,21 +96,20 @@ if (layer.id.startsWith("diagnostico-")) {
         <span className="layer-name">{layer.name}</span>
 
         {/* Checkbox exclusivo para activar "pintado" por diagnóstico */}
-        {layer.id.startsWith("diagnostico-") && (
-          <div className="diagnostico-checkbox">
-            <input
-              type="checkbox"
-              checked={diagnosticoSeleccionado === layer.name}
-              onChange={() =>
-                onDiagnosticoSelect?.(
-                  diagnosticoSeleccionado === layer.name ? null : layer.name
-                )
-              }
-              onClick={(e) => e.stopPropagation()}
-            />
-            <span>Pintar</span>
-          </div>
-        )}
+          {layer.id.startsWith("diagnostico-") && (
+            <div className="diagnostico-checkbox">
+              <input
+                type="checkbox"
+                checked={diagnosticoSeleccionado?.includes(layer.name)}
+                onChange={(e) => {
+                  onDiagnosticoSelect?.(layer.name, e.target.checked);
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span>Pintar</span>
+            </div>
+          )}
+
       </div>
 
       {/* Subcapas */}

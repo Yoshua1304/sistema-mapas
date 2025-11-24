@@ -256,8 +256,11 @@ function App() {
     // Casos por distrito (mapa dinámico)
     const [casosPorDistrito, setCasosPorDistrito] = useState<Record<string, number>>({});
   // Estado para diagnóstico seleccionado
-  const [diagnosticoSeleccionado, setDiagnosticoSeleccionado] = useState(null);
+  const [diagnosticoSeleccionado, setDiagnosticoSeleccionado] = useState<string[]>([]);
 
+console.log("🟦 diagnosticoSeleccionado TYPE:", typeof diagnosticoSeleccionado);
+console.log("🟦 diagnosticoSeleccionado VALUE:", diagnosticoSeleccionado);
+console.log("🟦 diagnosticoSeleccionado IS ARRAY:", Array.isArray(diagnosticoSeleccionado));
 
 
 const obtenerPoblacion = async (distrito: string) => {
@@ -288,6 +291,15 @@ const obtenerCasosTotales = async (distrito: string) => {
   }
 };
 
+const [casosDetallePorDistrito, setCasosDetallePorDistrito] = useState<
+  Record<
+    string,
+    {
+      total: number;
+      detalle: { tipo_dx: string; cantidad: number }[];
+    }
+  >
+>({});
 
 const cargarCasosPorDiagnostico = async (diagnostico: string) => {
   if (!allDistricts) return;
@@ -297,10 +309,16 @@ const cargarCasosPorDiagnostico = async (diagnostico: string) => {
   console.log(`============================`);
 
   const resultados: Record<string, number> = {};
+  const detalles: Record<
+    string,
+    {
+      total: number;
+      detalle: { tipo_dx: string; cantidad: number }[];
+    }
+  > = {};
 
   for (const feature of allDistricts.features) {
     const distrito = feature.properties.NM_DIST;
-
     const url = `http://localhost:5000/api/casos_enfermedad?distrito=${distrito}&enfermedad=${diagnostico}`;
 
     console.log(`🌐 Consultando backend para distrito: ${distrito}`);
@@ -311,48 +329,67 @@ const cargarCasosPorDiagnostico = async (diagnostico: string) => {
 
       if (!res.ok) {
         console.error(`❌ Error HTTP (${res.status}) en distrito ${distrito}`);
+
         resultados[distrito.toUpperCase()] = 0;
+        detalles[distrito.toUpperCase()] = {
+          total: 0,
+          detalle: []
+        };
         continue;
       }
 
       const data = await res.json();
 
       console.log(
-        `📁 Respuesta recibida para ${distrito}: ${JSON.stringify(data)}`
+        `📁 Respuesta para ${distrito}: ${JSON.stringify(data)}`
       );
 
       resultados[distrito.toUpperCase()] = data.total || 0;
 
+      detalles[distrito.toUpperCase()] = {
+        total: data.total || 0,
+        detalle: data.detalle || []
+      };
+
     } catch (err) {
       console.error(`❌ Error de conexión en distrito ${distrito}`, err);
+
       resultados[distrito.toUpperCase()] = 0;
+      detalles[distrito.toUpperCase()] = {
+        total: 0,
+        detalle: []
+      };
     }
   }
 
   console.log(`============================`);
-  console.log(`📊 RESULTADO FINAL DEL DIAGNÓSTICO: ${diagnostico}`);
+  console.log(`📊 RESULTADO FINAL: ${diagnostico}`);
   console.log(`============================`);
 
   Object.entries(resultados).forEach(([dist, total]) => {
     console.log(`🏙  ${dist}: ${total} casos`);
   });
 
-  console.log(`============================`);
-
   setCasosPorDistrito(resultados);
+  setCasosDetallePorDistrito(detalles); // ⭐ Nuevo
+
+  console.log(`============================`);
 };
 
 
-  const handleDiagnosticoSelect = async (diagnostico: string | null) => {
-    setDiagnosticoSeleccionado(diagnostico);
-    console.log("🎯 Diagnóstico seleccionado:", diagnostico);
+        const handleDiagnosticoSelect = (diagnostico: string, checked: boolean) => {
+          setDiagnosticoSeleccionado((prev) => {
+            if (checked) {
+              return [...prev, diagnostico]; // agregar
+            } else {
+              return prev.filter((d) => d !== diagnostico); // quitar
+            }
+          });
+        };
 
-    if (diagnostico) {
-      await cargarCasosPorDiagnostico(diagnostico);  // ← 🔥 carga número de casos
-    } else {
-      setCasosPorDistrito({});                       // ← limpia mapa
-    }
-  };
+
+
+
 
   
   // Callback refs to stop event propagation to the map
@@ -377,7 +414,7 @@ const cargarCasosPorDiagnostico = async (diagnostico: string) => {
         setAllDistricts(data);
         
         const districtNames = data.features.map(feature => ({
-          id: `distrito-${feature.properties.CD_DIST}`,
+          id: `${feature.properties.NM_DIST}`,
           name: feature.properties.NM_DIST,
         }));
 
@@ -438,7 +475,7 @@ useEffect(() => {
             allDistrictIds.forEach(id => newSelectedLayers.delete(id));
         }
     } 
-    else if (layerId.startsWith('distrito-')) {
+    else if (layerId.startsWith('')) {
         if (isSelected) {
             newSelectedLayers.add(layerId);
         } else {
@@ -473,7 +510,7 @@ useEffect(() => {
 
       if (lat && lng) {
         map.flyTo([lat, lng], 14);
-        setSearchedDistrictId(`distrito-${foundDistrict.properties.CD_DIST}`);
+        setSearchedDistrictId(`${foundDistrict.properties.NM_DIST}`);
       } else {
         alert('No se pudieron encontrar las coordenadas para este distrito.');
         setSearchedDistrictId(null);
@@ -540,32 +577,49 @@ const getDistrictStyle = (feature) => {
 const onEachDistrict = (feature: Feature, layer: LeafletLayer) => {
   const districtName = feature.properties.NM_DIST;
 
-  if (districtName) {
-    layer.on('click', async () => {
+  if (!districtName) return;
 
-      // 1. Obtener población
-      const dataPoblacion = await obtenerPoblacion(districtName);
+layer.on("click", async () => {
+  const districtName = feature.properties.NM_DIST;
 
-      // 2. Obtener casos totales reales del distrito
-      const caseCount = await obtenerCasosTotales(districtName);
+  // 1. población
+  const dataPoblacion = await obtenerPoblacion(districtName);
 
-      // 3. Obtener casos por enfermedad (opcional)
-      const enfermedad = "TOS FERINA";  
-      const dataCasosEnfermedad = await obtenerCasosEnfermedad(districtName, enfermedad);
+  // 2. total de casos
+  const caseCount = await obtenerCasosTotales(districtName);
 
-      // 4. Construir popup
-      const popupContent = ReactDOMServer.renderToString(
-        <DistrictPopup 
-          districtName={districtName}
-          caseCount={caseCount}
-          poblacion={dataPoblacion}
-          casosEnfermedad={dataCasosEnfermedad}
-        />
-      );
+  // 3. detalles múltiples diagnósticos
+  const detalleDiagnostico: Record<string, any> = {};
 
-      layer.bindPopup(popupContent).openPopup();
-    });
+  for (const diag of diagnosticoSeleccionado) {
+    const data = await obtenerCasosEnfermedad(districtName, diag);
+
+    detalleDiagnostico[diag] = {
+      total: data.total || 0,
+      detalle: data.detalle || [],
+    };
   }
+
+  // 4. guardar en estado
+  setCasosDetallePorDistrito(prev => ({
+    ...prev,
+    [districtName]: detalleDiagnostico
+  }));
+
+  // 5. render popup
+  const popupContent = ReactDOMServer.renderToString(
+    <DistrictPopup
+      districtName={districtName}
+      caseCount={caseCount}
+      poblacion={dataPoblacion}
+      diagnosticoSeleccionado={diagnosticoSeleccionado}
+      detalleDiagnostico={detalleDiagnostico}
+    />
+  );
+
+  layer.bindPopup(popupContent, { maxWidth: 400 });
+});
+
 };
 
   const filteredLayers = useMemo(() => {
@@ -635,12 +689,15 @@ const onEachDistrict = (feature: Feature, layer: LeafletLayer) => {
             key={
               JSON.stringify(Array.from(selectedLayers)) +
               searchedDistrictId +
-              diagnosticoSeleccionado
+              diagnosticoSeleccionado.join(",")
             }
             data={districtsToDisplay}
             style={getDistrictStyle}
             onEachFeature={onEachDistrict}
           />
+
+
+
         )}
 
         {/* SIDEBAR FLOTANTE */}

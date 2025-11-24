@@ -12,17 +12,30 @@ interface Poblacion {
   Adulto_Mayor: number;
 }
 
+interface DiagnosticoDetalle {
+  total: number;
+  detalle: { tipo_dx: string; cantidad: number }[];
+}
+
 interface DistrictPopupProps {
   districtName: string;
-  caseCount: number; // TOTAL CASOS DEL DISTRITO
+  caseCount: number;
   poblacion?: Poblacion | null;
+
+  // ⭐ Nuevos props correctos
+  diagnosticoSeleccionado: string[];
+  detalleDiagnostico: Record<string, DiagnosticoDetalle>;
 }
 
 const DistrictPopup: React.FC<DistrictPopupProps> = ({
   districtName,
   caseCount,
-  poblacion
+  poblacion,
+
+  diagnosticoSeleccionado = [],
+  detalleDiagnostico = {}
 }) => {
+
   return (
     <div className="district-popup-container">
       <div className="district-popup-header">
@@ -30,11 +43,9 @@ const DistrictPopup: React.FC<DistrictPopupProps> = ({
       </div>
 
       <div className="district-popup-content">
-        
-        {/* ENCABEZADO */}
         <h4>Distrito: {districtName}</h4>
 
-        {/* CASOS + POBLACIÓN TOTAL */}
+        {/* CASOS Y POBLACIÓN */}
         <table className="district-popup-table">
           <thead>
             <tr>
@@ -52,7 +63,7 @@ const DistrictPopup: React.FC<DistrictPopupProps> = ({
           </tbody>
         </table>
 
-        {/* POBLACIÓN POR SEXO */}
+        {/* SEXO */}
         {poblacion && (
           <>
             <h5>Población por Sexo</h5>
@@ -98,6 +109,34 @@ const DistrictPopup: React.FC<DistrictPopupProps> = ({
           </>
         )}
 
+        {/* ⭐⭐⭐ MÚLTIPLES DIAGNÓSTICOS ⭐⭐⭐ */}
+        {(diagnosticoSeleccionado?.length ?? 0) > 0 && (
+          <>
+            <h4>Diagnósticos Seleccionados</h4>
+
+            {diagnosticoSeleccionado.map((diag) => (
+              <div key={diag} className="diag-section">
+                <h5>{diag}</h5>
+
+                <table className="district-popup-table">
+                  <tbody>
+                    <tr>
+                      <td>Total</td>
+                      <td>{detalleDiagnostico?.[diag]?.total || 0}</td>
+                    </tr>
+
+                    {detalleDiagnostico?.[diag]?.detalle?.map((d) => (
+                      <tr key={d.tipo_dx}>
+                        <td>{d.tipo_dx}</td>
+                        <td>{d.cantidad}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </>
+        )}
       </div>
     </div>
   );
