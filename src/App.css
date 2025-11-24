@@ -137,6 +137,7 @@ body, html, #root {
   margin: 0;
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
 }
 
 .layer-list {
@@ -183,6 +184,30 @@ body, html, #root {
 .layer-checkbox {
   margin-right: 8px;
 }
+
+/* === ESTILO MINIMALISTA PARA SCROLLBAR (CHROME, SAFARI) en la lista de capas === */
+.layer-list::-webkit-scrollbar {
+    width: 6px; /* Ancho de la barra de desplazamiento vertical */
+}
+
+.layer-list::-webkit-scrollbar-track {
+    background: transparent; /* Fondo transparente */
+}
+
+.layer-list::-webkit-scrollbar-thumb {
+    background-color: #AAAAAA; /* Color gris claro/medio */
+    border-radius: 10px; /* Bordes redondeados */
+    border: none;
+}
+
+.layer-list::-webkit-scrollbar-thumb:hover {
+    background-color: #888888;
+}
+
+.layer-list::-webkit-scrollbar-button {
+    display: none;
+}
+/* === FIN ESTILO MINIMALISTA === */
 
 /* === FLOATING TOP-RIGHT WIDGETS === */
 .map-search-bar {
