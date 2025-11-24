@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { MapContainer, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet';
-import { DomEvent, Layer as LeafletLayer, Feature } from 'leaflet';
+import { DomEvent, Layer as LeafletLayer } from 'leaflet';
 import proj4 from 'proj4';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
@@ -246,12 +246,8 @@ function App() {
   const [map, setMap] = useState<any>(null);
   const [isBaseMapSelectorOpen, setBaseMapSelectorOpen] = useState(false);
   const [currentBaseMap, setCurrentBaseMap] = useState<BaseMap>(BASE_MAPS[0]);
-  const [poblacion, setPoblacion] = useState<any | null>(null);
   const position: [number, number] = [-12.08, -77.02];
   const zoomLevel = 12;
-  // Diagnósticos dinámicos
-  const [diagnosticos, setDiagnosticos] = useState<string[]>([]);
-  const [casosPorDiagnostico, setCasosPorDiagnostico] = useState([]);
 
     // Casos por distrito (mapa dinámico)
     const [casosPorDistrito, setCasosPorDistrito] = useState<Record<string, number>>({});
@@ -376,29 +372,30 @@ const cargarCasosPorDiagnostico = async (diagnostico: string) => {
   console.log(`============================`);
 };
 
+// En App.tsx
+const handleDiagnosticoSelect = (diagnostico: string, checked: boolean) => {
+  setDiagnosticoSeleccionado(prev => {
+    let nuevo;
+    if (checked) {
+      // evitar duplicados
+      nuevo = prev.includes(diagnostico) ? prev : [...prev, diagnostico];
+    } else {
+      nuevo = prev.filter(d => d !== diagnostico);
+    }
 
-      // En App.tsx
-      const handleDiagnosticoSelect = (diagnostico: string, checked: boolean) => {
-        setDiagnosticoSeleccionado(prev => {
-          let nuevo;
-          if (checked) {
-            // evitar duplicados
-            nuevo = prev.includes(diagnostico) ? prev : [...prev, diagnostico];
-          } else {
-            nuevo = prev.filter(d => d !== diagnostico);
-          }
+    // ⭐ CORRECCIÓN: Llamar a cargarCasosPorDiagnostico con UN SOLO diagnóstico (el último)
+    // Si hay diagnósticos seleccionados, usamos el último para colorear el mapa.
+    const diagnosticoParaPintar = nuevo.length > 0 ? nuevo[nuevo.length - 1] : '';
 
-          // después de actualizar el array, recarga o actualiza los casos/pintado
-          // si tienes una función que carga todos los casos por los diagnósticos actuales:
-          cargarCasosPorDiagnostico(nuevo); // implementa esta función para actualizar casosPorDistrito, estilos, etc.
+    if (diagnosticoParaPintar) {
+      cargarCasosPorDiagnostico(diagnosticoParaPintar); // ✅ Ahora envía un string
+    } else {
+      setCasosPorDistrito({}); // Si no hay nada seleccionado, limpia los colores
+    }
 
-          return nuevo;
-        });
-      };
-
-
-
-
+    return nuevo;
+  });
+};
 
   
   // Callback refs to stop event propagation to the map
@@ -437,18 +434,6 @@ const cargarCasosPorDiagnostico = async (diagnostico: string) => {
       })
       .catch(error => console.error("Error al cargar los límites de la DIRIS:", error));
   },  [diagnosticoSeleccionado]);
-
-const [enfermedades, setEnfermedades] = useState([]);
-
-useEffect(() => {
-  fetch("http://localhost:5000/api/enfermedades")
-    .then(res => res.json())
-    .then(data => {
-      setEnfermedades(data.enfermedades || []);
-    });
-}, []);
-
-
 
   const getSubLayerIds = (layer: Layer): string[] => {
     let ids: string[] = [layer.id];
@@ -546,7 +531,7 @@ useEffect(() => {
     return allDistricts;
   }, [allDistricts, selectedLayers]);
 
-const getDistrictStyle = (feature) => {
+const getDistrictStyle = (feature: any) => {
   const distrito = feature.properties.NM_DIST?.toUpperCase();
 
   const baseStyle = {
@@ -583,12 +568,12 @@ const getDistrictStyle = (feature) => {
   };
 };
 
-const onEachDistrict = (feature: Feature, layer: LeafletLayer) => {
+const onEachDistrict = (feature: any, layer: LeafletLayer) => {
   const districtName = feature.properties.NM_DIST;
 
   if (!districtName) return;
 
-layer.on("click", async () => {
+  layer.on("click", async () => {
   const districtName = feature.properties.NM_DIST;
 
   // 1. población
@@ -660,11 +645,6 @@ layer.on("click", async () => {
   }, [layers, layerSearchTerm]);
 
   const isSearchActive = layerSearchTerm.trim() !== '';
-
-  const handleDiagnosticoData = (detalle: any[]) => {
-    console.log("📥 Datos recibidos desde LayerItem:", detalle);
-  };
-
 
   return (
   <div className="app-container">
