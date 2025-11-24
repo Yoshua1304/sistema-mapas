@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { MapContainer, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet';
 import { DomEvent, Layer as LeafletLayer } from 'leaflet';
+//import * as L from 'leaflet';
 import proj4 from 'proj4';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
@@ -248,7 +249,7 @@ function App() {
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [isBaseMapSelectorOpen, setBaseMapSelectorOpen] = useState(false);
   const [currentBaseMap, setCurrentBaseMap] = useState<BaseMap>(BASE_MAPS[0]);
-  const position: [number, number] = [-12.08, -77.02];
+  const position: [number, number] = [-12.00, -77.02];
   const zoomLevel = 12;
 
     // Casos por distrito (mapa dinámico)
@@ -577,20 +578,20 @@ const getDistrictStyle = (feature: any) => {
   
   // 🚨 ESTILO BASE
   const baseStyle = {
-    weight: 1,
-    color: "#555",
+    weight: 2,
+    color: "#333",
     fillOpacity: 0.7,
-    fillColor: "#D3D3D3",
+    fillColor: "#d3d3d3ff",
   };
 
   // --- 1. RESALTE DE BÚSQUEDA (MÁXIMA PRIORIDAD) ---
   if (isSearched) {
     return {
       ...baseStyle,
-      color: "#00BFFF", // Azul Cian brillante
+      color: "#000000ff",
       weight: 3, // Borde más grueso
       fillOpacity: 0.9,
-      fillColor: "#00BFFF",
+      fillColor: "#f7a52bff",
     };
   }
 
@@ -623,7 +624,16 @@ const getDistrictStyle = (feature: any) => {
 const onEachDistrict = (feature: any, layer: LeafletLayer) => {
   const districtName = feature.properties.NM_DIST;
 
-  if (!districtName) return;
+  // ⭐ NUEVO: ENLAZAR UN TOOLTIP CON EL NOMBRE DEL DISTRITO ⭐
+    if (districtName) {
+      layer.bindTooltip(districtName, {
+        permanent: false, // El tooltip no se queda permanentemente
+        direction: 'auto', // Lo coloca automáticamente
+        sticky: true, // Lo mantiene pegado al cursor
+        opacity: 0.9,
+        className: 'district-tooltip' // Clase opcional para estilizar con CSS
+      });
+    }
 
   // ⭐ NUEVO: Efectos visuales de HOVER
   layer.on({
@@ -631,7 +641,7 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
       // Resaltar el borde del distrito
       e.target.setStyle({
         weight: 3, 
-        color: '#666', 
+        color: '#000000', 
         dashArray: '',
         fillOpacity: 0.9
       });
@@ -643,7 +653,22 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
       // Restablecer el estilo al salir del hover (pide a Leaflet que recalcule el estilo)
       e.target.setStyle(getDistrictStyle(feature));
     },
-    click: async () => {
+    click: async (e) => {
+
+      const layer = e.target;
+    
+      if (map) { // Asegúrate de que la instancia del mapa exista
+          const bounds = layer.getBounds();
+          
+          // Ajusta el mapa a los límites del distrito seleccionado
+          map.fitBounds(bounds, {
+              // Opcional: añade un padding para que el distrito no toque los bordes
+              padding: [50, 50],
+              // Opcional: Define un nivel de zoom máximo si no quieres que acerque demasiado
+              maxZoom: 14 // Puedes ajustar este valor según la necesidad
+          });
+      }
+
       // 1. población
       const dataPoblacion = await obtenerPoblacion(districtName);
 

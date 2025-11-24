@@ -313,6 +313,36 @@ body, html, #root {
 .map-tools button:last-child { border-radius: 0 0 4px 4px; }
 .map-tools button:hover { background-color: #f4f4f4; }
 
+/* CSS en tu archivo de estilos global */
+.district-tooltip {
+    /* Fondo del tooltip */
+    background-color: #333;
+    color: white;
+    border: none;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    /* Eliminar el "pico" triangular de Leaflet para un look más moderno (opcional) */
+    pointer-events: none; /* Asegura que no interfiera con el mouseout */
+}
+
+/* Opcional: Estilizar el contenedor principal de Leaflet para quitar el triángulo */
+.leaflet-tooltip-pane .district-tooltip::before {
+    border: 0; 
+}
+
+/* 1. Selecciona la capa interactiva del GeoJSON */
+.leaflet-container .leaflet-interactive {
+    /* Quita el contorno de enfoque (focus) al hacer clic */
+    outline: none !important;
+}
+
+/* 2. Regla específica para navegadores basados en Webkit (Chrome, Safari, etc.) */
+/* Asegura que no haya un borde visible adicional */
+.leaflet-container .leaflet-interactive:focus {
+    outline: none !important;
+}
 
 /* === COMPASS (TOP-LEFT) === */
 .compass {
