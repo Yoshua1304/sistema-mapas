@@ -1,0 +1,62 @@
+.legend-container {
+    position: absolute;
+    bottom: 20px; /* Ajusta la posición vertical */
+    right: 20px; /* Ajusta la posición horizontal */
+    background-color: white;
+    padding: 10px 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 1000; /* Asegura que esté por encima del mapa */
+    font-family: 'Roboto', sans-serif;
+    max-width: 200px; /* Limita el ancho */
+}
+
+.legend-title {
+    margin: 0 0 10px 0;
+    font-size: 1.1em;
+    color: #333;
+    font-weight: bold;
+    text-transform: uppercase;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+.legend-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.9em;
+    color: #555;
+}
+
+.legend-icon {
+    display: inline-flex; /* Para centrar el texto/icono */
+    justify-content: center;
+    align-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    margin-right: 10px;
+    font-weight: bold;
+    color: white; /* Para el texto '+' */
+    font-size: 1.1em;
+    line-height: 1; /* Para alinear el texto verticalmente */
+}
+
+.legend-icon.district-icon {
+    font-size: 1.2em; /* Icono de ciudad un poco más grande */
+    color: white; /* Color del icono */
+}
+
+.legend-name {
+    flex-grow: 1; /* Permite que el nombre ocupe el espacio restante */
+    white-space: nowrap; /* Evita que el texto se rompa */
+    overflow: hidden; /* Oculta el texto que se desborda */
+    text-overflow: ellipsis; /* Añade puntos suspensivos si se recorta */
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { MapContainer, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet';
 import { DomEvent, Layer as LeafletLayer } from 'leaflet';
@@ -9,6 +9,7 @@ import './App.css';
 import LayerItem, { Layer } from './LayerItem';
 import DistrictPopup from './DistrictPopup';
 import BaseMapSelector, { BaseMap } from './BaseMapSelector';
+import Legend from './Legend';
 
 // --- CONFIGURACIÓN DE MAPAS BASE ---
 const BASE_MAPS: BaseMap[] = [
@@ -51,6 +52,38 @@ interface GeoJSONData {
   type: "FeatureCollection";
   features: Array<any>;
 }
+
+interface MapResetHandlerProps {
+  setClickedDistrictId: React.Dispatch<React.SetStateAction<string | null>>;
+  setSearchedDistrictId: React.Dispatch<React.SetStateAction<string | null>>;
+  setSelectedDistrictLayerIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+}
+
+const MapResetClickHandler: React.FC<MapResetHandlerProps> = ({
+  setClickedDistrictId,
+  setSearchedDistrictId,
+  setSelectedDistrictLayerIds,
+}) => {
+  useMapEvents({
+    click: () => {
+      // Si el evento llega aquí, significa que se hizo clic en el mapa 
+      // y que ninguna capa (distrito) detuvo la propagación.
+      
+      // 1. Limpiamos el resaltado por clic directo
+      setClickedDistrictId(null);
+      
+      // 2. Limpiamos el resaltado por búsqueda
+      setSearchedDistrictId(null);
+      
+      // 3. Limpiamos el resaltado por selección de casilla en el panel de Capas
+      setSelectedDistrictLayerIds(new Set()); 
+      
+      // NOTA: Si también tienes un estado para el Popup o Sidebar, deberías cerrarlo aquí.
+    },
+  });
+
+  return null; // Este componente no renderiza nada visible
+};
 
 // Proyección UTM
 proj4.defs("EPSG:32719", "+proj=utm +zone=19 +south +datum=WGS84 +units=m +no_defs");
@@ -692,6 +725,7 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
       e.target.setStyle(getDistrictStyle(feature));
     },
     click: async (e) => {
+      L.DomEvent.stopPropagation(e);
 
       setClickedDistrictId(districtName.toUpperCase());
       setSearchedDistrictId(null);
@@ -781,6 +815,23 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
 
   const isSearchActive = layerSearchTerm.trim() !== '';
 
+  const getDisplayNameForDiagnostico = (diagnosticoId: string): string => {
+      const findName = (layers: Layer[]): string | undefined => {
+          for (const layer of layers) {
+              if (layer.id === diagnosticoId) {
+                  return layer.name;
+              }
+              if (layer.subLayers) {
+                  const found = findName(layer.subLayers);
+                  if (found) return found;
+              }
+          }
+          return undefined;
+      };
+      return findName([VIGILANCIA_LAYER_DATA]) || diagnosticoId; // Devuelve el ID si no encuentra el nombre
+  };
+
+
   return (
   <div className="app-container">
     <header className="header">
@@ -800,13 +851,19 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
         zoomControl={false}
         ref={setMap}
       >
-        <TileLayer
-          key={currentBaseMap.id}
-          url={currentBaseMap.url}
-          attribution={currentBaseMap.attribution}
-          subdomains={currentBaseMap.subdomains}
-          maxZoom={20}
-        />
+      <TileLayer
+        key={currentBaseMap.id}
+        url={currentBaseMap.url}
+        attribution={currentBaseMap.attribution}
+        subdomains={currentBaseMap.subdomains}
+        maxZoom={20}
+      />
+
+      <MapResetClickHandler 
+          setClickedDistrictId={setClickedDistrictId}
+          setSearchedDistrictId={setSearchedDistrictId}
+          setSelectedDistrictLayerIds={setSelectedDistrictLayerIds}
+      />
 
         {districtsToDisplay && (
           <GeoJSON
@@ -819,9 +876,6 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
             style={getDistrictStyle}
             onEachFeature={onEachDistrict}
           />
-
-
-
         )}
 
         {/* SIDEBAR FLOTANTE */}
@@ -937,6 +991,19 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
         </div>
 
         <MouseCoordinates />
+
+        <Legend 
+            selectedLayerNames={diagnosticoSeleccionado.map(getDisplayNameForDiagnostico)}
+            selectedDistrictNames={
+                // Combinar distritos clickeados y seleccionados de la capa
+                [...new Set([
+                    clickedDistrictId, 
+                    ...Array.from(selectedDistrictLayerIds),
+                    searchedDistrictId // Incluye el distrito buscado si lo quieres en la leyenda
+                ].filter(Boolean) as string[])]
+            }
+        />
+
       </MapContainer>
 
       {isBaseMapSelectorOpen && (
