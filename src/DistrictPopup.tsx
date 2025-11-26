@@ -14,15 +14,15 @@ interface Poblacion {
 
 interface DiagnosticoDetalle {
   total: number;
-  detalle: { tipo_dx: string; cantidad: number }[];
+  detalle?: { tipo_dx: string; cantidad: number }[];
+  daa?: number;  // ⭐ para EDAS
+  dis?: number;  // ⭐ para EDAS
 }
 
 interface DistrictPopupProps {
   districtName: string;
   caseCount: number;
   poblacion?: Poblacion | null;
-
-  // ⭐ Nuevos props correctos
   diagnosticoSeleccionado: string[];
   detalleDiagnostico: Record<string, DiagnosticoDetalle>;
 }
@@ -31,7 +31,6 @@ const DistrictPopup: React.FC<DistrictPopupProps> = ({
   districtName,
   caseCount,
   poblacion,
-
   diagnosticoSeleccionado = [],
   detalleDiagnostico = {}
 }) => {
@@ -114,27 +113,52 @@ const DistrictPopup: React.FC<DistrictPopupProps> = ({
           <>
             <h4>Diagnósticos Seleccionados</h4>
 
-            {diagnosticoSeleccionado.map((diag) => (
-              <div key={diag} className="diag-section">
-                <h5>{diag}</h5>
+            {diagnosticoSeleccionado.map((diag) => {
+              const data = detalleDiagnostico?.[diag] || {};
 
-                <table className="district-popup-table">
-                  <tbody>
-                    <tr>
-                      <td>Total</td>
-                      <td>{detalleDiagnostico?.[diag]?.total || 0}</td>
-                    </tr>
+              const isEDAS =
+                diag === "diagnostico-edas" ||
+                diag === "EDAS" ||
+                diag === "Enfermedades diarreicas agudas";
 
-                    {detalleDiagnostico?.[diag]?.detalle?.map((d) => (
-                      <tr key={d.tipo_dx}>
-                        <td>{d.tipo_dx}</td>
-                        <td>{d.cantidad}</td>
+              return (
+                <div key={diag} className="diag-section">
+                  <h5>{diag}</h5>
+
+                  <table className="district-popup-table">
+                    <tbody>
+                      <tr>
+                        <td>Total</td>
+                        <td>{data.total || 0}</td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ))}
+
+                      {/* 🔥 Mostrar DAA + DIS SOLO para EDAS */}
+                      {isEDAS && (
+                        <>
+                          <tr>
+                            <td>DAA (Diarrea Aguda)</td>
+                            <td>{data.daa || 0}</td>
+                          </tr>
+                          <tr>
+                            <td>DIS (Disentería)</td>
+                            <td>{data.dis || 0}</td>
+                          </tr>
+                        </>
+                      )}
+
+                      {/* Para enfermedades normales: detalle de tipo_dx */}
+                      {!isEDAS &&
+                        data.detalle?.map((d) => (
+                          <tr key={d.tipo_dx}>
+                            <td>{d.tipo_dx}</td>
+                            <td>{d.cantidad}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
           </>
         )}
       </div>

@@ -224,8 +224,19 @@ const VIGILANCIA_LAYER_DATA: Layer = {
                     { id: 'diagnostico-viruela-del-mono', name: 'Viruela del mono' },
                 ]},
                 { id: 'diagnostico-tuberculosis-group', name: 'Tuberculosis', subLayers: [
-                    { id: 'diagnostico-tuberculosis', name: 'Tuberculosis' },
-                    { id: 'diagnostico-metales-pesados', name: 'Efecto tóxico de metales pesados' },
+                    { id: 'diagnostico-tbc-pulmonar-confirmada', name: 'TBC pulmonar c/conf. bacteriol' },
+                    { id: 'diagnostico-tbc-respiratoria-no-especificada', name: 'TBC respiratoria no especificada' },
+                    { id: 'diagnostico-tbc-pulmonar-sin-confirmacion', name: 'TBC pulmonar s/conf. bacteriol' },
+                    { id: 'diagnostico-meningitis-tuberculosis-menor5', name: 'Meningitis tuberculosis en < 5' },
+                    { id: 'diagnostico-tuberculosis-extrapulmonar', name: 'Tuberculosis extrapulmonar' },
+                    { id: 'diagnostico-tbc-miliar', name: 'TBC miliar' },
+                    { id: 'diagnostico-hansen-lepra', name: 'Enfermedad de Hansen - lepra' },
+                    { id: 'diagnostico-tbc-multidrogorresistente', name: 'TBC multidrogorresistente (TB MDR)' },
+                    { id: 'diagnostico-tbc-monorresistente', name: 'TBC monorresistente' },
+                    { id: 'diagnostico-tbc-polirresistente', name: 'TBC polirresistente' },
+                    { id: 'diagnostico-tbc-extensamente-resistente', name: 'TBC extensamente resistente (TB XDR)' },
+                    { id: 'diagnostico-tbc-abandono-recuperado', name: 'TBC abandono recuperado' },
+                    { id: 'diagnostico-tbc-recaida', name: 'TBC recaída' }
                 ]},
                 { id: 'diagnostico-ira-eda-etc', name: 'IRA/EDA/Febriles/SGB', subLayers: [
                     { id: 'diagnostico-iras', name: 'Infecciones respiratorias agudas' },
@@ -271,11 +282,12 @@ const VIGILANCIA_LAYER_DATA: Layer = {
         {
             id: 'diagnostico-materno-perinatal', name: 'Materno Perinatal', subLayers: [
                 { id: 'diagnostico-madre-nino', name: 'Madre Niño', subLayers: [
-                    { id: 'diagnostico-muerte-neonatal-fetal', name: 'Muerte neonatal/Muerte fetal' },
-                    { id: 'diagnostico-gvi', name: 'Gestante vacunada inadvertidamente (GVI)' },
-                    { id: 'diagnostico-muerte-materna-inmediata', name: 'Muerte materna inmediata' },
-                    { id: 'diagnostico-morbilidad-materna-extrema', name: 'Morbilidad materna extrema' },
-                ]}
+              { id: 'diagnostico-muerte-materna-directa', name: 'Muerte materna directa' },
+              { id: 'diagnostico-muerte-materna-directa-tardia', name: 'Muerte materna directa tardía' },
+              { id: 'diagnostico-muerte-materna-indirecta', name: 'Muerte materna indirecta' },
+              { id: 'diagnostico-muerte-materna-indirecta-tardia', name: 'Muerte materna indirecta tardía' },
+              { id: 'diagnostico-muerte-materna-incidental', name: 'Muerte materna incidental' }
+          ]}
             ]
         },
         {
@@ -313,13 +325,105 @@ function App() {
   const zoomLevel = 12;
 
     // Casos por distrito (mapa dinámico)
-    const [casosPorDistrito, setCasosPorDistrito] = useState<Record<string, number>>({});
+const [casosPorDistrito, setCasosPorDistrito] = useState<Record<string, any>>({});
   // Estado para diagnóstico seleccionado
   const [diagnosticoSeleccionado, setDiagnosticoSeleccionado] = useState<string[]>([]);
 
-console.log("🟦 diagnosticoSeleccionado TYPE:", typeof diagnosticoSeleccionado);
-console.log("🟦 diagnosticoSeleccionado VALUE:", diagnosticoSeleccionado);
-console.log("🟦 diagnosticoSeleccionado IS ARRAY:", Array.isArray(diagnosticoSeleccionado));
+//console.log("🟦 diagnosticoSeleccionado TYPE:", typeof diagnosticoSeleccionado);
+//console.log("🟦 diagnosticoSeleccionado VALUE:", diagnosticoSeleccionado);
+//console.log("🟦 diagnosticoSeleccionado IS ARRAY:", Array.isArray(diagnosticoSeleccionado));
+
+
+const cargarEdasPorDistrito = async () => {
+  if (!allDistricts) return;
+
+  const results: Record<string, any> = {};
+
+  for (const feature of allDistricts.features) {
+    const distrito = feature.properties.NM_DIST.toUpperCase();
+
+    try {
+      const res = await fetch(`/api/edas/${encodeURIComponent(distrito)}`);
+      const data = await res.json();
+
+      results[distrito] = {
+        total: data.total || 0,
+        detalle: [
+          { tipo_dx: "DAA", cantidad: data.daa || 0 },
+          { tipo_dx: "DIS", cantidad: data.dis || 0 }
+        ]
+      };
+
+    } catch (err) {
+      console.error("❌ Error EDAS en ", distrito, err);
+
+      results[distrito] = {
+        total: 0,
+        detalle: [
+          { tipo_dx: "DAA", cantidad: 0 },
+          { tipo_dx: "DIS", cantidad: 0 }
+        ]
+      };
+    }
+  }
+
+  setCasosPorDistrito(prev => ({
+    ...prev,
+    EDAS: results
+  }));
+};
+
+const cargarFebrilesPorDistrito = async () => {
+  if (!allDistricts) return;
+
+  const resultados: any = {};
+
+  for (const feature of allDistricts.features) {
+    const distrito = feature.properties.NM_DIST;
+
+    try {
+      const resp = await fetch(`http://127.0.0.1:5000/api/febriles_distrito?distrito=${distrito}`);
+      const data = await resp.json();
+
+      resultados[distrito] = {
+        total: data.total || 0,
+        detalle: data.detalle || []
+      };
+
+    } catch (err) {
+      console.error(`Error cargando febriles en distrito ${distrito}:`, err);
+    }
+  }
+
+  setCasosPorDistrito(resultados);
+};
+
+
+useEffect(() => {
+  if (!allDistricts) return;
+  if (!diagnosticoSeleccionado || diagnosticoSeleccionado.length === 0) return;
+
+  const diagnostico = diagnosticoSeleccionado[ diagnosticoSeleccionado.length - 1 ];
+
+  // 🔴 EDAS
+  if (diagnostico === "diagnostico-edas") {
+    console.log("🔥 Cargando EDAS...");
+    cargarEdasPorDistrito();
+    return;
+  }
+
+  // 🔵 FEBRILES
+  if (diagnostico === "diagnostico-febriles") {
+    console.log("🟦 Cargando FEBRILES...");
+    cargarFebrilesPorDistrito();
+    return;
+  }
+
+  // 🟢 Diagnósticos NOTIWEB normales
+  cargarCasosPorDiagnostico(diagnostico);
+
+}, [diagnosticoSeleccionado, allDistricts]);
+
 
 
 const obtenerPoblacion = async (distrito: string) => {
@@ -434,6 +538,8 @@ const cargarCasosPorDiagnostico = async (diagnostico: string) => {
 
   console.log(`============================`);
 };
+
+
 
 // En App.tsx
 const handleDiagnosticoSelect = (diagnostico: string, checked: boolean) => {
@@ -1048,3 +1154,6 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
 }
 
 export default App;
+
+
+""

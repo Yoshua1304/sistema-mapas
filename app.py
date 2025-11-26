@@ -5,6 +5,53 @@ from database import connect    # tu función centralizada de conexión
 app = Flask(__name__)
 CORS(app)
 
+from database import get_febriles_connection
+
+def get_febriles_por_distrito(distrito):
+    conn = get_febriles_connection()
+    if conn is None:
+        return jsonify({"error": "No se pudo conectar a EPI_BD_FEBRILES"}), 500
+
+    COLUMNAS_FEBRILES = ['feb_m1', 'feb_1_4', 'feb_5_9', 'feb_10_19', 'feb_20_59', 'feb_m60']
+
+    sum_clause = " + ".join([f"[{col}]" for col in COLUMNAS_FEBRILES])
+
+    sql = f"""
+        SELECT
+            {", ".join([f"SUM([{col}]) AS {col}" for col in COLUMNAS_FEBRILES])},
+            SUM({sum_clause}) AS total_febriles
+        FROM REPORTE_FEBRILES_2025
+        WHERE ano = 2025
+          AND [UBIGEO.1.distrito] = ?
+          AND [UBIGEO.1.subregion] = 'DIRIS LIMA CENTRO'
+    """
+
+    cursor = conn.cursor()
+    cursor.execute(sql, distrito.upper())
+    row = cursor.fetchone()
+
+    conn.close()
+
+    if not row:
+        return jsonify({
+            "distrito": distrito,
+            "total": 0,
+            "detalle": []
+        })
+
+    column_names = [col[0] for col in cursor.description]
+    data = dict(zip(column_names, row))
+
+    detalle = [
+        {"grupo_edad": col, "cantidad": int(data[col]) if data[col] else 0}
+        for col in COLUMNAS_FEBRILES
+    ]
+
+    return jsonify({
+        "distrito": distrito,
+        "total": int(data["total_febriles"]),
+        "detalle": detalle
+    })
 
 # ============================================================
 # 1. ENDPOINT: POBLACIÓN POR DISTRITO
@@ -62,6 +109,29 @@ def casos_enfermedad():
     if not distrito or not enfermedad:
         return jsonify({"error": "Faltan parámetros"}), 400
 
+    # -------------------------------------------
+    # 🔴 EDAS
+    # -------------------------------------------
+    if enfermedad.upper() in [
+        "ENFERMEDADES DIARREICAS AGUDAS",
+        "EDAS",
+        "EDA",
+        "DIAGNOSTICO-EDAS"
+    ]:
+        return get_edas_por_distrito(distrito)
+
+    # -------------------------------------------
+    # 🔵 FEBRILES
+    # -------------------------------------------
+    if enfermedad.upper() in [
+        "FEBRILES",
+        "DIAGNOSTICO-FEBRILES"
+    ]:
+        return get_febriles_por_distrito(distrito)
+
+    # -------------------------------------------
+    # 🟢 NOTIWEB (normal)
+    # -------------------------------------------
     conn = connect("EPI_TABLAS_MAESTRO")
     if conn is None:
         return jsonify({"error": "Error de conexión"}), 500
@@ -98,9 +168,9 @@ def casos_enfermedad():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
     finally:
         conn.close()
-
 
 # ============================================================
 # 3. ENDPOINT: CASOS TOTALES (REPARADO)
@@ -267,6 +337,154 @@ def api_casos_por_diagnostico():
         conn.close()
 
 # ============================================================
+# 4. ENDPOINT: CASOS EDAS POR DISTRITO (EPI_BD_EDAS)
+# ============================================================
+from database import get_edas_connection
+
+COLUMNAS_EDA = [
+    'DAA_C1', 'DAA_C1_4', 'DAA_C5', 'DAA_C5_11', 'DAA_C12_17', 'DAA_C18_29', 'DAA_C30_59', 'DAA_C60',
+    'DIS_C1', 'DIS_C1_4', 'DIS_C5', 'DIS_C5_11', 'DIS_C12_17', 'DIS_C18_29', 'DIS_C30_59', 'DIS_C60'
+]
+
+@app.route("/api/edas_por_distrito", methods=["GET"])
+def api_edas_por_distrito():
+    distrito = request.args.get("distrito", "").upper()
+
+    if not distrito:
+        return jsonify({"error": "Falta parámetro 'distrito'"}), 400
+
+    conn = get_edas_connection()
+    if conn is None:
+        return jsonify({"error": "No se pudo conectar a EPI_BD_EDAS"}), 500
+
+    total_sum_clause = " + ".join([f"[{col}]" for col in COLUMNAS_EDA])
+
+    query = f"""
+        SELECT SUM({total_sum_clause}) AS Total_EDAs
+        FROM REPORTE_EDA_2025
+        WHERE ano = 2025 AND [UBIGEO.1.distrito] = ?
+    """
+
+    cursor = conn.cursor()
+    cursor.execute(query, distrito)
+    row = cursor.fetchone()
+
+    total_edas = int(row[0]) if row and row[0] is not None else 0
+
+    conn.close()
+
+    return jsonify({
+        "distrito": distrito,
+        "total_edas": total_edas
+    })
+
+
+@app.get("/api/edas/<distrito>")
+def get_edas_por_distrito(distrito):
+    conn = get_edas_connection()
+    if conn is None:
+        return jsonify({"error": "No connection"}), 500
+
+    COLUMNAS_DAA = ['DAA_C1', 'DAA_C1_4', 'DAA_C5', 'DAA_C5_11', 'DAA_C12_17', 'DAA_C18_29', 'DAA_C30_59', 'DAA_C60']
+    COLUMNAS_DIS = ['DIS_C1', 'DIS_C1_4', 'DIS_C5', 'DIS_C5_11', 'DIS_C12_17', 'DIS_C18_29', 'DIS_C30_59', 'DIS_C60']
+
+    sum_daa = " + ".join([f"[{c}]" for c in COLUMNAS_DAA])
+    sum_dis = " + ".join([f"[{c}]" for c in COLUMNAS_DIS])
+
+    sql = f"""
+        SELECT 
+            SUM({sum_daa}) AS total_daa,
+            SUM({sum_dis}) AS total_dis
+        FROM REPORTE_EDA_2025
+        WHERE ano = 2025 AND [UBIGEO.1.distrito] = ?
+    """
+
+    cursor = conn.cursor()
+    cursor.execute(sql, distrito.upper())
+    row = cursor.fetchone()
+
+    daa = int(row[0]) if row and row[0] else 0
+    dis = int(row[1]) if row and row[1] else 0
+
+    return jsonify({
+        "daa": daa,
+        "dis": dis,
+        "total": daa + dis
+    })
+
+
+# ============================================================
+# ENDPOINT: CASOS FEBRILES POR DISTRITO
+# ============================================================
+@app.route("/api/febriles_distrito")
+def febriles_distrito():
+    distrito = request.args.get('distrito')
+
+    if not distrito:
+        return jsonify({"error": "Falta el parámetro 'distrito'"}), 400
+
+    conn = get_febriles_connection()
+    if conn is None:
+        return jsonify({"error": "Error de conexión a EPI_BD_FEBRILES"}), 500
+
+    COLUMNAS_FEBRILES = ['feb_m1', 'feb_1_4', 'feb_5_9', 'feb_10_19', 'feb_20_59', 'feb_m60']
+
+    select_columns = [f"SUM([{col}]) AS {col}" for col in COLUMNAS_FEBRILES]
+    select_columns_str = ", ".join(select_columns)
+
+    total_sum_clause = " + ".join([f"[{col}]" for col in COLUMNAS_FEBRILES])
+
+    try:
+        cursor = conn.cursor()
+
+        sql = f"""
+            SELECT
+                {select_columns_str},
+                SUM({total_sum_clause}) AS Total_Febriles
+            FROM [REPORTE_FEBRILES_2025]
+            WHERE 
+                [UBIGEO.1.distrito] = ?
+                AND [UBIGEO.1.subregion] = 'DIRIS LIMA CENTRO'
+                AND ano = 2025
+        """
+
+        cursor.execute(sql, distrito.upper())
+        row = cursor.fetchone()
+
+        if not row or row[0] is None:
+            return jsonify({
+                "distrito": distrito,
+                "total": 0,
+                "detalle": [],
+                "mensaje": f"No hay registros de febriles en {distrito}"
+            })
+
+        # Convertir a diccionario
+        column_names = [col[0] for col in cursor.description]
+        data = dict(zip(column_names, row))
+
+        total_febriles = int(data['Total_Febriles'])
+
+        # Convertir desglose
+        detalle = [
+            {"grupo_edad": col, "cantidad": int(data[col]) if data[col] is not None else 0}
+            for col in COLUMNAS_FEBRILES
+        ]
+
+        return jsonify({
+            "distrito": distrito,
+            "total": total_febriles,
+            "detalle": detalle
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
+
+
+# ============================================================
 # 🚀 INICIAR SERVER
 # ============================================================
 if __name__ == "__main__":
@@ -382,30 +600,30 @@ if __name__ == "__main__":
 #     Consulta el total de casos de EDA (DAA + DIS) por distrito desde 
 #     la base de datos EPI_BD_EDAS.
 #     """
-#     # Usar la nueva función de conexión
+#     Usar la nueva función de conexión
 #     conn = get_edas_connection()
 #     if conn is None:
 #         print("❌ No se pudo establecer la conexión a la base de datos EPI_BD_EDAS.")
 #         return
 
-#     # 1. Obtener el parámetro del usuario
+#     1. Obtener el parámetro del usuario
 #     distrito_nombre = input("\n❓ Ingresa el nombre del distrito para la consulta de EDAs (Ej. BREÑA): ").upper().strip()
 
-#     # Definir las columnas a sumar
+#     Definir las columnas a sumar
 #     COLUMNAS_EDA = [
 #         'DAA_C1', 'DAA_C1_4', 'DAA_C5', 'DAA_C5_11', 'DAA_C12_17', 'DAA_C18_29', 'DAA_C30_59', 'DAA_C60',
 #         'DIS_C1', 'DIS_C1_4', 'DIS_C5', 'DIS_C5_11', 'DIS_C12_17', 'DIS_C18_29', 'DIS_C30_59', 'DIS_C60'
 #     ]
     
-#     # Crear la sentencia SUM de todas las columnas (Total de EDAs)
+#     Crear la sentencia SUM de todas las columnas (Total de EDAs)
 #     total_sum_clause = " + ".join([f"[{col}]" for col in COLUMNAS_EDA])
     
 #     try:
 #         cursor = conn.cursor()
 
-#         # Consulta SQL: 
-#         # 1. SUMA de todos los grupos de EDA (DAA y DIS).
-#         # 2. Filtro por el distrito ingresado.
+#         Consulta SQL: 
+#         1. SUMA de todos los grupos de EDA (DAA y DIS).
+#         2. Filtro por el distrito ingresado.
 #         sql_query = f"""
 #         SELECT
 #             SUM({total_sum_clause}) AS Total_EDAs
@@ -415,11 +633,11 @@ if __name__ == "__main__":
 #             ano = 2025 and [UBIGEO.1.distrito] = ?
 #         """
         
-#         # Ejecutar la consulta con el parámetro del distrito
+#         Ejecutar la consulta con el parámetro del distrito
 #         cursor.execute(sql_query, distrito_nombre)
 #         row = cursor.fetchone()
 
-#         # 2. Procesar y mostrar el resultado
+#         2. Procesar y mostrar el resultado
 #         print("\n" + "💧" * 25)
 #         print(f"📊 REPORTE DE VIGILANCIA DE EDAS PARA: **{distrito_nombre}**")
 #         print("=" * 60)
