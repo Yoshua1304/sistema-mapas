@@ -604,6 +604,22 @@ const handleDiagnosticoSelect = (diagnostico: string, checked: boolean) => {
       .catch(error => console.error("Error al cargar los límites de la DIRIS:", error));
   },  [diagnosticoSeleccionado]);
 
+  useEffect(() => {
+    // 1. Cierra el popup abierto de Leaflet inmediatamente
+    if (map) {
+      map.closePopup();
+    }
+
+    // 2. Limpia el estado del distrito clickeado
+    // Esto quita el borde negro/naranja de "seleccionado" para que 
+    // se aprecie la nueva capa de calor de la enfermedad seleccionada.
+    setClickedDistrictId(null);
+    
+    // (Opcional) Si también quieres limpiar la búsqueda al cambiar de filtro:
+    // setSearchedDistrictId(null); 
+
+  }, [diagnosticoSeleccionado, map]);
+
   const getSubLayerIds = (layer: Layer): string[] => {
     let ids: string[] = [layer.id];
     if (layer.subLayers) {
@@ -670,6 +686,32 @@ const handleDiagnosticoSelect = (diagnostico: string, checked: boolean) => {
 
     setSelectedLayers(newSelectedLayers);
     setSelectedDistrictLayerIds(newSelectedDistrictLayerIds);
+
+    // ⭐ NUEVA LÓGICA DE ZOOM PARA MÚLTIPLES DISTRITOS (Regla 5)
+    if (newSelectedDistrictLayerIds.size > 0 && map && allDistricts) {
+        // 1. Obtenemos las geometrías de los distritos seleccionados.
+        const selectedFeatures = allDistricts.features.filter(f => 
+            newSelectedDistrictLayerIds.has(f.properties.NM_DIST?.toUpperCase())
+        );
+
+        if (selectedFeatures.length > 0) {
+            // 2. Creamos una colección GeoJSON temporal
+            const featureCollection: GeoJSONData = { 
+                type: "FeatureCollection", 
+                features: selectedFeatures 
+            };
+            
+            // 3. Creamos una capa temporal con todas las geometrías
+            const tempLayer = L.geoJson(featureCollection as any);
+            const bounds = tempLayer.getBounds();
+            
+            // 4. Ajustar la vista del mapa a los límites de todos los distritos seleccionados.
+            map.fitBounds(bounds, {
+                padding: [50, 50],
+                maxZoom: 14 
+            });
+        }
+    }
   };
 
   const handleMapSearch = () => {
@@ -774,53 +816,73 @@ const getDistrictStyle = (feature: any) => {
   const distrito = feature.properties.NM_DIST?.toUpperCase();
   const isSearched = searchedDistrictId === distrito;
   const isClicked = clickedDistrictId === distrito;
-
-  // ⭐ NUEVO: Resaltado por selección en el panel de Capas ⭐
-  const isLayerSelected = selectedDistrictLayerIds.has(distrito);
+  const isLayerSelected = selectedDistrictLayerIds.has(distrito);
+  const isDiseaseSelected = diagnosticoSeleccionado.length > 0;
+  const casos = casosPorDistrito[distrito] ?? 0;
   
   // 🚨 ESTILO BASE
   const baseStyle = {
-    weight: 2,
-    color: "#333",
-    fillOpacity: 0.7,
-    fillColor: "#d3d3d3ff",
-  };
+    weight: 1, // Borde más fino por defecto
+    color: "#555",
+    fillOpacity: 0.7,
+    fillColor: "#E0E0E0", // Gris claro
+  };
 
-  // --- 1. RESALTE DE BÚSQUEDA (MÁXIMA PRIORIDAD) ---
-  if (isSearched || isClicked || isLayerSelected) {
-    return {
-      ...baseStyle,
-      color: "#000000ff",
-      weight: 3, // Borde más grueso
-      fillOpacity: 0.9,
-      fillColor: "#f7a52bff", // Color naranja
-    };
-  }
+  // Estilo de Resalte (Borde más grueso, negro)
+  const highlightStyle = {
+    weight: 3, 
+    color: "#000000", 
+    fillOpacity: 0.9,
+  };
 
-  // --- 2. RESALTE POR CASOS (Prioridad Media) ---
-  const casos = casosPorDistrito[distrito] ?? 0;
+  // --- ESCALA CHOROPLETH (Paleta de Colores por Casos) ---
+  const escalaChoropleth = (casos: number) => {
+    return casos > 50 ? "#800026" :
+           casos > 20 ? "#BD0026" :
+           casos > 10 ? "#E31A1C" :
+           casos > 5  ? "#FC4E2A" :
+           casos > 1  ? "#FD8D3C" :
+                        "#FEB24C";
+  };
 
-  if (casos === 0) {
-    return {
-      ...baseStyle,
-      fillOpacity: 0.2,
-      fillColor: "#E0E0E0",
-    };
-  }
+  // -------------------------------------------------------------
+  // 1. LÓGICA SIN ENFERMEDAD SELECCIONADA (Regla 2)
+  // -------------------------------------------------------------
+  if (!isDiseaseSelected) {
+    if (isSearched || isClicked || isLayerSelected) {
+      // Resaltado naranja si solo está 'distritos' activo
+      return {
+        ...highlightStyle,
+        fillColor: "#f7a52bff", // Color naranja
+      };
+    }
+    // Caso base (distritos activos, pero sin selección individual)
+    return { ...baseStyle, fillOpacity: 0.2, };
+  } 
+  
+  // -------------------------------------------------------------
+  // 2. LÓGICA CON ENFERMEDAD SELECCIONADA (Reglas 3 y 4)
+  // -------------------------------------------------------------
 
-  // Escala simple (se mantiene tu lógica)
-  const escala = casos > 50 ? "#800026" :
-                 casos > 20 ? "#BD0026" :
-                 casos > 10 ? "#E31A1C" :
-                 casos > 5  ? "#FC4E2A" :
-                 casos > 1  ? "#FD8D3C" :
-                              "#FEB24C";
-
-  return {
-    ...baseStyle,
-    fillColor: escala,
-    fillOpacity: 0.8,
-  };
+  // Determinar el color de relleno por la paleta de casos
+  const fillColorByCases = casos > 0 ? escalaChoropleth(casos) : baseStyle.fillColor;
+  const fillOpacityByCases = casos > 0 ? 0.8 : 0.2;
+  
+  // Si está seleccionado/buscado, solo aplicamos el borde de resalte, manteniendo el relleno.
+  if (isSearched || isClicked || isLayerSelected) {
+    return {
+      ...highlightStyle, // Borde negro grueso
+      fillColor: fillColorByCases, // Mantiene el color por cantidad de casos (Regla 4)
+      fillOpacity: fillOpacityByCases, 
+    };
+  }
+  
+  // Si está activo pero no resaltado, solo aplica el color por casos
+  return {
+    ...baseStyle,
+    fillColor: fillColorByCases,
+    fillOpacity: fillOpacityByCases,
+  };
 };
 
 const onEachDistrict = (feature: any, layer: LeafletLayer) => {
@@ -839,31 +901,25 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
 
   // ⭐ NUEVO: Efectos visuales de HOVER
   layer.on({
-    mouseover: (e) => {
-      // Resaltar el borde del distrito
-      e.target.setStyle({
-        weight: 3, 
-        color: '#000000', 
-        dashArray: '',
-        fillOpacity: 0.9
-      });
+    click: async (e) => {
+      L.DomEvent.stopPropagation(e);
 
-      // Asegurarse de que el distrito "flote" por encima de los demás
-      e.target.bringToFront(); 
-    },
-    mouseout: (e) => {
-      // Restablecer el estilo al salir del hover (pide a Leaflet que recalcule el estilo)
-      e.target.setStyle(getDistrictStyle(feature));
-    },
-    click: async (e) => {
-      L.DomEvent.stopPropagation(e);
+      setClickedDistrictId(districtName.toUpperCase());
+      setSearchedDistrictId(null);
+      setSelectedDistrictLayerIds(new Set()); // Limpia la selección múltiple/búsqueda
 
-      setClickedDistrictId(districtName.toUpperCase());
-      setSearchedDistrictId(null);
-      setSelectedDistrictLayerIds(new Set());
+      const layer = e.target;
+    
+      if (map) { // Asegúrate de que la instancia del mapa exista
+          const bounds = layer.getBounds();
+          
+          // ⭐ AJUSTE DE ZOOM (Regla 4)
+          map.fitBounds(bounds, {
+              padding: [50, 50],
+              maxZoom: 14 
+          });
+      }
 
-      const layer = e.target;
-    
       if (map) { // Asegúrate de que la instancia del mapa exista
           const bounds = layer.getBounds();
           
@@ -1154,6 +1210,3 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
 }
 
 export default App;
-
-
-""

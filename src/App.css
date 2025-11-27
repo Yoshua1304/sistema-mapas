@@ -464,3 +464,23 @@ body, html, #root {
   color: grey;
   opacity: 1; /* Override Firefox\'s default opacity */
 }
+
+/* En App.css */
+.leaflet-popup-content-wrapper {
+  padding: 0;
+  border-radius: 8px; /* Bordes redondeados del contenedor principal */
+  overflow: hidden; 
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  width: auto !important;
+}
+
+/* Opcional: Ajustar la "X" de cerrar para que se vea blanca sobre el rojo */
+.leaflet-container a.leaflet-popup-close-button {
+  color: white !important;
+  top: 8px;
+  right: 8px;
+  text-shadow: none;
+}

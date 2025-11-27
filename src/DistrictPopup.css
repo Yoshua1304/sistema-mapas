@@ -1,98 +1,176 @@
+/* Contenedor Principal */
 .district-popup-container {
-  font-family: sans-serif;
-  font-size: 14px;
-  min-width: 250px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  min-width: 300px; /* Un poco más ancho para que quepan las tarjetas */
+  background-color: white;
 }
 
+/* Header Rojo */
 .district-popup-header {
-  background-color: #CC0000;
+  background-color: #D32F2F; /* Rojo oscuro similar a la imagen */
   color: white;
-  padding: 8px 12px;
+  padding: 10px 15px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 1.1rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* Contenido con Scroll */
+.district-popup-content {
+  padding: 15px;
+  max-height: 450px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Título del Distrito */
+.popup-title {
+  text-align: center;
+  margin: 0;
+  font-size: 1.6rem;
+  color: #000;
+  font-weight: 700;
+}
+
+.popup-title-underline {
+  width: 50px;
+  height: 3px;
+  background-color: #ccc;
+  margin: 5px auto 20px auto;
+}
+
+/* === CAJAS DE ESTADÍSTICAS (Azul y Verde) === */
+.stats-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.stat-box {
+  flex: 1;
+  border-radius: 12px;
+  padding: 10px 5px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.stat-box.blue {
+  background-color: #D1E8F1; /* Celeste suave */
+  color: #000;
+}
+
+.stat-box.green {
+  background-color: #DCEBD4; /* Verde suave */
+  color: #000;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #444;
+}
+
+.stat-value {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #000;
+}
+
+/* === SECCIONES DE INFORMACIÓN (Gris) === */
+.info-section {
+  background-color: #F8F9FA;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #eee;
+}
+
+.section-title {
+  margin: 0 0 10px 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #333;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 5px;
+}
+
+/* === GRID DE SEXO === */
+.sexo-grid {
+  display: flex;
+  justify-content: space-around;
+}
+
+.sexo-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sexo-item .label { font-size: 0.85rem; color: #555; }
+.sexo-item .value { font-size: 1rem; font-weight: 600; color: #000; }
+
+/* === LISTA DE CURSO DE VIDA === */
+.life-stage-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.life-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.life-item .icon { margin-right: 12px; font-size: 1.1rem; }
+.life-item .label { flex-grow: 1; font-size: 0.9rem; color: #444; }
+.life-item .value { font-weight: 600; font-size: 0.95rem; color: #000; }
+
+/* === DETALLE DE DIAGNÓSTICOS === */
+.diag-item-container {
+  background-color: white;
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 8px;
+  border: 1px solid #eee;
+}
+
+.diag-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-weight: bold;
+  margin-bottom: 5px;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 4px;
 }
 
-.district-popup-close-button {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
+.diag-name { font-size: 0.8rem; font-weight: bold; color: #CC0000; }
+.diag-total { font-size: 0.9rem; font-weight: bold; background: #CC0000; color: white; padding: 2px 6px; border-radius: 4px; }
+
+.diag-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-/* --- INICIO ESTILO MINIMALISTA --- */
-
-.district-popup-content {
-  padding: 10px;
-
-  max-height: 450px; /* Define una altura máxima fija (puedes ajustarla) */
-  overflow-y: auto; /* Agrega scroll vertical si el contenido excede la altura */
-  overflow-x: hidden; /* Evita scroll horizontal innecesario */
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #555;
+  padding: 2px 0;
 }
+.detail-row strong { color: #000; }
 
-/* --- ESTILO MINIMALISTA PARA SCROLLBAR (CHROME, SAFARI) --- */
-.district-popup-content::-webkit-scrollbar {
-    width: 6px; /* Ancho de la barra de desplazamiento vertical */
-}
-
-/* El "track" es el fondo por donde se mueve el pulgar */
-.district-popup-content::-webkit-scrollbar-track {
-    background: transparent; /* Fondo transparente */
-}
-
-/* El "thumb" es la barra movible */
-.district-popup-content::-webkit-scrollbar-thumb {
-    background-color: #AAAAAA; /* Color gris claro/medio */
-    border-radius: 10px; /* Bordes redondeados */
-    border: none; /* Sin borde de color */
-}
-
-/* Efecto hover (opcional: la hace un poco más oscura al pasar el ratón) */
-.district-popup-content::-webkit-scrollbar-thumb:hover {
-    background-color: #888888;
-}
-
-/* Ocultar las flechas (no es estrictamente necesario, pero garantiza la limpieza) */
-.district-popup-content::-webkit-scrollbar-button {
-    display: none;
-}
-
-/* --- FIN ESTILO MINIMALISTA --- */
-
-.district-popup-content h4 {
-  margin: 10px 0 5px 0;
-  font-size: 15px;
-  color: #333;
-  font-weight: bold;
-}
-
-.district-popup-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.district-popup-table th, .district-popup-table td {
-  border: 1px solid #ccc;
-  padding: 8px;
-  text-align: left;
-}
-
-.district-popup-table th {
-  background-color: #888888;
-  color: white;
-  font-weight: bold;
-}
-
-.district-popup-table td {
-  background-color: #f9f9f9;
-  color: #333;
-}
-
-.district-popup-content h5 {
-  margin: 10px 0 10px 0; 
-  font-size: 13px;
-  color: #333;
-}
+/* --- SCROLLBAR MINIMALISTA --- */
+.district-popup-content::-webkit-scrollbar { width: 6px; }
+.district-popup-content::-webkit-scrollbar-track { background: transparent; }
+.district-popup-content::-webkit-scrollbar-thumb { background-color: #CCC; border-radius: 10px; }
+.district-popup-content::-webkit-scrollbar-thumb:hover { background-color: #999; }
+.district-popup-content::-webkit-scrollbar-button { display: none; }
