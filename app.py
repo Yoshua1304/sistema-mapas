@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from database import connect    # tu función centralizada de conexión
+from database import get_edas_connection,get_iras_connection
 
 app = Flask(__name__)
 CORS(app)
@@ -128,6 +129,16 @@ def casos_enfermedad():
         "DIAGNOSTICO-FEBRILES"
     ]:
         return get_febriles_por_distrito(distrito)
+    
+    # 🔵 IRAS
+    if enfermedad.upper() in [
+        "INFECCIONES RESPIRATORIAS AGUDAS",
+        "IRA",
+        "IRAS",
+        "DIAGNOSTICO-IRAS"
+    ]:
+        return get_iras_por_distrito(distrito)
+
 
     # -------------------------------------------
     # 🟢 NOTIWEB (normal)
@@ -339,7 +350,6 @@ def api_casos_por_diagnostico():
 # ============================================================
 # 4. ENDPOINT: CASOS EDAS POR DISTRITO (EPI_BD_EDAS)
 # ============================================================
-from database import get_edas_connection
 
 COLUMNAS_EDA = [
     'DAA_C1', 'DAA_C1_4', 'DAA_C5', 'DAA_C5_11', 'DAA_C12_17', 'DAA_C18_29', 'DAA_C30_59', 'DAA_C60',
@@ -482,6 +492,143 @@ def febriles_distrito():
 
     finally:
         conn.close()
+
+@app.route("/api/iras_distrito")
+def api_iras_distrito():
+    distrito = request.args.get("distrito")
+    if not distrito:
+        return jsonify({"error": "Falta distrito"}), 400
+
+    conn = get_iras_connection()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a EPI_BD_IRAS"}), 500
+
+    try:
+        cursor = conn.cursor()
+
+        # Usar SUM([col]) + SUM([col2]) ... para mayor robustez y escapar columnas con corchetes
+        query = """
+            SELECT
+                (COALESCE(SUM([IRA_M2]),0) + COALESCE(SUM([IRA_2_11]),0) + COALESCE(SUM([IRA_1_4A]),0)) AS IRA_NO_NEUMONIA,
+                (COALESCE(SUM([SOB_2A]),0) + COALESCE(SUM([SOB_2_4A]),0)) AS SOB_ASMA,
+                (COALESCE(SUM([NGR_M2]),0) + COALESCE(SUM([NGR_2_11]),0) + COALESCE(SUM([NGR_1_4A]),0)) AS NEUMONIA_GRAVE,
+                (COALESCE(SUM([NEU_2_11]),0) + COALESCE(SUM([NEU_1_4A]),0) + COALESCE(SUM([NEU_5_9A]),0) + COALESCE(SUM([NEU_10_19]),0) + COALESCE(SUM([NEU_20_59]),0) + COALESCE(SUM([NEU_60A]),0)) AS NEUMONIA
+            FROM REPORTE_IRA_2025
+            WHERE UPPER([UBIGEO.1.distrito]) = UPPER(?)
+        """
+
+        cursor.execute(query, (distrito,))
+        row = cursor.fetchone()
+
+        ira_no_neumonia = row.IRA_NO_NEUMONIA if row and row.IRA_NO_NEUMONIA is not None else 0
+        sob_asma = row.SOB_ASMA if row and row.SOB_ASMA is not None else 0
+        neumonia_grave = row.NEUMONIA_GRAVE if row and row.NEUMONIA_GRAVE is not None else 0
+        neumonia = row.NEUMONIA if row and row.NEUMONIA is not None else 0
+
+        total = ira_no_neumonia + sob_asma + neumonia_grave + neumonia
+
+        return jsonify({
+            "distrito": distrito,
+            "ira_no_neumonia": int(ira_no_neumonia),
+            "sob_asma": int(sob_asma),
+            "neumonia_grave": int(neumonia_grave),
+            "neumonia": int(neumonia),
+            "total": int(total)
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.route("/api/iras/<distrito>")
+def get_iras_por_distrito(distrito):
+    conn = get_iras_connection()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a EPI_BD_IRAS"}), 500
+
+    try:
+        cursor = conn.cursor()
+
+        query = """
+            SELECT 
+                COALESCE(SUM([IRA_M2]),0)      AS IRA_M2,
+                COALESCE(SUM([IRA_2_11]),0)    AS IRA_2_11,
+                COALESCE(SUM([IRA_1_4A]),0)    AS IRA_1_4A,
+
+                COALESCE(SUM([SOB_2A]),0)      AS SOB_2A,
+                COALESCE(SUM([SOB_2_4A]),0)    AS SOB_2_4A,
+
+                COALESCE(SUM([NGR_M2]),0)      AS NGR_M2,
+                COALESCE(SUM([NGR_2_11]),0)    AS NGR_2_11,
+                COALESCE(SUM([NGR_1_4A]),0)    AS NGR_1_4A,
+
+                COALESCE(SUM([NEU_2_11]),0)    AS NEU_2_11,
+                COALESCE(SUM([NEU_1_4A]),0)    AS NEU_1_4A,
+                COALESCE(SUM([NEU_5_9A]),0)    AS NEU_5_9A,
+                COALESCE(SUM([NEU_10_19]),0)   AS NEU_10_19,
+                COALESCE(SUM([NEU_20_59]),0)   AS NEU_20_59,
+                COALESCE(SUM([NEU_60A]),0)     AS NEU_60A
+            FROM REPORTE_IRA_2025
+            WHERE UPPER([UBIGEO.1.distrito]) = UPPER(?)
+        """
+
+        cursor.execute(query, (distrito,))
+        row = cursor.fetchone()
+
+        if not row:
+            return jsonify({
+                "distrito": distrito,
+                "total": 0,
+                "detalle": []
+            })
+
+        ira_no_neumonia = int(row.IRA_M2) + int(row.IRA_2_11) + int(row.IRA_1_4A)
+        sob_asma = int(row.SOB_2A) + int(row.SOB_2_4A)
+        neumonia_grave = int(row.NGR_M2) + int(row.NGR_2_11) + int(row.NGR_1_4A)
+        neumonia = (
+            int(row.NEU_2_11) + int(row.NEU_1_4A) + int(row.NEU_5_9A) +
+            int(row.NEU_10_19) + int(row.NEU_20_59) + int(row.NEU_60A)
+        )
+
+        total = ira_no_neumonia + sob_asma + neumonia_grave + neumonia
+
+        return jsonify({
+            "distrito": distrito,
+            "total": total,
+            "detalle": [
+                {"grupo": "IRA_NO_NEUMONIA", "cantidad": ira_no_neumonia},
+                {"grupo": "SOB_ASMA", "cantidad": sob_asma},
+                {"grupo": "NEUMONIA_GRAVE", "cantidad": neumonia_grave},
+                {"grupo": "NEUMONIA", "cantidad": neumonia},
+            ],
+            # opcional: también devolver valores crudos si los quieres
+            "raw": {
+                "IRA_M2": int(row.IRA_M2),
+                "IRA_2_11": int(row.IRA_2_11),
+                "IRA_1_4A": int(row.IRA_1_4A),
+                "SOB_2A": int(row.SOB_2A),
+                "SOB_2_4A": int(row.SOB_2_4A),
+                "NGR_M2": int(row.NGR_M2),
+                "NGR_2_11": int(row.NGR_2_11),
+                "NGR_1_4A": int(row.NGR_1_4A),
+                "NEU_2_11": int(row.NEU_2_11),
+                "NEU_1_4A": int(row.NEU_1_4A),
+                "NEU_5_9A": int(row.NEU_5_9A),
+                "NEU_10_19": int(row.NEU_10_19),
+                "NEU_20_59": int(row.NEU_20_59),
+                "NEU_60A": int(row.NEU_60A)
+            }
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
 
 
 # ============================================================

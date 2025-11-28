@@ -240,9 +240,7 @@ const VIGILANCIA_LAYER_DATA: Layer = {
                 ]},
                 { id: 'diagnostico-ira-eda-etc', name: 'IRA/EDA/Febriles/SGB', subLayers: [
                     { id: 'diagnostico-iras', name: 'Infecciones respiratorias agudas' },
-                    { id: 'diagnostico-neumonias', name: 'Neumonías' },
                     { id: 'diagnostico-covid-19', name: 'COVID-19' },
-                    { id: 'diagnostico-sob-asma', name: 'SOB/ASMA' },
                     { id: 'diagnostico-febriles', name: 'Febriles' },
                     { id: 'diagnostico-sindrome-resp-agudo', name: 'Síndrome respiratorio agudo severo' },
                     { id: 'diagnostico-gripe-humana', name: 'Gripe humana causada por un nuevo subtipo de virus' },
@@ -333,6 +331,30 @@ const [casosPorDistrito, setCasosPorDistrito] = useState<Record<string, any>>({}
 //console.log("🟦 diagnosticoSeleccionado VALUE:", diagnosticoSeleccionado);
 //console.log("🟦 diagnosticoSeleccionado IS ARRAY:", Array.isArray(diagnosticoSeleccionado));
 
+const cargarFebrilesPorDistrito = async () => {
+  if (!allDistricts) return;
+
+  const resultados: any = {};
+
+  for (const feature of allDistricts.features) {
+    const distrito = feature.properties.NM_DIST;
+
+    try {
+      const resp = await fetch(`http://127.0.0.1:5000/api/febriles_distrito?distrito=${distrito}`);
+      const data = await resp.json();
+
+      resultados[distrito] = {
+        total: data.total || 0,
+        detalle: data.detalle || []
+      };
+
+    } catch (err) {
+      console.error(`Error cargando febriles en distrito ${distrito}:`, err);
+    }
+  }
+
+  setCasosPorDistrito(resultados);
+};
 
 const cargarEdasPorDistrito = async () => {
   if (!allDistricts) return;
@@ -373,29 +395,52 @@ const cargarEdasPorDistrito = async () => {
   }));
 };
 
-const cargarFebrilesPorDistrito = async () => {
+
+const cargarIRASPorDistrito = async () => {
   if (!allDistricts) return;
 
-  const resultados: any = {};
+  const results: Record<string, any> = {};
 
   for (const feature of allDistricts.features) {
-    const distrito = feature.properties.NM_DIST;
+      console.log("➡️ Distrito en GeoJSON:", feature.properties.NM_DIST);
+    const distrito = feature.properties.NM_DIST.toUpperCase();
 
     try {
-      const resp = await fetch(`http://127.0.0.1:5000/api/febriles_distrito?distrito=${distrito}`);
-      const data = await resp.json();
+     const res = await fetch(`/api/iras/${encodeURIComponent(distrito)}`);
 
-      resultados[distrito] = {
+      const data = await res.json();
+
+      results[distrito] = {
         total: data.total || 0,
-        detalle: data.detalle || []
+        detalle: [
+          { tipo_dx: "IRA NO NEUMONIA", cantidad: data.detalle.cantidad || 0 },
+          { tipo_dx: "SOB/ASMA",        cantidad: data.sob_asma || 0 },
+          { tipo_dx: "NEUMONÍA GRAVE",  cantidad: data.neumonia_grave || 0 },
+          { tipo_dx: "NEUMONÍA",        cantidad: data.neumonia || 0 }
+        ]
       };
 
     } catch (err) {
-      console.error(`Error cargando febriles en distrito ${distrito}:`, err);
+      console.error("❌ Error IRAS en ", distrito, err);
+
+      results[distrito] = {
+        total: 0,
+        detalle: [
+          { tipo_dx: "IRA NO NEUMONIA", cantidad: 0 },
+          { tipo_dx: "SOB/ASMA",        cantidad: 0 },
+          { tipo_dx: "NEUMONÍA GRAVE",  cantidad: 0 },
+          { tipo_dx: "NEUMONÍA",        cantidad: 0 }
+        ]
+      };
     }
   }
 
-  setCasosPorDistrito(resultados);
+  // 🔥 Guardar como EDAS (esto sí pinta el mapa)
+  setCasosPorDistrito(prev => ({
+    ...prev,
+    IRAS: results
+  }));
+
 };
 
 
@@ -404,6 +449,8 @@ useEffect(() => {
   if (!diagnosticoSeleccionado || diagnosticoSeleccionado.length === 0) return;
 
   const diagnostico = diagnosticoSeleccionado[ diagnosticoSeleccionado.length - 1 ];
+console.log("🟢 diagnosticoSeleccionado →", diagnosticoSeleccionado);
+console.log("🟢 diagnostico final →", diagnostico);
 
   // 🔴 EDAS
   if (diagnostico === "diagnostico-edas") {
@@ -419,50 +466,17 @@ useEffect(() => {
     return;
   }
 
+    // 🔵 IRAS
+  if (diagnostico === "diagnostico-iras") {
+    console.log("🟦 Cargando IRAS...");
+    cargarIRASPorDistrito();
+    return;
+  }
+
   // 🟢 Diagnósticos NOTIWEB normales
   cargarCasosPorDiagnostico(diagnostico);
 
 }, [diagnosticoSeleccionado, allDistricts]);
-
-
-
-const obtenerPoblacion = async (distrito: string) => {
-  try {
-    const res = await fetch(`http://localhost:5000/api/poblacion?distrito=${distrito}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Error desconocido");
-    return data;
-  } catch (error: any) {
-    console.error("Error al obtener población:", error.message);
-    return null;
-  }
-};
-
-const obtenerCasosEnfermedad = async (distrito: string, enfermedad: string) => {
-  const res = await fetch(`http://localhost:5000/api/casos_enfermedad?distrito=${distrito}&enfermedad=${enfermedad}`);
-  return await res.json();
-};
-
-const obtenerCasosTotales = async (distrito: string) => {
-  try {
-    const res = await fetch(`http://localhost:5000/api/casos_totales?distrito=${distrito}`);
-    const data = await res.json();
-    return data.total ?? 0;
-  } catch (e) {
-    console.error("Error al obtener casos totales", e);
-    return 0;
-  }
-};
-
-const [casosDetallePorDistrito, setCasosDetallePorDistrito] = useState<
-  Record<
-    string,
-    {
-      total: number;
-      detalle: { tipo_dx: string; cantidad: number }[];
-    }
-  >
->({});
 
 const cargarCasosPorDiagnostico = async (diagnostico: string) => {
   if (!allDistricts) return;
@@ -538,6 +552,48 @@ const cargarCasosPorDiagnostico = async (diagnostico: string) => {
 
   console.log(`============================`);
 };
+
+
+
+
+
+const obtenerPoblacion = async (distrito: string) => {
+  try {
+    const res = await fetch(`http://localhost:5000/api/poblacion?distrito=${distrito}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Error desconocido");
+    return data;
+  } catch (error: any) {
+    console.error("Error al obtener población:", error.message);
+    return null;
+  }
+};
+
+const obtenerCasosEnfermedad = async (distrito: string, enfermedad: string) => {
+  const res = await fetch(`http://localhost:5000/api/casos_enfermedad?distrito=${distrito}&enfermedad=${enfermedad}`);
+  return await res.json();
+};
+
+const obtenerCasosTotales = async (distrito: string) => {
+  try {
+    const res = await fetch(`http://localhost:5000/api/casos_totales?distrito=${distrito}`);
+    const data = await res.json();
+    return data.total ?? 0;
+  } catch (e) {
+    console.error("Error al obtener casos totales", e);
+    return 0;
+  }
+};
+
+const [casosDetallePorDistrito, setCasosDetallePorDistrito] = useState<
+  Record<
+    string,
+    {
+      total: number;
+      detalle: { tipo_dx: string; cantidad: number }[];
+    }
+  >
+>({});
 
 
 
@@ -941,14 +997,28 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
       // 3. detalles múltiples diagnósticos
       const detalleDiagnostico: Record<string, any> = {};
 
-      for (const diag of diagnosticoSeleccionado) {
-        const data = await obtenerCasosEnfermedad(districtName, diag);
+        for (const diag of diagnosticoSeleccionado) {
+          const data = await obtenerCasosEnfermedad(districtName, diag);
+          const detalleArray = data.detalle || [];
 
-        detalleDiagnostico[diag] = {
-          total: data.total || 0,
-          detalle: data.detalle || [],
-        };
-      }
+
+          detalleDiagnostico[diag] = {
+            // valores comunes
+            total: data.total || 0,
+            detalle: data.detalle || [],
+
+            // EDAS
+            daa: data.daa || 0,
+            dis: data.dis || 0,
+
+            // IRAS (aquí SI transformamos el JSON correcto)
+            ira_no_neumonia: detalleArray.find(d => d.grupo === "IRA_NO_NEUMONIA")?.cantidad || 0,
+            sob_asma:        detalleArray.find(d => d.grupo === "SOB_ASMA")?.cantidad || 0,
+            neumonia_grave:  detalleArray.find(d => d.grupo === "NEUMONIA_GRAVE")?.cantidad || 0,
+            neumonia:        detalleArray.find(d => d.grupo === "NEUMONIA")?.cantidad || 0
+          };
+        }
+
 
       // 4. guardar en estado
       setCasosDetallePorDistrito(prev => ({

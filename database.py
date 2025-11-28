@@ -24,3 +24,7 @@ def get_edas_connection():
 def get_febriles_connection():
     return connect("EPI_BD_FEBRILES")
 
+# 🔵 NUEVA CONEXIÓN PARA FEBRILES
+def get_iras_connection():
+    return connect("EPI_BD_IRAS")
+
