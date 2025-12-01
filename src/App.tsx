@@ -323,9 +323,11 @@ function App() {
   const zoomLevel = 12;
 
     // Casos por distrito (mapa dinámico)
-const [casosPorDistrito, setCasosPorDistrito] = useState<Record<string, any>>({});
+  const [casosPorDistrito, setCasosPorDistrito] = useState<Record<string, any>>({});
   // Estado para diagnóstico seleccionado
   const [diagnosticoSeleccionado, setDiagnosticoSeleccionado] = useState<string[]>([]);
+  // Estado de carga
+  const [isLoading, setIsLoading] = useState(false);
 
 //console.log("🟦 diagnosticoSeleccionado TYPE:", typeof diagnosticoSeleccionado);
 //console.log("🟦 diagnosticoSeleccionado VALUE:", diagnosticoSeleccionado);
@@ -553,10 +555,6 @@ const cargarCasosPorDiagnostico = async (diagnostico: string) => {
   console.log(`============================`);
 };
 
-
-
-
-
 const obtenerPoblacion = async (distrito: string) => {
   try {
     const res = await fetch(`http://localhost:5000/api/poblacion?distrito=${distrito}`);
@@ -595,31 +593,43 @@ const [, setCasosDetallePorDistrito] = useState<
   >
 >({});
 
+const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) => {
+    
+    // 1. Calcular el NUEVO ARRAY DE DIAGNÓSTICOS inmediatamente (sin usar el setter).
+    let nuevoDiagnosticoSeleccionado: string[];
 
-
-// En App.tsx
-const handleDiagnosticoSelect = (diagnostico: string, checked: boolean) => {
-  setDiagnosticoSeleccionado(prev => {
-    let nuevo;
     if (checked) {
-      // evitar duplicados
-      nuevo = prev.includes(diagnostico) ? prev : [...prev, diagnostico];
+        // Incluir el nuevo diagnóstico
+        nuevoDiagnosticoSeleccionado = diagnosticoSeleccionado.includes(diagnostico) 
+            ? diagnosticoSeleccionado 
+            : [...diagnosticoSeleccionado, diagnostico];
     } else {
-      nuevo = prev.filter(d => d !== diagnostico);
+        // Excluir el diagnóstico
+        nuevoDiagnosticoSeleccionado = diagnosticoSeleccionado.filter(d => d !== diagnostico);
     }
-
-    // ⭐ CORRECCIÓN: Llamar a cargarCasosPorDiagnostico con UN SOLO diagnóstico (el último)
-    // Si hay diagnósticos seleccionados, usamos el último para colorear el mapa.
-    const diagnosticoParaPintar = nuevo.length > 0 ? nuevo[nuevo.length - 1] : '';
-
+    
+    // 2. Determinar qué pintar basado en el array CALCULADO (prioridad: el último).
+    const diagnosticoParaPintar = nuevoDiagnosticoSeleccionado.length > 0 
+        ? nuevoDiagnosticoSeleccionado[nuevoDiagnosticoSeleccionado.length - 1] 
+        : '';
+        
+    // 3. Ejecutar la lógica de carga y consulta (INMEDIATA).
     if (diagnosticoParaPintar) {
-      cargarCasosPorDiagnostico(diagnosticoParaPintar); // ✅ Ahora envía un string
+        setIsLoading(true); 
+        try {
+            // ⭐ CONSULTA INMEDIATA ⭐
+            await cargarCasosPorDiagnostico(diagnosticoParaPintar); 
+        } catch (error) {
+            console.error("Error al cargar casos por diagnóstico:", error);
+        } finally {
+            setIsLoading(false); // <-- DESACTIVA EL SPINNER al finalizar la consulta
+        }
     } else {
-      setCasosPorDistrito({}); // Si no hay nada seleccionado, limpia los colores
+        setCasosPorDistrito({}); 
     }
-
-    return nuevo;
-  });
+    
+    // 4. Actualizar el estado del filtro al final.
+    setDiagnosticoSeleccionado(nuevoDiagnosticoSeleccionado);
 };
 
   
@@ -686,7 +696,7 @@ const handleDiagnosticoSelect = (diagnostico: string, checked: boolean) => {
     return ids;
   };
 
-  const handleLayerSelection = (layerId: string, isSelected: boolean) => {
+  const handleLayerSelection = async (layerId: string, isSelected: boolean) => {
     const newSelectedLayers = new Set(selectedLayers);
     const newSelectedDistrictLayerIds = new Set(selectedDistrictLayerIds);
 
@@ -706,6 +716,19 @@ const handleDiagnosticoSelect = (diagnostico: string, checked: boolean) => {
     if (layerId === 'distritos') {
         if (isSelected) {
             newSelectedLayers.add(layerId);
+            
+            // ⭐ LÓGICA DE CARGA: Activar Spinner
+            setIsLoading(true);
+            try {
+                // Solo llama a la carga si hay un diagnóstico seleccionado para pintar
+                if (diagnosticoSeleccionado.length > 0) {
+                    await cargarCasosPorDiagnostico(diagnosticoSeleccionado[diagnosticoSeleccionado.length - 1]);
+                }
+            } catch (error) {
+                console.error("Error al cargar casos al seleccionar capa distritos:", error);
+            } finally {
+                setIsLoading(false); // <-- DESACTIVA EL SPINNER
+            }
         } else {
             const allDistrictIds = getSubLayerIds(layerToToggle);
             allDistrictIds.forEach(id => newSelectedLayers.delete(id));
@@ -1115,6 +1138,13 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
         subdomains={currentBaseMap.subdomains}
         maxZoom={20}
       />
+
+      {isLoading && (
+        <div className="loading-overlay">
+          <img src="/logo.png" alt="Cargando..." className="loading-logo" />
+          <p>Cargando datos de vigilancia...</p>
+        </div>
+      )}
 
       <MapResetClickHandler 
           setClickedDistrictId={setClickedDistrictId}

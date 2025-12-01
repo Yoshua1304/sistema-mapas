@@ -484,3 +484,44 @@ body, html, #root {
   right: 8px;
   text-shadow: none;
 }
+
+/* === LOADER / SPINNER ANIMADO === */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* Fondo semitransparente para que se vea que el mapa está detrás */
+    background-color: rgba(255, 255, 255, 0.85); 
+    z-index: 2000; /* Asegura que esté por encima de todos los elementos flotantes (z-index de Leaflet es ~1000) */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2rem;
+    color: #CC0000;
+    /* Efecto de desvanecimiento suave */
+    opacity: 1;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.loading-logo {
+    width: 100px; 
+    height: 100px;
+    margin-bottom: 20px;
+    /* Aplica la animación de rotación */
+    animation: spin 1.5s linear infinite; 
+}
+
+/* Estilo para el texto de carga */
+.loading-overlay p {
+    margin: 0;
+    font-weight: bold;
+}
+
+/* Definición de la animación: Rotación de 360 grados */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
