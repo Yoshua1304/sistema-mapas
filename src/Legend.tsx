@@ -32,14 +32,11 @@ const Legend: React.FC<LegendProps> = ({ selectedLayerNames, selectedDistrictNam
 
     // Añadir distritos seleccionados (solo si hay al menos uno)
     if (selectedDistrictNames.length > 0) {
-        // Si tienes varios distritos seleccionados, podríamos listarlos.
-        // O si solo se permite uno a la vez (como el naranja), mostrar ese.
-        // Para el ejemplo de tu imagen, "BREÑA" está en fucsia, indicando un distrito resaltado.
         selectedDistrictNames.forEach(name => {
             legendItems.push({
                 id: name,
                 name: name,
-                color: '#f7a52bff', // Color naranja del resaltado del distrito
+                color: '#f3b14fff', // Color naranja del resaltado del distrito
                 type: 'district'
             });
         });
@@ -60,10 +57,7 @@ const Legend: React.FC<LegendProps> = ({ selectedLayerNames, selectedDistrictNam
                                 +
                             </span>
                         ) : (
-                            <span className="legend-icon district-icon" style={{ backgroundColor: item.color }}>
-                                {/* Puedes usar un icono diferente para distritos si quieres */}
-                                🏙️
-                            </span>
+                            <span className="legend-icon district-icon">📍</span>
                         )}
                         <span className="legend-name">{item.name}</span>
                     </li>

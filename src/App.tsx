@@ -957,7 +957,7 @@ const getDistrictStyle = (feature: any) => {
       // Resaltado naranja si solo está 'distritos' activo
       return {
         ...highlightStyle,
-        fillColor: "#f7a52bff", // Color naranja
+        fillColor: "#f3b14fff", // Color default
       };
     }
     // Caso base (distritos activos, pero sin selección individual)
