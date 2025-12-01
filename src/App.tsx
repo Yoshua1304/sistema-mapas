@@ -585,7 +585,7 @@ const obtenerCasosTotales = async (distrito: string) => {
   }
 };
 
-const [casosDetallePorDistrito, setCasosDetallePorDistrito] = useState<
+const [, setCasosDetallePorDistrito] = useState<
   Record<
     string,
     {
@@ -1012,10 +1012,10 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
             dis: data.dis || 0,
 
             // IRAS (aquí SI transformamos el JSON correcto)
-            ira_no_neumonia: detalleArray.find(d => d.grupo === "IRA_NO_NEUMONIA")?.cantidad || 0,
-            sob_asma:        detalleArray.find(d => d.grupo === "SOB_ASMA")?.cantidad || 0,
-            neumonia_grave:  detalleArray.find(d => d.grupo === "NEUMONIA_GRAVE")?.cantidad || 0,
-            neumonia:        detalleArray.find(d => d.grupo === "NEUMONIA")?.cantidad || 0
+            ira_no_neumonia: detalleArray.find((d: any) => d.grupo === "IRA_NO_NEUMONIA")?.cantidad || 0,
+            sob_asma:        detalleArray.find((d: any) => d.grupo === "SOB_ASMA")?.cantidad || 0,
+            neumonia_grave:  detalleArray.find((d: any) => d.grupo === "NEUMONIA_GRAVE")?.cantidad || 0,
+            neumonia:        detalleArray.find((d: any) => d.grupo === "NEUMONIA")?.cantidad || 0
           };
         }
 
