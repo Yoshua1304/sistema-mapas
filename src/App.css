@@ -20,7 +20,7 @@ body, html, #root {
 
 /* === HEADER === */
 .header {
-  background-color: #CC0000;
+  background-color: #106bc7;
   color: white;
   padding: 5px 20px;
   display: flex;
@@ -38,7 +38,6 @@ body, html, #root {
     height: 70px;
     width: 70px;
     margin-right: 10px;
-    filter: invert(1);
 }
 
 .brand-text {
@@ -134,13 +133,13 @@ body, html, #root {
 
 }/* Estilo para el botón activo (solo Capas, ya no hay Leyenda) */.sidebar-nav .nav-button.active {
 
-    background-color: #CC0000;
+    background-color: #106bc7;
 
 }/* ⭐ Botón de la flecha roja para cerrar (parte inferior o superior) ⭐ */.sidebar-toggle-button-close {
 
     /* Color de fondo rojo */
 
-    background-color: #CC0000 !important; 
+    background-color: #106bc7 !important; 
 
     /* Colocado en la parte inferior de la barra de navegación para el diseño propuesto */
 
@@ -150,12 +149,12 @@ body, html, #root {
 
 }.sidebar-toggle-button-close:hover {
 
-    background-color: #AA0000 !important; 
+    background-color: #106bc7 !important; 
 
 }
 
 .sidebar-header {
-  background-color: #CC0000;
+  background-color: #106bc7;
   color: white;
   padding: 10px 15px;
   display: flex;
@@ -443,7 +442,7 @@ body, html, #root {
   height: 0;
   border-left: 8px solid transparent;
   border-right: 8px solid transparent;
-  border-bottom: 12px solid #D5191C; /* Red part */
+  border-bottom: 12px solid #106bc7; /* Red part */
 }
 
 .compass-arrow-down {
@@ -568,8 +567,7 @@ body, html, #root {
     justify-content: center;
     align-items: center;
     font-size: 1.2rem;
-    color: #CC0000;
-    /* Efecto de desvanecimiento suave */
+    color: #106bc7;
     opacity: 1;
     transition: opacity 0.3s ease-in-out;
 }
@@ -578,8 +576,8 @@ body, html, #root {
     width: 100px; 
     height: 100px;
     margin-bottom: 20px;
-    /* Aplica la animación de rotación */
-    animation: spin 1.5s linear infinite; 
+    animation: pulse-build 1.8s ease-in-out infinite; 
+    transform-origin: center center;
 }
 
 /* Estilo para el texto de carga */
@@ -588,8 +586,22 @@ body, html, #root {
     font-weight: bold;
 }
 
-/* Definición de la animación: Rotación de 360 grados */
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+/* ⭐ NUEVA DEFINICIÓN DE LA ANIMACIÓN: PULSACIÓN / CONSTRUCCIÓN ⭐ */@keyframes pulse-build {
+    0% { 
+        /* Inicia muy pequeño y ligeramente transparente */
+        transform: scale(0.2); 
+        opacity: 0.3;
+    }
+
+    50% { 
+        /* Llega a su tamaño normal, totalmente visible */
+        transform: scale(1); 
+        opacity: 1;
+    }
+
+    100% { 
+        /* Vuelve al estado inicial pequeño para repetir el ciclo */
+        transform: scale(0.2); 
+        opacity: 0.3;
+    }
 }

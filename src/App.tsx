@@ -1142,9 +1142,9 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
     <header className="header">
       <div className="logo-container">
         <img src="/logo.png" alt="Logo DIRIS-LC" />
-        <span className="brand-text">DIRIS-LC</span>
+        <span className="brand-text">CENTINELA 7.0</span>
         <span className="separator"></span>
-        <h1>Plataforma de Datos Georreferenciados Epi Perú</h1>
+        <h1>OEISDI - DIRIS LIMA CENTRO</h1>
       </div>
     </header>
 
