@@ -358,6 +358,31 @@ const cargarFebrilesPorDistrito = async () => {
   setCasosPorDistrito(resultados);
 };
 
+const resetMapToDefault = () => {
+    // 1. Limpiar filtros de Diagnóstico y casos
+    setDiagnosticoSeleccionado([]);
+    setCasosPorDistrito({}); 
+    // setCasosDetallePorDistrito({}); // Si existe y se usa, también debe limpiarse
+
+    // 2. Restablecer la selección de capas (solo 'distritos' por defecto)
+    const defaultLayers = new Set(['distritos']);
+    setSelectedLayers(defaultLayers);
+    setSelectedDistrictLayerIds(new Set()); 
+
+    // 3. Limpiar búsquedas y clics
+    setLayerSearchTerm('');
+    setMapSearchTerm('');
+    setSearchedDistrictId(null);
+    setClickedDistrictId(null);
+    
+    // 4. Volver a la vista inicial del mapa
+    if (map) {
+        map.setView(position, zoomLevel); 
+    }
+    
+    console.log("✅ Mapa y filtros reseteados.");
+};
+
 const cargarEdasPorDistrito = async () => {
   if (!allDistricts) return;
 
@@ -1165,51 +1190,95 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
           />
         )}
 
-        {/* SIDEBAR FLOTANTE */}
+        {/* SIDEBAR FLOTANTE (ESTRUCTURA CORREGIDA: CONTENIDO + NAV) */}
         <div
-          ref={sidebarRef}
-          className={`sidebar-floating ${isSidebarOpen ? "open" : ""}`}
+            ref={sidebarRef}
+            className={`sidebar-floating ${isSidebarOpen ? "open" : ""}`}
         >
-          <div
-            className="sidebar-header"
-            onClick={() => setSidebarOpen(!isSidebarOpen)}
-          >
-            <h3>CAPAS</h3>
-            <button className="sidebar-toggle-button">
-              {isSidebarOpen ? "◀" : "▶"}
-            </button>
-          </div>
+            
+            {/* ⭐ 1. CONTENIDO PRINCIPAL (Se desliza para ocultarse) ⭐ */}
+            <div className="sidebar-content">
+                <div className="sidebar-header">
+                    <h3>CAPAS</h3>
+                </div>
+                
+                {isSidebarOpen && (
+                    <>
+                        {/* BUSCADOR DE CAPAS */}
+                        <div className="layer-search">
+                            <input
+                                type="text"
+                                placeholder="Busca la capa que necesitas"
+                                value={layerSearchTerm}
+                                onChange={(e) => setLayerSearchTerm(e.target.value)}
+                            />
+                            <button>🔍</button>
+                        </div>
 
-          {isSidebarOpen && (
-            <>
-              {/* BUSCADOR DE CAPAS */}
-              <div className="layer-search">
-                <input
-                  type="text"
-                  placeholder="Busca la capa que necesitas"
-                  value={layerSearchTerm}
-                  onChange={(e) => setLayerSearchTerm(e.target.value)}
-                />
-                <button>🔍</button>
-              </div>
+                        {/* LISTA DE CAPAS */}
+                        <ul className="layer-list">
+                            {filteredLayers.map((layer) => (
+                            <LayerItem
+                                key={layer.id}
+                                layer={layer}
+                                selectedLayers={selectedLayers}
+                                onSelectionChange={handleLayerSelection}
+                                onDiagnosticoSelect={handleDiagnosticoSelect}
+                                diagnosticoSeleccionado={diagnosticoSeleccionado}
+                                isSearchActive={isSearchActive}
+                            />
 
-              {/* LISTA DE CAPAS */}
-              <ul className="layer-list">
-                {filteredLayers.map((layer) => (
-                <LayerItem
-                  key={layer.id}
-                  layer={layer}
-                  selectedLayers={selectedLayers}
-                  onSelectionChange={handleLayerSelection}
-                  onDiagnosticoSelect={handleDiagnosticoSelect}
-                  diagnosticoSeleccionado={diagnosticoSeleccionado}
-                  isSearchActive={isSearchActive}
-                />
+                            ))}
+                        </ul>
+                    </>
+                )}
+            </div>
 
-                ))}
-              </ul>
-            </>
-          )}
+            {/* ⭐ 2. COLUMNA DE NAVEGACIÓN (PERMANECE VISIBLE A LA DERECHA) ⭐ */}
+            <div className="sidebar-nav">
+                {/* Botón de CAPAS (Mostrar/Cerrar el panel de contenido) */}
+                <button 
+                    className={`nav-button ${isSidebarOpen ? 'active' : ''}`}
+                    onClick={() => setSidebarOpen(true)}
+                    title="Capas y Filtros"
+                >
+                    {/* Ícono de capas apiladas */}
+                    <i className="fas fa-layer-group"></i> 
+                </button>
+
+                {/* Botón de LEYENDAS (Solo ícono de lista, ya que eliminamos la vista) */}
+                <button 
+                    className="nav-button"
+                    title="Leyenda y Simbología"
+                >
+                    <i className="fas fa-list"></i>
+                </button>
+                
+                {/* Ícono de Casa (Omitido) */}
+                
+                {/* Botón de BORRADOR (Resetear Filtros) */}
+                <button 
+                    className="nav-button reset-button"
+                    onClick={resetMapToDefault} // Llama a la función de reset
+                    title="Limpiar Filtros"
+                >
+                    <i className="fas fa-eraser"></i>
+                </button>
+
+                {/* Flecha para esconder el recuadro (A la derecha, visible siempre que el panel esté abierto) */}
+                {/* Usamos el botón de cerrar del diseño anterior, pero con la función de cerrar */}
+                {isSidebarOpen && (
+                    <button 
+                        className="sidebar-toggle-button-close" // Clase específica para el botón de cerrar
+                        onClick={() => setSidebarOpen(false)}
+                        title="Cerrar Panel"
+                    >
+                        {/* Flecha hacia la izquierda */}
+                        <i className="fas fa-chevron-left"></i> 
+                    </button>
+                )}
+                
+            </div>
 
         </div>
 

@@ -60,7 +60,6 @@ body, html, #root {
 /* === FLOATING SIDEBAR (CAPAS) === */
 .sidebar-floating {
   position: absolute;
-  left: 15px;
   top: 50%;
   transform: translateY(-50%);
   width: 320px;
@@ -71,12 +70,88 @@ body, html, #root {
   box-shadow: 0 4px 8px rgba(0,0,0,0.2);
   z-index: 1020;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   transition: transform 0.3s ease-in-out;
 }
 
 .sidebar-floating:not(.open) {
-  transform: translate(-305px, -50%);
+  transform: translate(-280px, -50%);
+}
+
+/* === CONTENIDO PRINCIPAL DESLIZABLE (IZQUIERDA) === */.sidebar-content {
+
+    /* Ocupa el espacio del contenido (320px - 40px = 280px) */
+
+    width: 280px; 
+
+    display: flex;
+
+    flex-direction: column;
+
+    min-width: 0; 
+
+    background-color: white; /* Para que el contenido sea blanco */
+
+}/* === COLUMNA DE NAVEGACIÓN (DERECHA) === */.sidebar-nav {
+
+    display: flex;
+
+    flex-direction: column;
+
+    width: 40px; /* Ancho fijo para la columna de íconos */
+
+    background-color: #333333; /* Fondo oscuro */
+
+    padding: 5px 0;
+
+    border-radius: 0 4px 4px 0;
+
+    align-items: center;
+
+    gap: 5px; /* Espacio entre botones */
+
+}/* Estilo general para los botones de navegación */.sidebar-nav button {
+
+    background: none;
+
+    border: none;
+
+    color: white;
+
+    padding: 10px 0;
+
+    width: 100%; /* Para que ocupe todo el ancho de 40px */
+
+    font-size: 1.2rem;
+
+    cursor: pointer;
+
+    transition: background-color 0.2s;
+
+}.sidebar-nav button:hover:not(.sidebar-toggle-button-close) {
+
+    background-color: #555555;
+
+}/* Estilo para el botón activo (solo Capas, ya no hay Leyenda) */.sidebar-nav .nav-button.active {
+
+    background-color: #CC0000;
+
+}/* ⭐ Botón de la flecha roja para cerrar (parte inferior o superior) ⭐ */.sidebar-toggle-button-close {
+
+    /* Color de fondo rojo */
+
+    background-color: #CC0000 !important; 
+
+    /* Colocado en la parte inferior de la barra de navegación para el diseño propuesto */
+
+    margin-top: auto; 
+
+    padding: 15px 0 !important;
+
+}.sidebar-toggle-button-close:hover {
+
+    background-color: #AA0000 !important; 
+
 }
 
 .sidebar-header {
@@ -95,14 +170,7 @@ body, html, #root {
 }
 
 .sidebar-toggle-button {
-    background: none;
-    border: none;
-    color: white;
-    font-size: 1rem;
-    cursor: pointer;
-    padding: 5px 10px;
-    border-radius: 3px;
-    background-color: rgba(0,0,0,0.2);
+    display: none;
 }
 
 .layer-search {
