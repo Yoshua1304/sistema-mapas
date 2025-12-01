@@ -59,6 +59,8 @@ interface DistrictPopupProps {
   poblacion?: Poblacion | null;
   diagnosticoSeleccionado: string[];
   detalleDiagnostico: Record<string, DiagnosticoDetalle>;
+  // ⭐ Puedes añadir una prop opcional para manejar el clic del botón, por ejemplo:
+  // onDataViewClick?: (districtName: string) => void; 
 }
 
 const DistrictPopup: React.FC<DistrictPopupProps> = ({
@@ -67,10 +69,20 @@ const DistrictPopup: React.FC<DistrictPopupProps> = ({
   poblacion,
   diagnosticoSeleccionado = [],
   detalleDiagnostico = {}
+  // onDataViewClick
 }) => {
 
   // Helper para formatear números (ej: 1.000)
   const fmt = (num: number | undefined) => (num !== undefined ? num.toLocaleString('es-PE') : '0');
+
+  // ⭐ Función de ejemplo para el botón (puedes reemplazarla o eliminarla)
+  const handleViewData = () => {
+    alert(`Visualizando datos detallados para el distrito: ${districtName}`);
+    // if (onDataViewClick) {
+    //   onDataViewClick(districtName);
+    // }
+  };
+
 
   return (
     <div className="district-popup-container">
@@ -252,6 +264,17 @@ const DistrictPopup: React.FC<DistrictPopupProps> = ({
             })}
           </div>
         )}
+
+        {/* ⭐⭐⭐ NUEVO BOTÓN "VER DATOS" ⭐⭐⭐ */}
+        <div className="data-button-container">
+            <button 
+                className="view-data-button"
+                onClick={handleViewData}
+                title={`Ver datos detallados de ${districtName}`}
+            >
+                Ver Datos <i className="fas fa-chart-bar"></i>
+            </button>
+        </div>
 
       </div>
     </div>
