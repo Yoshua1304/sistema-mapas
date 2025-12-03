@@ -224,7 +224,7 @@ const VIGILANCIA_LAYER_DATA: Layer = {
                     { id: 'diagnostico-viruela-del-mono', name: 'Viruela del mono' },
                 ]},
                 { id: 'diagnostico-tuberculosis-group', name: 'Tuberculosis', subLayers: [
-                    { id: 'diagnostico-tbc-pulmonar-confirmada', name: 'TBC pulmonar' },
+                    { id: 'diagnostico-tbcpulmonar', name: 'TBC pulmonar' },
                     { id: 'diagnostico-tbcTIA', name: 'TBC TIA' },
                     { id: 'diagnostico-tbcTIAEESS', name: 'TBC TIA EESS' },
 
@@ -494,6 +494,32 @@ const cargarTIATotalEESS = async () => {
   }
 };
 
+const cargarSigtbDistritos = async () => {
+  try {
+    const resp = await fetch("http://127.0.0.1:5000/tb_sigtb_distritos");
+    const data = await resp.json();
+
+    const resultados: Record<string, { total: number }> = {};
+
+    for (const distrito in data) {
+      resultados[distrito.toUpperCase()] = {
+        total: data[distrito]
+      };
+    }
+
+    setCasosPorDistrito(prev => ({
+      ...prev,
+      SIGTB: resultados
+    }));
+
+    console.log("SIGTB cargado:", resultados);
+
+  } catch (err) {
+    console.error("❌ Error cargando SIGTB:", err);
+  }
+};
+
+
 const resetMapToDefault = () => {
     // 1. Limpiar filtros de Diagnóstico y casos
     setDiagnosticoSeleccionado([]);
@@ -548,15 +574,21 @@ console.log("🟢 diagnostico final →", diagnostico);
     return;
   }
 
-      // 🔵 TUBERCULOSIS
+      // 🔵 TUBERCULOSIS_TIA
 if (diagnostico.trim().toLowerCase() === "diagnostico-tbcTIA") {
     cargarTIATotal();
     return;
 }
 
-      // 🔵 TUBERCULOSIS_EESS
+      // 🔵 TUBERCULOSIS_TIA_EESS
 if (diagnostico.trim().toLowerCase() === "diagnostico-tbctiaeess") {
     cargarTIATotalEESS();
+    return;
+}
+
+    // 🔵 TUBERCULOSIS
+if (diagnostico.trim().toLowerCase() === "diagnostico-tbcpulmonar") {
+    cargarSigtbDistritos();
     return;
 }
 
@@ -1132,7 +1164,7 @@ if (diag === "TBC TIA") {
   // ======================================
   // 🔵 LOGICA PARA TUBERCULOSIS EESS MINSA
   // ======================================
-if (diag === "TBC TIA EES") {
+if (diag === "TBC TIA EESS") {
   detalleDiagnostico[diag] = {
     total: data.total || 0,        // <── CAMBIO AQUÍ
     TIA_100k: data.TIA_100k || 0,
