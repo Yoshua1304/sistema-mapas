@@ -140,7 +140,7 @@ def casos_enfermedad():
     ]:
         return get_iras_por_distrito(distrito)
     # -------------------------------------------
-    # 🔵 TUBERCULOSIS
+    # 🔵 TUBERCULOSIS_TIA
     # -------------------------------------------
 
     if enfermedad.upper() in [
@@ -153,18 +153,26 @@ def casos_enfermedad():
     ]:
         return get_tia_total_por_distrito(distrito)
     # -------------------------------------------
-    # 🔵 TUBERCULOSIS_EESS
+    # 🔵 TUBERCULOSIS_TIA_EESS
     # -------------------------------------------
 
     if enfermedad.upper() in [
-        "TBC-TIA",
-        "TBC TIA",
-        "TBC",
-        "TIA",
-        "DIAGNOSTICO-TBC-TIA",
-        "diagnostico-tbcTIA"
+        "TBC TIA EESS",
+        "DIAGNOSTICO-TBC-TIAEESS",
+        "DIAGNOSTICO-TBCTIAEESS"
     ]:
         return get_tia_total_por_distrito_EESS(distrito)
+    
+    # -------------------------------------------
+    # 🔵 TUBERCULOSIS
+    # -------------------------------------------
+
+    if enfermedad.upper() in [
+        "TBC PULMONAR",
+        "DIAGNOSTICO-TBC-PULMONAR",
+        "DIAGNOSTICO-TBCPULMONAR"
+    ]:
+        return tb_sigtb_distritos(distrito)
 
     # -------------------------------------------
     # 🟢 NOTIWEB (normal)
@@ -784,6 +792,40 @@ def tb_tia_total_EESS():
         return jsonify({"error": "Debe enviar ?distrito=nombre"}), 400
 
     return get_tia_total_por_distrito_EESS(distrito)
+
+# ============================================================
+# ENDPOINT: CASOS TUBERCULOSIS SIGTB POR DISTRITO
+# ============================================================
+def tb_sigtb_distritos(distrito):
+    try:
+        conn = get_TB_connection()
+        if conn is None:
+            return jsonify({"error": "Error en la conexión TB"}), 500
+
+        cursor = conn.cursor()
+
+        sql = """
+            SELECT COUNT(*) AS total
+            FROM TB_BD_SIGTB
+            WHERE UPPER(DIRESA_DIREC) = 'DIRIS LIMA CENTRO'
+              AND UPPER(distrito) = UPPER(?)
+        """
+
+        cursor.execute(sql, distrito)
+        row = cursor.fetchone()
+        conn.close()
+
+        total = row[0] if row else 0
+
+        return jsonify({
+            "distrito": distrito,
+            "enfermedad": "TBC PULMONAR",
+            "total": total,
+            "detalle": []
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 
