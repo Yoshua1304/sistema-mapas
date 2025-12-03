@@ -1,12 +1,10 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from database import connect    # tu función centralizada de conexión
-from database import get_edas_connection,get_iras_connection
+from database import get_edas_connection,get_iras_connection, get_TB_connection, get_febriles_connection
 
 app = Flask(__name__)
 CORS(app)
-
-from database import get_febriles_connection
 
 def get_febriles_por_distrito(distrito):
     conn = get_febriles_connection()
@@ -130,7 +128,10 @@ def casos_enfermedad():
     ]:
         return get_febriles_por_distrito(distrito)
     
-    # 🔵 IRAS
+    # -------------------------------------------
+    # 🔵 FEBRILES
+    # -------------------------------------------
+
     if enfermedad.upper() in [
         "INFECCIONES RESPIRATORIAS AGUDAS",
         "IRA",
@@ -138,7 +139,32 @@ def casos_enfermedad():
         "DIAGNOSTICO-IRAS"
     ]:
         return get_iras_por_distrito(distrito)
+    # -------------------------------------------
+    # 🔵 TUBERCULOSIS
+    # -------------------------------------------
 
+    if enfermedad.upper() in [
+        "TBC-TIA",
+        "TBC TIA",
+        "TBC",
+        "TIA",
+        "DIAGNOSTICO-TBC-TIA",
+        "diagnostico-tbcTIA"
+    ]:
+        return get_tia_total_por_distrito(distrito)
+    # -------------------------------------------
+    # 🔵 TUBERCULOSIS_EESS
+    # -------------------------------------------
+
+    if enfermedad.upper() in [
+        "TBC-TIA",
+        "TBC TIA",
+        "TBC",
+        "TIA",
+        "DIAGNOSTICO-TBC-TIA",
+        "diagnostico-tbcTIA"
+    ]:
+        return get_tia_total_por_distrito_EESS(distrito)
 
     # -------------------------------------------
     # 🟢 NOTIWEB (normal)
@@ -628,6 +654,136 @@ def get_iras_por_distrito(distrito):
     finally:
         cursor.close()
         conn.close()
+
+
+# ============================================================
+# ENDPOINT: TABLA COMPLETA TIA_TOTAL (TUBERCULOSIS)
+# ============================================================
+
+def get_tia_total_por_distrito(distrito):
+    conn = get_TB_connection()
+    if conn is None:
+        return jsonify({"error": "Error en la conexión TB"}), 500
+
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM TIA_TOTAL")
+    rows = cursor.fetchall()
+    conn.close()
+
+    # Convertir estructura
+    data = [
+        {
+            "Distrito_EESS": r[0],
+            "casos": r[1],
+            "poblacion_total": r[2],
+            "TIA_100k": float(r[3]),
+            "Distrito": r[4]
+        }
+        for r in rows
+    ]
+
+    # Buscar distrito
+    for row in data:
+        if row["Distrito"].upper() == distrito.upper():
+            return jsonify({
+                "distrito": distrito,
+                "enfermedad": "TBC TIA",
+                "total": row["casos"],
+                "detalle": [],
+                "TIA_100k": row["TIA_100k"]
+            })
+
+    # Si no existe el distrito
+    return jsonify({
+        "distrito": distrito,
+        "enfermedad": "TBC TIA",
+        "total": 0,
+        "detalle": [],
+        "TIA_100k": 0
+    })
+
+
+@app.route("/tb_tia_total")
+def tb_tia_total():
+    return jsonify(get_tia_total_por_distrito())
+
+# ============================================================
+# ENDPOINT: TABLA COMPLETA TIA_TOTAL_EESS (TUBERCULOSIS)
+# ============================================================
+
+def get_tia_total_por_distrito_EESS(distrito):
+    conn = get_TB_connection()
+    if conn is None:
+        return jsonify({"error": "Error en la conexión TB"}), 500
+
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM TB_TIA_EESS_MINSA")
+    rows = cursor.fetchall()
+    conn.close()
+
+    data = [
+        {
+            "Distrito_EESS": r[0],
+            "casos": r[1],
+            "poblacion_total": r[2],
+            "TIA_100k": float(r[3]),
+            "Distrito": r[4]
+        }
+        for r in rows
+    ]
+
+    # Buscar distrito
+    for row in data:
+        if row["Distrito"].upper() == distrito.upper():
+            return jsonify({
+                "distrito": distrito,
+                "enfermedad": "TBC TIA",
+                "total": row["casos"],
+                "detalle": [],
+                "TIA_100k": row["TIA_100k"]
+            })
+
+    # Si no existe
+    return jsonify({
+        "distrito": distrito,
+        "enfermedad": "TBC TIA",
+        "total": 0,
+        "detalle": [],
+        "TIA_100k": 0
+    })
+
+@app.route("/tb_tia_total_EESS_all")
+def tb_tia_total_EESS_all():
+    conn = get_TB_connection()
+    if conn is None:
+        return jsonify({"error": "Error en la conexión TB"}), 500
+
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM TB_TIA_EESS_MINSA")
+    rows = cursor.fetchall()
+    conn.close()
+
+    data = [
+        {
+            "Distrito_EESS": r[0],
+            "casos": r[1],
+            "poblacion_total": r[2],
+            "TIA_100k": float(r[3]),
+            "Distrito": r[4]
+        }
+        for r in rows
+    ]
+
+    return jsonify(data)
+
+
+@app.route("/tb_tia_total_EESS")
+def tb_tia_total_EESS():
+    distrito = request.args.get("distrito")
+    if not distrito:
+        return jsonify({"error": "Debe enviar ?distrito=nombre"}), 400
+
+    return get_tia_total_por_distrito_EESS(distrito)
 
 
 

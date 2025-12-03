@@ -49,7 +49,14 @@ interface DiagnosticoDetalle {
   sob_asma?: number;
   neumonia_grave?: number;
   neumonia?: number;
+
+  // TBC
+  TBC?: number;
+
+  // ⭐ AGREGAR ESTO:
+  TIA_100k?: number;
 }
+
 
 
 
@@ -83,6 +90,16 @@ const DistrictPopup: React.FC<DistrictPopupProps> = ({
     // }
   };
 
+  // Dentro de DistrictPopup.tsx, justo antes del return:
+
+console.log("DEBUG POPUP →", {
+  distrito: districtName,
+  TIAx100: detalleDiagnostico["TBC TIA"]?.TIA_100k || detalleDiagnostico["TBC TIA"]?.TIA_100k || "SIN TIA",
+  casos: detalleDiagnostico["TBC TIA"]?.total ?? "0"
+});
+
+console.log("💥 detalleDiagnostico COMPLETO:", detalleDiagnostico);
+console.log("🔑 Claves disponibles:", Object.keys(detalleDiagnostico));
 
   return (
     <div className="district-popup-container">
@@ -154,6 +171,10 @@ const DistrictPopup: React.FC<DistrictPopupProps> = ({
             {diagnosticoSeleccionado.map((diag) => {
               
               const data = detalleDiagnostico?.[diag] || { total: 0 };
+
+              const isTBC =
+                diag.toLowerCase().includes("tbc") ||
+                diag.toLowerCase().includes("tia");
 
               const isEDAS =
                 diag === "diagnostico-edas" ||
@@ -246,9 +267,22 @@ const DistrictPopup: React.FC<DistrictPopupProps> = ({
                       </div>
                     </div>
                   )}
+                    {isTBC && (
+                      <div className="diag-details">
+                        <div className="detail-row">
+                          <span>Tasa TIA por 100,000 hab.</span>
+                          <strong>{fmt(data.TIA_100k)}</strong>
+                        </div>
+                        <div className="detail-row">
+                          <span>Casos Totales (TB)</span>
+                          <strong>{fmt(data.total)}</strong>
+                        </div>
+                      </div>
+                    )}
+
 
                   {/* 🟢 OTROS DIAGNÓSTICOS (tipo_dx) */}
-                  {!isEDAS && !isFEBRILES &&!isIRAS && data.detalle && data.detalle.length > 0 && (
+                  {!isEDAS && !isFEBRILES &&!isIRAS &&!isTBC && data.detalle && data.detalle.length > 0 && (
                     <div className="diag-details">
                       {data.detalle.map((d) => (
                         <div key={d.tipo_dx} className="detail-row">

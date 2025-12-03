@@ -224,19 +224,10 @@ const VIGILANCIA_LAYER_DATA: Layer = {
                     { id: 'diagnostico-viruela-del-mono', name: 'Viruela del mono' },
                 ]},
                 { id: 'diagnostico-tuberculosis-group', name: 'Tuberculosis', subLayers: [
-                    { id: 'diagnostico-tbc-pulmonar-confirmada', name: 'TBC pulmonar c/conf. bacteriol' },
-                    { id: 'diagnostico-tbc-respiratoria-no-especificada', name: 'TBC respiratoria no especificada' },
-                    { id: 'diagnostico-tbc-pulmonar-sin-confirmacion', name: 'TBC pulmonar s/conf. bacteriol' },
-                    { id: 'diagnostico-meningitis-tuberculosis-menor5', name: 'Meningitis tuberculosis en < 5' },
-                    { id: 'diagnostico-tuberculosis-extrapulmonar', name: 'Tuberculosis extrapulmonar' },
-                    { id: 'diagnostico-tbc-miliar', name: 'TBC miliar' },
-                    { id: 'diagnostico-hansen-lepra', name: 'Enfermedad de Hansen - lepra' },
-                    { id: 'diagnostico-tbc-multidrogorresistente', name: 'TBC multidrogorresistente (TB MDR)' },
-                    { id: 'diagnostico-tbc-monorresistente', name: 'TBC monorresistente' },
-                    { id: 'diagnostico-tbc-polirresistente', name: 'TBC polirresistente' },
-                    { id: 'diagnostico-tbc-extensamente-resistente', name: 'TBC extensamente resistente (TB XDR)' },
-                    { id: 'diagnostico-tbc-abandono-recuperado', name: 'TBC abandono recuperado' },
-                    { id: 'diagnostico-tbc-recaida', name: 'TBC recaída' }
+                    { id: 'diagnostico-tbc-pulmonar-confirmada', name: 'TBC pulmonar' },
+                    { id: 'diagnostico-tbcTIA', name: 'TBC TIA' },
+                    { id: 'diagnostico-tbcTIAEESS', name: 'TBC TIA EESS' },
+
                 ]},
                 { id: 'diagnostico-ira-eda-etc', name: 'IRA/EDA/Febriles/SGB', subLayers: [
                     { id: 'diagnostico-iras', name: 'Infecciones respiratorias agudas' },
@@ -358,31 +349,6 @@ const cargarFebrilesPorDistrito = async () => {
   setCasosPorDistrito(resultados);
 };
 
-const resetMapToDefault = () => {
-    // 1. Limpiar filtros de Diagnóstico y casos
-    setDiagnosticoSeleccionado([]);
-    setCasosPorDistrito({}); 
-    // setCasosDetallePorDistrito({}); // Si existe y se usa, también debe limpiarse
-
-    // 2. Restablecer la selección de capas (solo 'distritos' por defecto)
-    const defaultLayers = new Set(['distritos']);
-    setSelectedLayers(defaultLayers);
-    setSelectedDistrictLayerIds(new Set()); 
-
-    // 3. Limpiar búsquedas y clics
-    setLayerSearchTerm('');
-    setMapSearchTerm('');
-    setSearchedDistrictId(null);
-    setClickedDistrictId(null);
-    
-    // 4. Volver a la vista inicial del mapa
-    if (map) {
-        map.setView(position, zoomLevel); 
-    }
-    
-    console.log("✅ Mapa y filtros reseteados.");
-};
-
 const cargarEdasPorDistrito = async () => {
   if (!allDistricts) return;
 
@@ -470,6 +436,88 @@ const cargarIRASPorDistrito = async () => {
 
 };
 
+const cargarTIATotal = async () => {
+  try {
+    const resp = await fetch("http://127.0.0.1:5000/tb_tia_total");
+    const data = await resp.json();
+
+    // Transformamos a un diccionario: { "LIMA": { TIA_100k: 222.09 }, ... }
+    const resultados: Record<string, any> = {};
+
+    for (const item of data) {
+      const distrito = item.Distrito.toUpperCase();
+
+      resultados[distrito] = {
+        TIA_100k: item.TIA_100k,
+        casos: item.casos,
+        poblacion: item.poblacion_total
+      };
+    }
+
+    // Guardamos en el estado general
+    setCasosPorDistrito(prev => ({
+      ...prev,
+      TBC_TIA: resultados
+    }));
+
+  } catch (error) {
+    console.error("❌ Error cargando TB TIA:", error);
+  }
+};
+
+const cargarTIATotalEESS = async () => {
+  try {
+    const resp = await fetch("http://127.0.0.1:5000/tb_tia_total_EESS");
+    const data = await resp.json();
+
+    // Transformamos a un diccionario: { "LIMA": { TIA_100k: 222.09 }, ... }
+    const resultados: Record<string, any> = {};
+
+    for (const item of data) {
+      const distrito = item.Distrito.toUpperCase();
+
+      resultados[distrito] = {
+        TIA_100k: item.TIA_100k,
+        casos: item.casos,
+        poblacion: item.poblacion_total
+      };
+    }
+
+    // Guardamos en el estado general
+    setCasosPorDistrito(prev => ({
+      ...prev,
+      "TBC TIA EESS": resultados
+    }));
+
+  } catch (error) {
+    console.error("❌ Error cargando TB TIA EESS:", error);
+  }
+};
+
+const resetMapToDefault = () => {
+    // 1. Limpiar filtros de Diagnóstico y casos
+    setDiagnosticoSeleccionado([]);
+    setCasosPorDistrito({}); 
+    // setCasosDetallePorDistrito({}); // Si existe y se usa, también debe limpiarse
+
+    // 2. Restablecer la selección de capas (solo 'distritos' por defecto)
+    const defaultLayers = new Set(['distritos']);
+    setSelectedLayers(defaultLayers);
+    setSelectedDistrictLayerIds(new Set()); 
+
+    // 3. Limpiar búsquedas y clics
+    setLayerSearchTerm('');
+    setMapSearchTerm('');
+    setSearchedDistrictId(null);
+    setClickedDistrictId(null);
+    
+    // 4. Volver a la vista inicial del mapa
+    if (map) {
+        map.setView(position, zoomLevel); 
+    }
+    
+    console.log("✅ Mapa y filtros reseteados.");
+};
 
 useEffect(() => {
   if (!allDistricts) return;
@@ -500,26 +548,45 @@ console.log("🟢 diagnostico final →", diagnostico);
     return;
   }
 
+      // 🔵 TUBERCULOSIS
+if (diagnostico.trim().toLowerCase() === "diagnostico-tbcTIA") {
+    cargarTIATotal();
+    return;
+}
+
+      // 🔵 TUBERCULOSIS_EESS
+if (diagnostico.trim().toLowerCase() === "diagnostico-tbctiaeess") {
+    cargarTIATotalEESS();
+    return;
+}
+
   // 🟢 Diagnósticos NOTIWEB normales
   cargarCasosPorDiagnostico(diagnostico);
 
 }, [diagnosticoSeleccionado, allDistricts]);
 
 const cargarCasosPorDiagnostico = async (diagnostico: string) => {
+  diagnostico = diagnostico.trim();
+  
   if (!allDistricts) return;
 
-  console.log(`============================`);
-  console.log(`🔍 Diagnóstico seleccionado: ${diagnostico}`);
-  console.log(`============================`);
+  console.log("================================");
+  console.log("🔍 Diagnóstico seleccionado:", diagnostico);
+  console.log("================================");
 
-  const resultados: Record<string, number> = {};
-  const detalles: Record<
-    string,
-    {
-      total: number;
-      detalle: { tipo_dx: string; cantidad: number }[];
-    }
-  > = {};
+  // ⬅️ AHORA resultados almacena total + tia
+  const resultados: Record<string, { total: number; TIA_100k: number | null }> = {};
+
+const detalles: Record<
+      string,
+      {
+        total: number;
+        detalle: { tipo_dx: string; cantidad: number }[];
+        TIA_100k?: number | null; // 💡 AGREGAR ESTO: La tasa TIA
+      }
+    > = {};
+
+  const esTBC = diagnostico.toUpperCase().includes("TBC");
 
   for (const feature of allDistricts.features) {
     const distrito = feature.properties.NM_DIST;
@@ -534,63 +601,66 @@ const cargarCasosPorDiagnostico = async (diagnostico: string) => {
       if (!res.ok) {
         console.error(`❌ Error HTTP (${res.status}) en distrito ${distrito}`);
 
-        resultados[distrito.toUpperCase()] = 0;
+        resultados[distrito.toUpperCase()] = {
+          total: 0,
+          TIA_100k: null
+        };
+
         detalles[distrito.toUpperCase()] = {
           total: 0,
           detalle: []
         };
+
         continue;
       }
 
       const data = await res.json();
 
-      console.log(
-        `📁 Respuesta para ${distrito}: ${JSON.stringify(data)}`
-      );
+      console.log(`📁 Respuesta para ${distrito}: ${JSON.stringify(data)}`);
 
-      resultados[distrito.toUpperCase()] = data.total || 0;
+      // ⬅️ SI ES TB usamos TIA_100k del backend
+      resultados[distrito.toUpperCase()] = {
+        total: data.total || 0,
+        TIA_100k: esTBC ? (data.TIA_100k ?? null) : null
+      };
 
       detalles[distrito.toUpperCase()] = {
-        total: data.total || 0,
-        detalle: data.detalle || []
-      };
+        total: data.total || 0,
+        detalle: data.detalle || [],
+        // 💡 LÍNEA CLAVE A AÑADIR/MODIFICAR
+        TIA_100k: esTBC ? (data.TIA_100k ?? null) : null, 
+      };
 
     } catch (err) {
-      console.error(`❌ Error de conexión en distrito ${distrito}`, err);
+      console.error(`❌ Error de conexión en distrito ${distrito}`, err);
 
-      resultados[distrito.toUpperCase()] = 0;
-      detalles[distrito.toUpperCase()] = {
-        total: 0,
-        detalle: []
-      };
-    }
+      resultados[distrito.toUpperCase()] = {
+        total: 0,
+        TIA_100k: null
+      };
+
+      detalles[distrito.toUpperCase()] = {
+        total: 0,
+        detalle: [],
+        TIA_100k: null, // 💡 AGREGAR ESTO
+      };
+    }
   }
 
-  console.log(`============================`);
-  console.log(`📊 RESULTADO FINAL: ${diagnostico}`);
-  console.log(`============================`);
+  console.log("================================");
+  console.log("📊 RESULTADO FINAL:", diagnostico);
+  console.log("================================");
 
-  Object.entries(resultados).forEach(([dist, total]) => {
-    console.log(`🏙  ${dist}: ${total} casos`);
+  Object.entries(resultados).forEach(([dist, obj]) => {
+    console.log(`🏙 ${dist}: total=${obj.total} | TIA_100k=${obj.TIA_100k}`);
   });
 
   setCasosPorDistrito(resultados);
-  setCasosDetallePorDistrito(detalles); // ⭐ Nuevo
+  setCasosDetallePorDistrito(detalles);
 
-  console.log(`============================`);
+  console.log("================================");
 };
 
-const obtenerPoblacion = async (distrito: string) => {
-  try {
-    const res = await fetch(`http://localhost:5000/api/poblacion?distrito=${distrito}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Error desconocido");
-    return data;
-  } catch (error: any) {
-    console.error("Error al obtener población:", error.message);
-    return null;
-  }
-};
 
 const obtenerCasosEnfermedad = async (distrito: string, enfermedad: string) => {
   const res = await fetch(`http://localhost:5000/api/casos_enfermedad?distrito=${distrito}&enfermedad=${enfermedad}`);
@@ -607,6 +677,19 @@ const obtenerCasosTotales = async (distrito: string) => {
     return 0;
   }
 };
+
+const obtenerPoblacion = async (distrito: string) => {
+  try {
+    const res = await fetch(`http://localhost:5000/api/poblacion?distrito=${distrito}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Error desconocido");
+    return data;
+  } catch (error: any) {
+    console.error("Error al obtener población:", error.message);
+    return null;
+  }
+};
+
 
 const [, setCasosDetallePorDistrito] = useState<
   Record<
@@ -918,75 +1001,57 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
 
 const getDistrictStyle = (feature: any) => {
   const distrito = feature.properties.NM_DIST?.toUpperCase();
+  const distritoData = casosPorDistrito[distrito] || { total: 0, TIA_100k: 0 };
+
   const isSearched = searchedDistrictId === distrito;
   const isClicked = clickedDistrictId === distrito;
-  const isLayerSelected = selectedDistrictLayerIds.has(distrito);
+  const isLayerSelected = selectedDistrictLayerIds.has(distrito);
   const isDiseaseSelected = diagnosticoSeleccionado.length > 0;
-  const casos = casosPorDistrito[distrito] ?? 0;
-  
-  // 🚨 ESTILO BASE
+
   const baseStyle = {
-    weight: 1, // Borde más fino por defecto
-    color: "#555",
-    fillOpacity: 0.7,
-    fillColor: "#E0E0E0", // Gris claro
-  };
+    weight: 1,
+    color: "#555",
+    fillOpacity: 0.7,
+    fillColor: "#E0E0E0",
+  };
 
-  // Estilo de Resalte (Borde más grueso, negro)
-  const highlightStyle = {
-    weight: 3, 
-    color: "#000000", 
-    fillOpacity: 0.9,
-  };
+  const highlightStyle = {
+    weight: 3,
+    color: "#000000",
+    fillOpacity: 0.9,
+  };
 
-  // --- ESCALA CHOROPLETH (Paleta de Colores por Casos) ---
-  const escalaChoropleth = (casos: number) => {
-    return casos > 50 ? "#800026" :
-           casos > 20 ? "#BD0026" :
-           casos > 10 ? "#E31A1C" :
-           casos > 5  ? "#FC4E2A" :
-           casos > 1  ? "#FD8D3C" :
-                        "#FEB24C";
-  };
+  const escalaChoropleth = (valor: number) => {
+    return valor > 75 ? "#f21a0aff" :
+           valor > 50 ? "#fa9b15ff" :
+           valor > 25 ? "#fff134ff" :
+           valor > 1  ? "#2eff1bff" :
+                        "#9a9a9aff";
+  };
 
-  // -------------------------------------------------------------
-  // 1. LÓGICA SIN ENFERMEDAD SELECCIONADA (Regla 2)
-  // -------------------------------------------------------------
-  if (!isDiseaseSelected) {
-    if (isSearched || isClicked || isLayerSelected) {
-      // Resaltado naranja si solo está 'distritos' activo
-      return {
-        ...highlightStyle,
-        fillColor: "#f3b14fff", // Color default
-      };
-    }
-    // Caso base (distritos activos, pero sin selección individual)
-    return { ...baseStyle, fillOpacity: 0.2, };
-  } 
-  
-  // -------------------------------------------------------------
-  // 2. LÓGICA CON ENFERMEDAD SELECCIONADA (Reglas 3 y 4)
-  // -------------------------------------------------------------
+  // 🎯 Detectar correctamente TB TIA
+  const esTB = diagnosticoSeleccionado.some(d =>
+    d.toUpperCase().replace(/[-_ ]/g, "") === "TBCTIA"
+  );
 
-  // Determinar el color de relleno por la paleta de casos
-  const fillColorByCases = casos > 0 ? escalaChoropleth(casos) : baseStyle.fillColor;
-  const fillOpacityByCases = casos > 0 ? 0.8 : 0.2;
-  
-  // Si está seleccionado/buscado, solo aplicamos el borde de resalte, manteniendo el relleno.
-  if (isSearched || isClicked || isLayerSelected) {
-    return {
-      ...highlightStyle, // Borde negro grueso
-      fillColor: fillColorByCases, // Mantiene el color por cantidad de casos (Regla 4)
-      fillOpacity: fillOpacityByCases, 
-    };
-  }
-  
-  // Si está activo pero no resaltado, solo aplica el color por casos
-  return {
-    ...baseStyle,
-    fillColor: fillColorByCases,
-    fillOpacity: fillOpacityByCases,
-  };
+  // 🔥 Valor correcto para pintar
+  const valorPintado = esTB ? distritoData.TIA_100k : distritoData.total;
+
+  const fillColor = escalaChoropleth(valorPintado);
+  const fillOpacity = valorPintado > 0 ? 0.8 : 0.2;
+
+  if (!isDiseaseSelected) {
+    if (isSearched || isClicked || isLayerSelected) {
+      return { ...highlightStyle, fillColor: "#f3b14fff" };
+    }
+    return { ...baseStyle, fillOpacity: 0.2 };
+  }
+
+  if (isSearched || isClicked || isLayerSelected) {
+    return { ...highlightStyle, fillColor, fillOpacity };
+  }
+
+  return { ...baseStyle, fillColor, fillOpacity };
 };
 
 const onEachDistrict = (feature: any, layer: LeafletLayer) => {
@@ -1043,29 +1108,86 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
       const caseCount = await obtenerCasosTotales(districtName);
 
       // 3. detalles múltiples diagnósticos
-      const detalleDiagnostico: Record<string, any> = {};
+// 3. detalles múltiples diagnósticos
+const detalleDiagnostico: Record<string, any> = {};
 
-        for (const diag of diagnosticoSeleccionado) {
-          const data = await obtenerCasosEnfermedad(districtName, diag);
-          const detalleArray = data.detalle || [];
+for (const diag of diagnosticoSeleccionado) {
 
+  const data = await obtenerCasosEnfermedad(districtName, diag);
+  const detalleArray = data.detalle || [];
 
-          detalleDiagnostico[diag] = {
-            // valores comunes
-            total: data.total || 0,
-            detalle: data.detalle || [],
+  // ======================================
+  // 🔵 LOGICA PARA TUBERCULOSIS
+  // ======================================
+if (diag === "TBC TIA") {
+  detalleDiagnostico[diag] = {
+    total: data.total || 0,        // <── CAMBIO AQUÍ
+    TIA_100k: data.TIA_100k || 0,
+    poblacion: data.poblacion_total || 0,
+    detalle: []
+  };
+  continue;
+}
 
-            // EDAS
-            daa: data.daa || 0,
-            dis: data.dis || 0,
+  // ======================================
+  // 🔵 LOGICA PARA TUBERCULOSIS EESS MINSA
+  // ======================================
+if (diag === "TBC TIA EES") {
+  detalleDiagnostico[diag] = {
+    total: data.total || 0,        // <── CAMBIO AQUÍ
+    TIA_100k: data.TIA_100k || 0,
+    poblacion: data.poblacion_total || 0,
+    detalle: []
+  };
+  continue;
+}
 
-            // IRAS (aquí SI transformamos el JSON correcto)
-            ira_no_neumonia: detalleArray.find((d: any) => d.grupo === "IRA_NO_NEUMONIA")?.cantidad || 0,
-            sob_asma:        detalleArray.find((d: any) => d.grupo === "SOB_ASMA")?.cantidad || 0,
-            neumonia_grave:  detalleArray.find((d: any) => d.grupo === "NEUMONIA_GRAVE")?.cantidad || 0,
-            neumonia:        detalleArray.find((d: any) => d.grupo === "NEUMONIA")?.cantidad || 0
-          };
-        }
+  // ======================================
+  // 🟠 LOGICA PARA IRAS
+  // ======================================
+  if (diag === "Infecciones respiratorias agudas") {
+    detalleDiagnostico[diag] = {
+      total: data.total || 0,
+      detalle: detalleArray,
+
+      ira_no_neumonia:
+        detalleArray.find((d: any) => d.grupo === "IRA_NO_NEUMONIA")?.cantidad ||
+        0,
+
+      sob_asma:
+        detalleArray.find((d: any) => d.grupo === "SOB_ASMA")?.cantidad || 0,
+
+      neumonia_grave:
+        detalleArray.find((d: any) => d.grupo === "NEUMONIA_GRAVE")?.cantidad ||
+        0,
+
+      neumonia:
+        detalleArray.find((d: any) => d.grupo === "NEUMONIA")?.cantidad || 0
+    };
+    continue;
+  }
+
+  // ======================================
+  // 🟡 LOGICA PARA EDAS
+  // ======================================
+  if (diag === "Enfermedades diarreicas agudas") {
+    detalleDiagnostico[diag] = {
+      total: data.total || 0,
+      daa: data.daa || 0,
+      dis: data.dis || 0,
+      detalle: detalleArray
+    };
+    continue;
+  }
+
+  // ======================================
+  // ⚪ LOGICA GENÉRICA (otros)
+  // ======================================
+  detalleDiagnostico[diag] = {
+    total: data.total || 0,
+    detalle: detalleArray
+  };
+}
 
 
       // 4. guardar en estado
