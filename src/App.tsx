@@ -224,7 +224,7 @@ const VIGILANCIA_LAYER_DATA: Layer = {
                     { id: 'diagnostico-viruela-del-mono', name: 'Viruela del mono' },
                 ]},
                 { id: 'diagnostico-tuberculosis-group', name: 'Tuberculosis', subLayers: [
-                    { id: 'diagnostico-tbcpulmonar', name: 'TBC pulmonar' },
+                    { id: 'diagnostico-tbcpulmonar', name: 'TBC pulmonar'},
                     { id: 'diagnostico-tbcTIA', name: 'TBC TIA' },
                     { id: 'diagnostico-tbcTIAEESS', name: 'TBC TIA EESS' },
 

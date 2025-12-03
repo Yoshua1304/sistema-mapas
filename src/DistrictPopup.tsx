@@ -173,8 +173,9 @@ console.log("🔑 Claves disponibles:", Object.keys(detalleDiagnostico));
               const data = detalleDiagnostico?.[diag] || { total: 0 };
 
               const isTBC =
-                diag.toLowerCase().includes("tbc") ||
+                (diag.toLowerCase().includes("tbc") && !diag.toLowerCase().includes("pulmonar")) ||
                 diag.toLowerCase().includes("tia");
+
 
               const isEDAS =
                 diag === "diagnostico-edas" ||
@@ -190,6 +191,7 @@ console.log("🔑 Claves disponibles:", Object.keys(detalleDiagnostico));
                 diag.toLowerCase().includes("ira") ||
                 diag.toLowerCase().includes("respiratoria");
 
+              const isTBCPulmonar = diag === "diagnostico-tbcpulmonar";
 
               // ⭐ CORRECCIÓN TS7006: Se tipó el parámetro 'code' como string y se tipó el objeto labels.
               const labelFebriles = (code: string) => {
@@ -267,20 +269,27 @@ console.log("🔑 Claves disponibles:", Object.keys(detalleDiagnostico));
                       </div>
                     </div>
                   )}
-                    {isTBC && (
-                      <div className="diag-details">
-                        <div className="detail-row">
-                          <span>Tasa TIA por 100,000 hab.</span>
-                          <strong>{fmt(data.TIA_100k)}</strong>
-                        </div>
-                        <div className="detail-row">
-                          <span>Casos Totales (TB)</span>
-                          <strong>{fmt(data.total)}</strong>
-                        </div>
+                  {isTBCPulmonar && (
+                    <div className="diag-details">
+                      <div className="detail-row">
+                        <span>Casos de TBC Pulmonar Confirmada</span>
+                        <strong>{fmt(data.total)}</strong>
                       </div>
-                    )}
+                    </div>
+                  )}
 
-
+                  {isTBC && (
+                    <div className="diag-details">
+                      <div className="detail-row">
+                        <span>Tasa TIA por 100,000 hab.</span>
+                        <strong>{fmt(data.TIA_100k)}</strong>
+                      </div>
+                      <div className="detail-row">
+                        <span>Casos Totales (TB)</span>
+                        <strong>{fmt(data.total)}</strong>
+                      </div>
+                    </div>
+                  )}
                   {/* 🟢 OTROS DIAGNÓSTICOS (tipo_dx) */}
                   {!isEDAS && !isFEBRILES &&!isIRAS &&!isTBC && data.detalle && data.detalle.length > 0 && (
                     <div className="diag-details">
