@@ -1259,17 +1259,7 @@ if (diag === "TBC TIA EES") {
   };
 
 
-  return (
-  <div className="app-container">
-    <header className="header">
-      <div className="logo-container">
-        <img src="/logo.png" alt="Logo DIRIS-LC" />
-        <span className="brand-text">CENTINELA 7.0</span>
-        <span className="separator"></span>
-        <h1>OEISDI - DIRIS LIMA CENTRO</h1>
-      </div>
-    </header>
-
+   return (
     <div className="map-container">
       <MapContainer
         center={position}
@@ -1278,26 +1268,26 @@ if (diag === "TBC TIA EES") {
         zoomControl={false}
         ref={setMap}
       >
-      <TileLayer
-        key={currentBaseMap.id}
-        url={currentBaseMap.url}
-        attribution={currentBaseMap.attribution}
-        subdomains={currentBaseMap.subdomains}
-        maxZoom={20}
-      />
+        <TileLayer
+          key={currentBaseMap.id}
+          url={currentBaseMap.url}
+          attribution={currentBaseMap.attribution}
+          subdomains={currentBaseMap.subdomains}
+          maxZoom={20}
+        />
 
-      {isLoading && (
-        <div className="loading-overlay">
-          <img src="/logo.png" alt="Cargando..." className="loading-logo" />
-          <p>Cargando datos de vigilancia...</p>
-        </div>
-      )}
+        {isLoading && (
+          <div className="loading-overlay">
+            <img src="/logo.png" alt="Cargando..." className="loading-logo" />
+            <p>Cargando datos de vigilancia...</p>
+          </div>
+        )}
 
-      <MapResetClickHandler 
+        <MapResetClickHandler 
           setClickedDistrictId={setClickedDistrictId}
           setSearchedDistrictId={setSearchedDistrictId}
           setSelectedDistrictLayerIds={setSelectedDistrictLayerIds}
-      />
+        />
 
         {districtsToDisplay && (
           <GeoJSON
@@ -1312,137 +1302,118 @@ if (diag === "TBC TIA EES") {
           />
         )}
 
-        {/* SIDEBAR FLOTANTE (ESTRUCTURA CORREGIDA: CONTENIDO + NAV) */}
+        {/* SIDEBAR FLOTANTE */}
         <div
-            ref={sidebarRef}
-            className={`sidebar-floating ${isSidebarOpen ? "open" : ""}`}
+          ref={sidebarRef}
+          className={`sidebar-floating ${isSidebarOpen ? "open" : ""}`}
         >
+          <div className="sidebar-content">
+            <div className="sidebar-header">
+              <h3>CAPAS</h3>
+            </div>
             
-            {/* ⭐ 1. CONTENIDO PRINCIPAL (Se desliza para ocultarse) ⭐ */}
-            <div className="sidebar-content">
-                <div className="sidebar-header">
-                    <h3>CAPAS</h3>
+            {isSidebarOpen && (
+              <>
+                <div className="layer-search">
+                  <input
+                    type="text"
+                    placeholder="Busca la capa que necesitas"
+                    value={layerSearchTerm}
+                    onChange={(e) => setLayerSearchTerm(e.target.value)}
+                  />
+                  <button>🔍</button>
                 </div>
-                
-                {isSidebarOpen && (
-                    <>
-                        {/* BUSCADOR DE CAPAS */}
-                        <div className="layer-search">
-                            <input
-                                type="text"
-                                placeholder="Busca la capa que necesitas"
-                                value={layerSearchTerm}
-                                onChange={(e) => setLayerSearchTerm(e.target.value)}
-                            />
-                            <button>🔍</button>
-                        </div>
 
-                        {/* LISTA DE CAPAS */}
-                        <ul className="layer-list">
-                            {filteredLayers.map((layer) => (
-                            <LayerItem
-                                key={layer.id}
-                                layer={layer}
-                                selectedLayers={selectedLayers}
-                                onSelectionChange={handleLayerSelection}
-                                onDiagnosticoSelect={handleDiagnosticoSelect}
-                                diagnosticoSeleccionado={diagnosticoSeleccionado}
-                                isSearchActive={isSearchActive}
-                            />
+                <ul className="layer-list">
+                  {filteredLayers.map((layer) => (
+                    <LayerItem
+                      key={layer.id}
+                      layer={layer}
+                      selectedLayers={selectedLayers}
+                      onSelectionChange={handleLayerSelection}
+                      onDiagnosticoSelect={handleDiagnosticoSelect}
+                      diagnosticoSeleccionado={diagnosticoSeleccionado}
+                      isSearchActive={isSearchActive}
+                    />
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
 
-                            ))}
-                        </ul>
-                    </>
-                )}
-            </div>
+          <div className="sidebar-nav">
+            <button 
+              className={`nav-button ${isSidebarOpen ? 'active' : ''}`}
+              onClick={() => setSidebarOpen(true)}
+              title="Capas y Filtros"
+            >
+              <i className="fas fa-layer-group"></i> 
+            </button>
 
-            {/* ⭐ 2. COLUMNA DE NAVEGACIÓN (PERMANECE VISIBLE A LA DERECHA) ⭐ */}
-            <div className="sidebar-nav">
-                {/* Botón de CAPAS (Mostrar/Cerrar el panel de contenido) */}
-                <button 
-                    className={`nav-button ${isSidebarOpen ? 'active' : ''}`}
-                    onClick={() => setSidebarOpen(true)}
-                    title="Capas y Filtros"
-                >
-                    {/* Ícono de capas apiladas */}
-                    <i className="fas fa-layer-group"></i> 
-                </button>
+            <button 
+              className="nav-button"
+              title="Leyenda y Simbología"
+            >
+              <i className="fas fa-list"></i>
+            </button>
+            
+            <button 
+              className="nav-button reset-button"
+              onClick={resetMapToDefault}
+              title="Limpiar Filtros"
+            >
+              <i className="fas fa-eraser"></i>
+            </button>
 
-                {/* Botón de LEYENDAS (Solo ícono de lista, ya que eliminamos la vista) */}
-                <button 
-                    className="nav-button"
-                    title="Leyenda y Simbología"
-                >
-                    <i className="fas fa-list"></i>
-                </button>
-                
-                {/* Ícono de Casa (Omitido) */}
-                
-                {/* Botón de BORRADOR (Resetear Filtros) */}
-                <button 
-                    className="nav-button reset-button"
-                    onClick={resetMapToDefault} // Llama a la función de reset
-                    title="Limpiar Filtros"
-                >
-                    <i className="fas fa-eraser"></i>
-                </button>
-
-                {/* Flecha para esconder el recuadro (A la derecha, visible siempre que el panel esté abierto) */}
-                {/* Usamos el botón de cerrar del diseño anterior, pero con la función de cerrar */}
-                {isSidebarOpen && (
-                    <button 
-                        className="sidebar-toggle-button-close" // Clase específica para el botón de cerrar
-                        onClick={() => setSidebarOpen(false)}
-                        title="Cerrar Panel"
-                    >
-                        {/* Flecha hacia la izquierda */}
-                        <i className="fas fa-chevron-left"></i> 
-                    </button>
-                )}
-                
-            </div>
-
+            {isSidebarOpen && (
+              <button 
+                className="sidebar-toggle-button-close"
+                onClick={() => setSidebarOpen(false)}
+                title="Cerrar Panel"
+              >
+                <i className="fas fa-chevron-left"></i> 
+              </button>
+            )}
+          </div>
         </div>
 
         {/* BUSCADOR EN MAPA con Autocompletado */}
         <div 
-          ref={mapSearchBarRef} 
-          className="map-search-bar-container" // ⭐ Nuevo contenedor para posicionamiento
-        >
-          <div className="map-search-bar">
-            <input
-              type="text"
-              placeholder="Departamento, provincia o distrito"
-              value={mapSearchTerm}
-              onChange={handleMapSearchChange}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleMapSearch(); // Mantiene la funcionalidad de Enter
-                }
-              }}
-              // Añade un evento para cerrar las sugerencias al perder el foco
+          ref={mapSearchBarRef} 
+          className="map-search-bar-container"
+        >
+          <div className="map-search-bar">
+            <input
+              type="text"
+              placeholder="Departamento, provincia o distrito"
+              value={mapSearchTerm}
+              onChange={handleMapSearchChange}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleMapSearch();
+                }
+              }}
               onBlur={() => setTimeout(() => setIsSuggestionsOpen(false), 200)} 
               onFocus={() => {
-                  if (suggestionResults.length > 0) setIsSuggestionsOpen(true);
+                if (suggestionResults.length > 0) setIsSuggestionsOpen(true);
               }}
-            />
-            <button onClick={handleMapSearch}>🔍</button>
-          </div>
+            />
+            <button onClick={handleMapSearch}>🔍</button>
+          </div>
 
-          {/* ⭐ MENÚ DE SUGERENCIAS */}
-          {isSuggestionsOpen && suggestionResults.length > 0 && (
-            <ul className="suggestion-list">
-              {suggestionResults.map((district) => (
-                <li 
-                  key={district} 
-                  onClick={() => handleSuggestionSelect(district)}
-                >
-                  {district}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+          {isSuggestionsOpen && suggestionResults.length > 0 && (
+            <ul className="suggestion-list">
+              {suggestionResults.map((district) => (
+                <li 
+                  key={district} 
+                  onClick={() => handleSuggestionSelect(district)}
+                >
+                  {district}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         {/* BOTONERA DEL MAPA */}
         <div className="map-tools">
@@ -1471,15 +1442,14 @@ if (diag === "TBC TIA EES") {
         <MouseCoordinates />
 
         <Legend 
-            selectedLayerNames={diagnosticoSeleccionado.map(getDisplayNameForDiagnostico)}
-            selectedDistrictNames={
-                // Combinar distritos clickeados y seleccionados de la capa
-                [...new Set([
-                    clickedDistrictId, 
-                    ...Array.from(selectedDistrictLayerIds),
-                    searchedDistrictId // Incluye el distrito buscado si lo quieres en la leyenda
-                ].filter(Boolean) as string[])]
-            }
+          selectedLayerNames={diagnosticoSeleccionado.map(getDisplayNameForDiagnostico)}
+          selectedDistrictNames={
+            [...new Set([
+              clickedDistrictId, 
+              ...Array.from(selectedDistrictLayerIds),
+              searchedDistrictId
+            ].filter(Boolean) as string[])]
+          }
         />
 
       </MapContainer>
@@ -1495,9 +1465,7 @@ if (diag === "TBC TIA EES") {
         />
       )}
     </div>
-  </div>
-);
-
+  );
 }
 
 export default App;

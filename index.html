@@ -7,9 +7,115 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Centinela 7.0 - OEISDI</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <!-- Estilos del Header (estático) -->
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body {
+        height: 100%;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        overflow: hidden;
+      }
+
+      /* === LAYOUT PRINCIPAL === */
+      .app-wrapper {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        width: 100vw;
+      }
+
+      /* === HEADER ESTÁTICO === */
+      .header {
+        background-color: #106bc7;
+        color: white;
+        padding: 5px 20px;
+        display: flex;
+        align-items: center;
+        z-index: 1050;
+        flex-shrink: 0; /* Evita que el header se comprima */
+      }
+
+      .logo-container {
+        display: flex;
+        align-items: center;
+        flex: 1;
+      }
+
+      .logo-container img {
+        height: 70px;
+        width: 70px;
+        margin-right: 10px;
+      }
+
+      .brand-text {
+        font-size: 1.6rem;
+        font-weight: 500;
+        margin-right: 15px;
+      }
+
+      .separator {
+        border-left: 1px solid rgba(255, 255, 255, 0.7);
+        height: 65px;
+        margin-right: 15px;
+      }
+
+      .logo-container h1 {
+        font-size: 1.5rem;
+        font-weight: 400;
+      }
+
+      /* === CONTENEDOR DE LA APP REACT === */
+      #root {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0; /* Importante para que flex funcione con overflow */
+      }
+
+      /* === RESPONSIVE === */
+      @media (max-width: 992px) {
+        .brand-text { font-size: 1.2rem; }
+        .logo-container h1 { font-size: 1rem; }
+      }
+
+      @media (max-width: 768px) {
+        .brand-text, .separator {
+          display: none;
+        }
+        .logo-container h1 {
+          font-size: 0.9rem;
+        }
+        .logo-container img {
+          height: 50px;
+          width: 50px;
+        }
+        .header {
+          padding: 5px 10px;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Contenedor principal de la aplicación -->
+    <div class="app-wrapper">
+      
+      <header class="header">
+        <div class="logo-container">
+          <img src="/logo.png" alt="Logo DIRIS-LC" />
+          <span class="brand-text">CENTINELA 7.0</span>
+          <span class="separator"></span>
+          <h1>OEISDI - DIRIS LIMA CENTRO</h1>
+        </div>
+      </header>
+
+      <div id="root"></div>
+      
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
