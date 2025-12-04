@@ -694,37 +694,36 @@ const detalles: Record<
 };
 
 
-// Obtiene el valor numérico que corresponde según el diagnóstico activo
-const getValorDistrito = (distrito: any) => {
-  const data = casosPorDistrito[distrito];
-  if (!data) return 0;
+// // Obtiene el valor numérico que corresponde según el diagnóstico activo
+// const getValorDistrito = (distrito: any) => {
+//   const data = casosPorDistrito[distrito];
+//   if (!data) return 0;
 
-  const esTB = diagnosticoSeleccionado.some(d =>
-    d.toUpperCase().replace(/[-_ ]/g, "") === "TBCTIA"
-  );
+//   const esTB = diagnosticoSeleccionado.some(d =>
+//     d.toUpperCase().replace(/[-_ ]/g, "") === "TBCTIA"
+//   );
 
-  return esTB ? (data.TIA_100k ?? 0) : (data.total ?? 0);
-};
+//   return esTB ? (data.TIA_100k ?? 0) : (data.total ?? 0);
+// };
 
-// Obtener todos los valores numéricos
-const valores = Object.keys(casosPorDistrito).map(getValorDistrito);
+// // Obtener todos los valores numéricos
+// const valores = Object.keys(casosPorDistrito).map(getValorDistrito);
 
-// Detectar min y max reales
-const minValor = Math.min(...valores);
-const maxValor = Math.max(...valores);
+// // Detectar min y max reales
+// const minValor = Math.min(...valores);
+// const maxValor = Math.max(...valores);
 
-const escalaChoroplethDinamica = (valor: number) => {
-  if (maxValor === minValor) return "#9a9a9aff"; // evitar NaN si todos son iguales
+// const escalaChoroplethDinamica = (valor: number) => {
+//   if (maxValor === minValor) return "#9a9a9aff"; // evitar NaN si todos son iguales
 
-  const rango = maxValor - minValor;
-  const porcentaje = (valor - minValor) / rango;
+//   const rango = maxValor - minValor;
+//   const porcentaje = (valor - minValor) / rango;
 
-  if (porcentaje > 0.75) return "#f21a0aff";  // rojo
-  if (porcentaje > 0.50) return "#fa9b15ff";  // naranja
-  if (porcentaje > 0.25) return "#fff134ff";  // amarillo
-  return "#2eff1bff";                         // verde
-};
-
+//   if (porcentaje > 0.75) return "#f21a0aff";  // rojo
+//   if (porcentaje > 0.50) return "#fa9b15ff";  // naranja
+//   if (porcentaje > 0.25) return "#fff134ff";  // amarillo
+//   return "#2eff1bff";                         // verde
+// };
 
 
 const obtenerCasosEnfermedad = async (distrito: string, enfermedad: string) => {

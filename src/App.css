@@ -8,7 +8,9 @@ body, html, #root {
 
 .map-container {
   flex: 1;
-  position: relative; /* Crucial for positioning floating elements */
+  position: relative;
+  height: 100%;
+  width: 100%;
 }
 
 /* === FLOATING SIDEBAR (CAPAS) === */
@@ -17,7 +19,7 @@ body, html, #root {
   top: 50%;
   transform: translateY(-50%);
   width: 320px;
-  height: 72vh; /* Altura fija */
+  height: 72vh;
   background-color: rgba(255, 255, 255, 0.95);
   border: 1px solid #ccc;
   border-radius: 4px;
@@ -32,80 +34,52 @@ body, html, #root {
   transform: translate(-280px, -50%);
 }
 
-/* === CONTENIDO PRINCIPAL DESLIZABLE (IZQUIERDA) === */.sidebar-content {
+.sidebar-content {
+  width: 280px; 
+  display: flex;
+  flex-direction: column;
+  min-width: 0; 
+  background-color: white;
+}
 
-    /* Ocupa el espacio del contenido (320px - 40px = 280px) */
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  width: 40px;
+  background-color: #333333;
+  padding: 5px 0;
+  border-radius: 0 4px 4px 0;
+  align-items: center;
+  gap: 5px;
+}
 
-    width: 280px; 
+.sidebar-nav button {
+  background: none;
+  border: none;
+  color: white;
+  padding: 10px 0;
+  width: 100%;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
 
-    display: flex;
+.sidebar-nav button:hover:not(.sidebar-toggle-button-close) {
+  background-color: #555555;
+}
 
-    flex-direction: column;
+.sidebar-nav .nav-button.active {
+  background-color: #106bc7;
+}
 
-    min-width: 0; 
+.sidebar-toggle-button-close {
+  background-color: #106bc7 !important; 
+  margin-top: auto; 
+  padding: 15px 0 !important;
+}
 
-    background-color: white; /* Para que el contenido sea blanco */
-
-}/* === COLUMNA DE NAVEGACIÓN (DERECHA) === */.sidebar-nav {
-
-    display: flex;
-
-    flex-direction: column;
-
-    width: 40px; /* Ancho fijo para la columna de íconos */
-
-    background-color: #333333; /* Fondo oscuro */
-
-    padding: 5px 0;
-
-    border-radius: 0 4px 4px 0;
-
-    align-items: center;
-
-    gap: 5px; /* Espacio entre botones */
-
-}/* Estilo general para los botones de navegación */.sidebar-nav button {
-
-    background: none;
-
-    border: none;
-
-    color: white;
-
-    padding: 10px 0;
-
-    width: 100%; /* Para que ocupe todo el ancho de 40px */
-
-    font-size: 1.2rem;
-
-    cursor: pointer;
-
-    transition: background-color 0.2s;
-
-}.sidebar-nav button:hover:not(.sidebar-toggle-button-close) {
-
-    background-color: #555555;
-
-}/* Estilo para el botón activo (solo Capas, ya no hay Leyenda) */.sidebar-nav .nav-button.active {
-
-    background-color: #106bc7;
-
-}/* ⭐ Botón de la flecha roja para cerrar (parte inferior o superior) ⭐ */.sidebar-toggle-button-close {
-
-    /* Color de fondo rojo */
-
-    background-color: #106bc7 !important; 
-
-    /* Colocado en la parte inferior de la barra de navegación para el diseño propuesto */
-
-    margin-top: auto; 
-
-    padding: 15px 0 !important;
-
-}.sidebar-toggle-button-close:hover {
-
-    background-color: #106bc7 !important; 
-
+.sidebar-toggle-button-close:hover {
+  background-color: #106bc7 !important; 
 }
 
 .sidebar-header {
@@ -124,7 +98,7 @@ body, html, #root {
 }
 
 .sidebar-toggle-button {
-    display: none;
+  display: none;
 }
 
 .layer-search {
@@ -152,7 +126,7 @@ body, html, #root {
   border-radius: 0 3px 3px 0;
 }
 
-/* === NEW HIERARCHICAL LAYER LIST === */
+/* === HIERARCHICAL LAYER LIST === */
 .layer-list, .sub-layer-list {
   list-style: none;
   padding: 0;
@@ -167,7 +141,7 @@ body, html, #root {
 }
 
 .sub-layer-list {
-  padding-left: 20px; /* Indent sub-layers */
+  padding-left: 20px;
 }
 
 .layer-item {
@@ -207,29 +181,28 @@ body, html, #root {
   margin-right: 8px;
 }
 
-/* === ESTILO MINIMALISTA PARA SCROLLBAR (CHROME, SAFARI) en la lista de capas === */
+/* === SCROLLBAR MINIMALISTA === */
 .layer-list::-webkit-scrollbar {
-    width: 6px; /* Ancho de la barra de desplazamiento vertical */
+  width: 6px;
 }
 
 .layer-list::-webkit-scrollbar-track {
-    background: transparent; /* Fondo transparente */
+  background: transparent;
 }
 
 .layer-list::-webkit-scrollbar-thumb {
-    background-color: #AAAAAA; /* Color gris claro/medio */
-    border-radius: 10px; /* Bordes redondeados */
-    border: none;
+  background-color: #AAAAAA;
+  border-radius: 10px;
+  border: none;
 }
 
 .layer-list::-webkit-scrollbar-thumb:hover {
-    background-color: #888888;
+  background-color: #888888;
 }
 
 .layer-list::-webkit-scrollbar-button {
-    display: none;
+  display: none;
 }
-/* === FIN ESTILO MINIMALISTA === */
 
 /* === FLOATING TOP-RIGHT WIDGETS === */
 .map-search-bar {
@@ -239,9 +212,9 @@ body, html, #root {
   border-radius: 4px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
   border: 1px solid black;
-  z-index: 1020; /* Mantenemos este z-index alto para el buscador */
-  width: 100%; /* Asegura que ocupe todo el ancho de su contenedor padre (350px) */
-  box-sizing: border-box; /* Para incluir padding y border dentro del width */
+  z-index: 1020;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .map-search-bar input {
@@ -260,56 +233,54 @@ body, html, #root {
   cursor: pointer;
 }
 
-/* Contenedor padre de la barra de búsqueda */
 .map-search-bar-container {
-    position: absolute;
-    top: 15px; /* Ajusta según tu diseño */
-    right: 15px; /* Distancia desde la derecha */
-    z-index: 1025; /* Asegura que esté sobre el mapa */
-    width: 350px; /* Ancho deseado para el buscador */
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 1025;
+  width: 350px;
 }
 
-/* --- ESTILOS VISUALES DE LA LISTA DE SUGERENCIAS --- */
 .suggestion-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    position: absolute; 
-    top: 100%; /* Coloca la lista justo debajo del .map-search-bar */
-    left: 0; 
-    width: 100%; 
-    z-index: 1021;
-    border: 1px solid #ccc;
-    border-top: none;
-    background-color: white;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    max-height: 200px; 
-    overflow-y: auto;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  position: absolute; 
+  top: 100%;
+  left: 0; 
+  width: 100%; 
+  z-index: 1021;
+  border: 1px solid #ccc;
+  border-top: none;
+  background-color: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  max-height: 200px; 
+  overflow-y: auto;
 }
 
-/* El resto de estilos de la lista se mantienen */
 .suggestion-list li {
-    padding: 8px 12px;
-    cursor: pointer;
-    font-size: 14px;
-    color: #333;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #333;
 }
 
 .suggestion-list li:hover {
-    background-color: #f0f0f0;
-    font-weight: bold;
+  background-color: #f0f0f0;
+  font-weight: bold;
 }
 
-/* Estilo del track (el fondo de la barra de desplazamiento) */
 .suggestion-list::-webkit-scrollbar {
-    width: 8px; 
+  width: 8px; 
 }
+
 .suggestion-list::-webkit-scrollbar-thumb {
-    background-color: #888; 
-    border-radius: 4px; 
+  background-color: #888; 
+  border-radius: 4px; 
 }
+
 .suggestion-list::-webkit-scrollbar-thumb:hover {
-    background-color: #555; 
+  background-color: #555; 
 }
 
 /* === FLOATING MAP TOOLS (RIGHT) === */
@@ -319,51 +290,54 @@ body, html, #root {
   right: 15px;
   display: flex;
   flex-direction: column;
+  gap: 3px;
   z-index: 1018;
 }
 
 .map-tools button {
   background-color: white;
   border: 1px solid #aaa;
-  padding: 8px;
-  margin-bottom: -1px;
+  padding: 10px;
   cursor: pointer;
   font-size: 1.4rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  border-radius: 8px; /* Todos los botones redondeados */
+  transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
 }
-.map-tools button:first-child { border-radius: 4px 4px 0 0; }
-.map-tools button:last-child { border-radius: 0 0 4px 4px; }
-.map-tools button:hover { background-color: #f4f4f4; }
 
-/* CSS en tu archivo de estilos global */
+.map-tools button:hover { 
+  background-color: #f4f4f4;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+  transform: translateY(-1px);
+}
+
+.map-tools button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+/* === DISTRICT TOOLTIP === */
 .district-tooltip {
-    /* Fondo del tooltip */
-    background-color: #333;
-    color: white;
-    border: none;
-    font-weight: bold;
-    font-size: 14px;
-    padding: 4px 8px;
-    border-radius: 4px;
-    /* Eliminar el "pico" triangular de Leaflet para un look más moderno (opcional) */
-    pointer-events: none; /* Asegura que no interfiera con el mouseout */
+  background-color: #333;
+  color: white;
+  border: none;
+  font-weight: bold;
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  pointer-events: none;
 }
 
-/* Opcional: Estilizar el contenedor principal de Leaflet para quitar el triángulo */
 .leaflet-tooltip-pane .district-tooltip::before {
-    border: 0; 
+  border: 0; 
 }
 
-/* 1. Selecciona la capa interactiva del GeoJSON */
 .leaflet-container .leaflet-interactive {
-    /* Quita el contorno de enfoque (focus) al hacer clic */
-    outline: none !important;
+  outline: none !important;
 }
 
-/* 2. Regla específica para navegadores basados en Webkit (Chrome, Safari, etc.) */
-/* Asegura que no haya un borde visible adicional */
 .leaflet-container .leaflet-interactive:focus {
-    outline: none !important;
+  outline: none !important;
 }
 
 /* === COMPASS (TOP-LEFT) === */
@@ -397,7 +371,7 @@ body, html, #root {
   height: 0;
   border-left: 8px solid transparent;
   border-right: 8px solid transparent;
-  border-bottom: 12px solid #106bc7; /* Red part */
+  border-bottom: 12px solid #106bc7;
 }
 
 .compass-arrow-down {
@@ -405,41 +379,14 @@ body, html, #root {
   height: 0;
   border-left: 8px solid transparent;
   border-right: 8px solid transparent;
-  border-top: 12px solid white; /* White part */
+  border-top: 12px solid white;
 }
-
 
 /* === LEAFLET OVERRIDES === */
 .leaflet-control-container {
-    display: none;
+  display: none;
 }
 
-
-/* === RESPONSIVE DESIGN === */
-@media (max-width: 992px) {
-  .brand-text { font-size: 1.2rem; }
-  .logo-container h1 { font-size: 1rem; }
-}
-
-@media (max-width: 768px) {
-  .brand-text, .separator {
-    display: none;
-  }
-  .logo-container h1 {
-    font-size: 0.9rem;
-  }
-  .map-search-bar {
-      top: auto;
-      bottom: 15px;
-      left: 15px;
-      right: 15px;
-      width: auto;
-  }
-  .map-search-bar input { width: 100%; }
-  .base-maps-widget, .map-tools, .compass, .sidebar-floating {
-      display: none;
-  }
-}
 /* === MOUSE COORDINATES DISPLAY === */
 .mouse-coordinates {
   position: absolute;
@@ -452,8 +399,6 @@ body, html, #root {
   font-size: 11px;
   pointer-events: none;
   border: 1px solid #000;
-  
-  /* Reset properties */
   padding: 0;
   gap: 0;
   border-radius: 0;
@@ -473,24 +418,23 @@ body, html, #root {
   border-right: none;
 }
 
-/* Special style for the DATUM field */
 .coord-item.datum {
   background-color: #4B4B4B;
   color: white;
   font-weight: normal;
 }
 
-/* Placeholder text color */
+/* === PLACEHOLDER TEXT === */
 .layer-search input::placeholder,
 .map-search-bar input::placeholder {
   color: grey;
-  opacity: 1; /* Override Firefox\'s default opacity */
+  opacity: 1;
 }
 
-/* En App.css */
+/* === LEAFLET POPUP === */
 .leaflet-popup-content-wrapper {
   padding: 0;
-  border-radius: 8px; /* Bordes redondeados del contenedor principal */
+  border-radius: 8px;
   overflow: hidden; 
 }
 
@@ -499,7 +443,6 @@ body, html, #root {
   width: auto !important;
 }
 
-/* Opcional: Ajustar la "X" de cerrar para que se vea blanca sobre el rojo */
 .leaflet-container a.leaflet-popup-close-button {
   color: white !important;
   top: 8px;
@@ -507,56 +450,334 @@ body, html, #root {
   text-shadow: none;
 }
 
-/* === LOADER / SPINNER ANIMADO === */
+/* === LOADER / SPINNER === */
 .loading-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    /* Fondo semitransparente para que se vea que el mapa está detrás */
-    background-color: rgba(255, 255, 255, 0.85); 
-    z-index: 2000; /* Asegura que esté por encima de todos los elementos flotantes (z-index de Leaflet es ~1000) */
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    font-size: 1.2rem;
-    color: #106bc7;
-    opacity: 1;
-    transition: opacity 0.3s ease-in-out;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.85); 
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.2rem;
+  color: #106bc7;
+  opacity: 1;
+  transition: opacity 0.3s ease-in-out;
 }
 
 .loading-logo {
-    width: 100px; 
-    height: 100px;
-    margin-bottom: 20px;
-    animation: pulse-build 1.8s ease-in-out infinite; 
-    transform-origin: center center;
+  width: 100px; 
+  height: 100px;
+  margin-bottom: 20px;
+  animation: pulse-build 1.8s ease-in-out infinite; 
+  transform-origin: center center;
 }
 
-/* Estilo para el texto de carga */
 .loading-overlay p {
-    margin: 0;
-    font-weight: bold;
+  margin: 0;
+  font-weight: bold;
 }
 
-/* ⭐ NUEVA DEFINICIÓN DE LA ANIMACIÓN: PULSACIÓN / CONSTRUCCIÓN ⭐ */@keyframes pulse-build {
-    0% { 
-        /* Inicia muy pequeño y ligeramente transparente */
-        transform: scale(0.2); 
-        opacity: 0.3;
-    }
+@keyframes pulse-build {
+  0% { 
+    transform: scale(0.2); 
+    opacity: 0.3;
+  }
+  50% { 
+    transform: scale(1); 
+    opacity: 1;
+  }
+  100% { 
+    transform: scale(0.2); 
+    opacity: 0.3;
+  }
+}
 
-    50% { 
-        /* Llega a su tamaño normal, totalmente visible */
-        transform: scale(1); 
-        opacity: 1;
-    }
+/* === NOTIFICACIÓN DE URL COPIADA === */
+.copy-notification {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+  padding: 14px 24px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(76, 175, 80, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 9999;
+  animation: slideInNotification 0.4s ease-out;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
 
-    100% { 
-        /* Vuelve al estado inicial pequeño para repetir el ciclo */
-        transform: scale(0.2); 
-        opacity: 0.3;
-    }
+.copy-notification-icon {
+  font-size: 1.5rem;
+  font-weight: bold;
+  background: white;
+  color: #4CAF50;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.copy-notification-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+@keyframes slideInNotification {
+  0% {
+    transform: translateY(100%) scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* === RESPONSIVE DESIGN === */
+@media (max-width: 768px) {
+  .map-search-bar {
+    top: auto;
+    bottom: 15px;
+    left: 15px;
+    right: 15px;
+    width: auto;
+  }
+  
+  .map-search-bar input { 
+    width: 100%; 
+  }
+  
+  .base-maps-widget, 
+  .map-tools, 
+  .compass, 
+  .sidebar-floating {
+    display: none;
+  }
+
+  .capture-notification {
+    bottom: 20px;
+    right: 20px;
+    left: 20px;
+    justify-content: center;
+  }
+}
+
+/* === POPUP DE COORDENADAS === */
+.coordinate-popup {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  min-width: 250px;
+  max-width: 300px;
+}
+
+.coordinate-popup h3 {
+  margin: 0 0 15px 0;
+  color: #106bc7;
+  font-size: 1.1rem;
+  border-bottom: 2px solid #106bc7;
+  padding-bottom: 8px;
+}
+
+.coordinate-info,
+.address-info,
+.utm-info {
+  margin-bottom: 12px;
+  padding: 8px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border-left: 3px solid #106bc7;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.address-info {
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.utm-info {
+  font-family: monospace;
+  white-space: pre-line;
+}
+/* === CURSOR PERSONALIZADO CON EMOJI === */
+.map-container.cursor-location {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ctext x='16' y='24' text-anchor='middle' font-size='24' fill='%23106bc7'%3E📍%3C/text%3E%3C/svg%3E") 16 24, crosshair !important;
+}
+
+/* === INDICADOR DE MODO DE COORDENADAS MEJORADO === */
+.coordinate-mode-indicator {
+  position: absolute;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #106bc7 0%, #0d5aa7 100%);
+  color: white;
+  padding: 15px 25px;
+  border-radius: 12px;
+  z-index: 2020; /* Mayor z-index para estar sobre todo */
+  box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+  animation: pulse-coordinate 2s infinite;
+  max-width: 350px;
+  text-align: center;
+  border: 2px solid white;
+}
+
+.coordinate-mode-content {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.coordinate-mode-icon {
+  font-size: 2rem;
+  animation: bounce-icon 1s infinite alternate;
+}
+
+.coordinate-mode-text {
+  font-size: 0.9rem;
+  text-align: left;
+  flex-grow: 1;
+}
+
+.coordinate-mode-text p {
+  margin: 5px 0 0 0;
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+.coordinate-mode-text strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 1rem;
+}
+
+.coordinate-mode-cancel {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.coordinate-mode-cancel:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+@keyframes bounce-icon {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes pulse-coordinate {
+  0%, 100% {
+    box-shadow: 0 6px 20px rgba(16, 107, 199, 0.4);
+  }
+  50% {
+    box-shadow: 0 6px 25px rgba(16, 107, 199, 0.7);
+  }
+}
+
+/* === ESTILO PARA MAPA SIN DISTRITOS === */
+.map-container.districts-disabled {
+  pointer-events: all !important;
+}
+
+.map-container.districts-disabled .leaflet-overlay-pane svg path {
+  display: none !important;
+}
+
+/* === ESTILOS PARA MODO COORDENADA === */
+.leaflet-interactive.mode-coordinate {
+  pointer-events: none !important;
+  cursor: crosshair !important;
+}
+
+/* Asegurar que los tooltips no aparezcan en modo coordenada */
+.leaflet-tooltip-pane .district-tooltip {
+  display: none;
+}
+
+/* Contorno punteado para distritos en modo coordenada */
+.leaflet-overlay-pane svg path.leaflet-interactive {
+  transition: all 0.3s ease;
+}
+
+/* Cuando esté en modo coordenada, aplicar estilo punteado */
+.map-container.cursor-location .leaflet-overlay-pane svg path.leaflet-interactive {
+  stroke-dasharray: 3, 3;
+  stroke: #cccccc;
+  stroke-opacity: 0.7;
+  fill-opacity: 0;
+}
+
+/* === ESTILOS PARA CONTORNOS EN MODO COORDENADA === */
+
+/* Asegurar que los contornos sean visibles incluso en modo coordenada */
+.leaflet-overlay-pane path {
+  pointer-events: auto !important;
+}
+
+/* Estilo específico para modo coordenada - asegurar visibilidad */
+.map-container.cursor-location .leaflet-overlay-pane path {
+  stroke: #666666 !important;
+  stroke-width: 1.5px !important;
+  stroke-dasharray: 3, 3 !important;
+  stroke-opacity: 0.7 !important;
+  fill-opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Mejorar la visibilidad del contorno punteado */
+.leaflet-interactive {
+  transition: stroke 0.3s ease;
+}
+
+/* Cuando está en modo coordenada, aumentar visibilidad del contorno */
+.mode-coordinate .leaflet-interactive {
+  stroke: #666666 !important;
+  stroke-width: 1.5px !important;
+  stroke-dasharray: 3, 3 !important;
+  fill: transparent !important;
+}
+
+/* Ocultar tooltips en modo coordenada */
+.map-container.cursor-location .leaflet-tooltip {
+  display: none !important;
+}
+
+/* DEBUG: Verificar que los estilos se cargan */
+.debug-border {
+  border: 2px solid red !important;
+}
+
+/* Forzar visibilidad de contornos */
+path.leaflet-interactive {
+  vector-effect: non-scaling-stroke !important;
+}
+
+/* Asegurar que el fill transparente no oculte el contorno */
+path.leaflet-interactive[fill-opacity="0"] {
+  stroke: #666666 !important;
+  stroke-width: 1.5px !important;
+  stroke-dasharray: 3, 3 !important;
 }
