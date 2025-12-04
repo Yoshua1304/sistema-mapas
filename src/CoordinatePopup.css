@@ -1,0 +1,313 @@
+/* === CONTENEDOR PRINCIPAL === */
+.coordinate-popup-container {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  min-width: 320px;
+  max-width: 380px;
+  background-color: white;
+  border-radius: 0 0 12px 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* === HEADER AZUL === */
+.coordinate-popup-header {
+  background: linear-gradient(135deg, #106bc7 0%, #0d5aa7 100%);
+  color: white;
+  padding: 12px 20px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border-bottom: 2px solid #0d5aa7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.coordinate-popup-header::before {
+  content: '📍';
+  font-size: 1.2rem;
+}
+
+/* === CONTENIDO CON SCROLL === */
+.coordinate-popup-content {
+  padding: 20px;
+  max-height: 450px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* === TÍTULO PRINCIPAL === */
+.coordinate-title {
+  text-align: center;
+  margin: 0 0 10px 0;
+  font-size: 1.4rem;
+  color: #106bc7;
+  font-weight: 700;
+}
+
+.coordinate-title-underline {
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(to right, #106bc7, #4CAF50);
+  margin: 0 auto 25px auto;
+  border-radius: 2px;
+}
+
+/* === TARJETAS DE COORDENADAS === */
+.coordinate-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.coordinate-card {
+  border-radius: 12px;
+  padding: 15px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.coordinate-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.coordinate-card.blue {
+  background: linear-gradient(135deg, #e8f4fd 0%, #d1e8f1 100%);
+  border-left: 4px solid #106bc7;
+}
+
+.coordinate-card.green {
+  background: linear-gradient(135deg, #f0f9eb 0%, #dcebd4 100%);
+  border-left: 4px solid #4CAF50;
+}
+
+.coordinate-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.coordinate-card-header i {
+  font-size: 1.2rem;
+  color: #106bc7;
+}
+
+.coordinate-card.green .coordinate-card-header i {
+  color: #4CAF50;
+}
+
+.coordinate-card-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.coordinate-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* === FILAS DE COORDENADAS === */
+.coordinate-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  background-color: rgba(255, 255, 255, 0.6);
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.coordinate-row:hover {
+  background-color: rgba(255, 255, 255, 0.9);
+}
+
+.coordinate-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.coordinate-label i {
+  font-size: 0.9rem;
+  color: #106bc7;
+  width: 16px;
+  text-align: center;
+}
+
+.coordinate-value {
+  font-family: 'Courier New', monospace;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #000;
+  background-color: white;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  min-width: 140px;
+  text-align: right;
+}
+
+/* === SECCIÓN DE DIRECCIÓN === */
+.address-section {
+  background-color: #f8f9fa;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 20px;
+  border: 1px solid #eee;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.section-header i {
+  font-size: 1.2rem;
+  color: #FF9800;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.address-content {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #444;
+  padding: 12px;
+  background-color: white;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.address-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.address-content::-webkit-scrollbar-thumb {
+  background-color: #aaa;
+  border-radius: 4px;
+}
+
+/* === ACCIONES === */
+.coordinate-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.action-button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.copy-button {
+  background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+  color: white;
+}
+
+.copy-button:hover {
+  background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+}
+
+.delete-button {
+  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+  color: white;
+}
+
+.delete-button:hover {
+  background: linear-gradient(135deg, #d32f2f 0%, #c62828 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(244, 67, 54, 0.3);
+}
+
+/* === FOOTER === */
+.coordinate-footer {
+  border-top: 1px solid #eee;
+  padding-top: 15px;
+  text-align: center;
+}
+
+.footer-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #666;
+  padding: 8px 12px;
+  background-color: #f5f5f5;
+  border-radius: 6px;
+}
+
+.footer-info i {
+  color: #106bc7;
+}
+
+/* === SCROLLBAR === */
+.coordinate-popup-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.coordinate-popup-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.coordinate-popup-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 10px;
+}
+
+.coordinate-popup-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 480px) {
+  .coordinate-popup-container {
+    min-width: 280px;
+    max-width: 320px;
+  }
+  
+  .coordinate-actions {
+    flex-direction: column;
+  }
+  
+  .coordinate-value {
+    min-width: 120px;
+    font-size: 0.85rem;
+  }
+}

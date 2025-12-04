@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Marker, Popup, useMap } from 'react-leaflet';
+import { Marker, Popup } from 'react-leaflet';
 import ReactDOMServer from 'react-dom/server';
 import { MapContainer, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet';
 import { DomEvent, Layer as LeafletLayer } from 'leaflet';
@@ -9,6 +9,7 @@ import 'leaflet/dist/leaflet.css';
 import './App.css';
 import LayerItem, { Layer } from './LayerItem';
 import DistrictPopup from './DistrictPopup';
+import CoordinatePopup from './CoordinatePopup';
 import BaseMapSelector, { BaseMap } from './BaseMapSelector';
 import Legend from './Legend';
 
@@ -302,7 +303,6 @@ const MapCoordinateClickHandler: React.FC<{
   isPlacingMarker: boolean;
   onMarkerPlaced: (latlng: [number, number]) => void;
 }> = ({ isPlacingMarker, onMarkerPlaced }) => {
-  const map = useMap();
 
   useMapEvents({
     click: (e) => {
@@ -1714,48 +1714,19 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
         {placedMarker && (
           <Marker position={placedMarker}>
             <Popup>
-              <div className="coordinate-popup">
-                <h3>📍 Ubicación Marcada</h3>
-                <div className="coordinate-info">
-                  <strong>Coordenadas:</strong><br />
-                  Lat: {placedMarker[0].toFixed(6)}<br />
-                  Lng: {placedMarker[1].toFixed(6)}
-                </div>
-                <div className="address-info">
-                  <strong>Dirección:</strong><br />
-                  {markerAddress || 'Cargando...'}
-                </div>
-                <div className="utm-info">
-                  <strong>UTM:</strong><br />
-                  {(() => {
-                    try {
-                      const [easting, northing] = proj4("EPSG:4326", "EPSG:32719", [placedMarker[1], placedMarker[0]]);
-                      const zoneNumber = Math.floor((placedMarker[1] + 180) / 6) + 1;
-                      return `Este: ${easting.toFixed(2)}m\nNorte: ${northing.toFixed(2)}m\nZona: ${zoneNumber}K`;
-                    } catch (e) {
-                      return 'Error en conversión';
-                    }
-                  })()}
-                </div>
-                <button 
-                  onClick={() => {
-                    setPlacedMarker(null);
-                    setMarkerAddress('');
-                    // No necesitas setDistrictsInteractive aquí
-                  }}
-                  style={{
-                    marginTop: '10px',
-                    padding: '5px 10px',
-                    backgroundColor: '#f44336',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Eliminar Marcador
-                </button>
-              </div>
+              <CoordinatePopup
+                lat={placedMarker[0]}
+                lng={placedMarker[1]}
+                address={markerAddress}
+                onDelete={() => {
+                  setPlacedMarker(null);
+                  setMarkerAddress('');
+                }}
+                onCopyCoordinates={() => {
+                  // Opcional: mostrar notificación de coordenadas copiadas
+                  console.log("Coordenadas copiadas");
+                }}
+              />
             </Popup>
           </Marker>
         )}
