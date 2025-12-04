@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
+<<<<<<< HEAD
+=======
+import { Marker, Popup } from 'react-leaflet';
+>>>>>>> 7edc267cda4b1c45f9f240781bb55c96226ef00c
 import ReactDOMServer from 'react-dom/server';
 import { MapContainer, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet';
 import { DomEvent, Layer as LeafletLayer } from 'leaflet';
@@ -8,6 +12,7 @@ import 'leaflet/dist/leaflet.css';
 import './App.css';
 import LayerItem, { Layer } from './LayerItem';
 import DistrictPopup from './DistrictPopup';
+import CoordinatePopup from './CoordinatePopup';
 import BaseMapSelector, { BaseMap } from './BaseMapSelector';
 import Legend from './Legend';
 
@@ -295,6 +300,29 @@ const VIGILANCIA_LAYER_DATA: Layer = {
     ]
 };
 
+<<<<<<< HEAD
+=======
+// Componente para manejar el clic en el mapa cuando estamos en modo "Ubicar Coordenada"
+// Actualiza este componente para que maneje la desactivación de distritos
+const MapCoordinateClickHandler: React.FC<{
+  isPlacingMarker: boolean;
+  onMarkerPlaced: (latlng: [number, number]) => void;
+}> = ({ isPlacingMarker, onMarkerPlaced }) => {
+
+  useMapEvents({
+    click: (e) => {
+      if (isPlacingMarker) {
+        const { lat, lng } = e.latlng;
+        onMarkerPlaced([lat, lng]);
+      }
+    },
+    // Removemos el mousemove porque ahora el cursor se maneja con CSS
+  });
+
+  return null;
+};
+
+>>>>>>> 7edc267cda4b1c45f9f240781bb55c96226ef00c
 function App() {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [allDistricts, setAllDistricts] = useState<GeoJSONData | null>(null);
@@ -1567,6 +1595,55 @@ if (diag === "TBC TIA EESS") {
           }
         />
 
+<<<<<<< HEAD
+=======
+        <MapCoordinateClickHandler 
+          isPlacingMarker={isPlacingMarker}
+          onMarkerPlaced={handleMarkerPlaced}
+        />
+
+        {/* Marcador colocado */}
+        {placedMarker && (
+          <Marker position={placedMarker}>
+            <Popup>
+              <CoordinatePopup
+                lat={placedMarker[0]}
+                lng={placedMarker[1]}
+                address={markerAddress}
+                onDelete={() => {
+                  setPlacedMarker(null);
+                  setMarkerAddress('');
+                }}
+                onCopyCoordinates={() => {
+                  // Opcional: mostrar notificación de coordenadas copiadas
+                  console.log("Coordenadas copiadas");
+                }}
+              />
+            </Popup>
+          </Marker>
+        )}
+        
+        {isPlacingMarker && (
+          <div className="coordinate-mode-indicator">
+            <div className="coordinate-mode-content">
+              <div className="coordinate-mode-icon">📍</div>
+              <div className="coordinate-mode-text">
+                <strong>Modo: Ubicar Coordenada</strong>
+              </div>
+              <button 
+                className="coordinate-mode-cancel"
+                onClick={() => {
+                  setIsPlacingMarker(false);
+                  if (map) map.getContainer().style.cursor = '';
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+>>>>>>> 7edc267cda4b1c45f9f240781bb55c96226ef00c
       </MapContainer>
 
       {isBaseMapSelectorOpen && (
