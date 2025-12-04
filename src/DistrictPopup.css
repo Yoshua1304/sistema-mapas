@@ -199,7 +199,14 @@
     align-items: center;
     justify-content: center;
     gap: 8px; /* Espacio entre el texto y el ícono */
+    z-index: 99999 !important;
+    pointer-events: auto !important;
 }
+
+.leaflet-container {
+    z-index: 1;
+}
+
 
 .view-data-button:hover {
     background-color: #106bc7;

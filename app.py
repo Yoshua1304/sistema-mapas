@@ -1,7 +1,11 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
+import pandas as pd
+import io
 from flask_cors import CORS
 from database import connect    # tu función centralizada de conexión
 from database import get_edas_connection,get_iras_connection, get_TB_connection, get_febriles_connection
+from openpyxl import Workbook
+
 
 app = Flask(__name__)
 CORS(app)
@@ -96,6 +100,37 @@ def api_poblacion():
     finally:
         conn.close()
 
+@app.route("/exportar-poblacion/<distrito>", methods=["GET"])
+def exportar_poblacion(distrito):
+    try:
+        conn = connect()
+        query = f"""
+            SELECT *
+            FROM EPI_TABLAS_MAESTRO.dbo.POBLACION_2025_DIRIS_LIMA_CENTRO
+            WHERE UPPER(DISTRITO) = UPPER(?)
+        """
+        df = pd.read_sql(query, conn, params=[distrito])
+        conn.close()
+
+        if df.empty:
+            return jsonify({"error": f"No se encontró población para {distrito}"}), 404
+
+        # Crear Excel en memoria
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name="POBLACION")
+
+        output.seek(0)
+
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=f"Poblacion_{distrito}.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # ============================================================
 # 2. ENDPOINT: CASOS POR ENFERMEDAD

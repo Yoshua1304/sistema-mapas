@@ -7,6 +7,7 @@ const LifeStageRow: React.FC<{ icon: string, label: string, value: number | unde
     // Helper para formatear números (ej: 1.000)
     const fmt = (num: number | undefined) => (num !== undefined ? num.toLocaleString('es-PE') : '0');
 
+    
     return (
         <div className="life-stage-row">
             <div className="life-item">
@@ -17,7 +18,6 @@ const LifeStageRow: React.FC<{ icon: string, label: string, value: number | unde
         </div>
     );
 };
-
 
 interface Poblacion {
   POBLACION_TOTAL: number;
@@ -57,9 +57,6 @@ interface DiagnosticoDetalle {
   TIA_100k?: number;
 }
 
-
-
-
 interface DistrictPopupProps {
   districtName: string;
   caseCount: number;
@@ -83,12 +80,42 @@ const DistrictPopup: React.FC<DistrictPopupProps> = ({
   const fmt = (num: number | undefined) => (num !== undefined ? num.toLocaleString('es-PE') : '0');
 
   // ⭐ Función de ejemplo para el botón (puedes reemplazarla o eliminarla)
-  const handleViewData = () => {
-    alert(`Visualizando datos detallados para el distrito: ${districtName}`);
-    // if (onDataViewClick) {
-    //   onDataViewClick(districtName);
-    // }
-  };
+  // ⭐⭐⭐ FUNCIÓN CORRECTA PARA EXPORTAR EXCEL ⭐⭐⭐
+const handleViewData = async () => {
+    console.log("📌 [FRONT] Botón presionado para distrito:", districtName);
+
+    try {
+        console.log("📡 [FRONT] Enviando solicitud al backend...");
+        const response = await fetch(
+            `/exportar-poblacion/${districtName}`,
+            { method: "GET" }
+        );
+
+        console.log("📥 [FRONT] Respuesta recibida:", response);
+
+        if (!response.ok) {
+            console.error("❌ [FRONT] Error en backend:", await response.json());
+            return;
+        }
+
+        // Recibir blob del archivo
+        const blob = await response.blob();
+        console.log("📄 [FRONT] Archivo recibido (blob):", blob);
+
+        // Descargar archivo
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Poblacion_${districtName}.xlsx`;
+        a.click();
+
+        console.log(`✅ [FRONT] Archivo descargado correctamente: Poblacion_${districtName}.xlsx`);
+    } catch (error) {
+        console.error("🔥 [FRONT] Error inesperado:", error);
+    }
+};
+
+
 
   // Dentro de DistrictPopup.tsx, justo antes del return:
 
@@ -100,6 +127,9 @@ console.log("DEBUG POPUP →", {
 
 console.log("💥 detalleDiagnostico COMPLETO:", detalleDiagnostico);
 console.log("🔑 Claves disponibles:", Object.keys(detalleDiagnostico));
+
+
+console.log("Valor recibido de districtName:", districtName);
 
   return (
     <div className="district-popup-container">
@@ -310,15 +340,13 @@ console.log("🔑 Claves disponibles:", Object.keys(detalleDiagnostico));
 
         {/* ⭐⭐⭐ NUEVO BOTÓN "VER DATOS" ⭐⭐⭐ */}
         <div className="data-button-container">
-            <button 
-                className="view-data-button"
-                onClick={handleViewData}
-                title={`Ver datos detallados de ${districtName}`}
-            >
-                Ver Datos <i className="fas fa-chart-bar"></i>
-            </button>
+          <button className="view-data-button"     onClick={() => {
+        console.log("CLICK DETECTADO ✔");
+        handleViewData();
+    }} title={`Ver datos detallados de ${districtName}`}>
+              Ver Datos <i className="fas fa-chart-bar"></i>
+          </button>
         </div>
-
       </div>
     </div>
   );

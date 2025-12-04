@@ -694,6 +694,39 @@ const detalles: Record<
 };
 
 
+// Obtiene el valor numérico que corresponde según el diagnóstico activo
+const getValorDistrito = (distrito: any) => {
+  const data = casosPorDistrito[distrito];
+  if (!data) return 0;
+
+  const esTB = diagnosticoSeleccionado.some(d =>
+    d.toUpperCase().replace(/[-_ ]/g, "") === "TBCTIA"
+  );
+
+  return esTB ? (data.TIA_100k ?? 0) : (data.total ?? 0);
+};
+
+// Obtener todos los valores numéricos
+const valores = Object.keys(casosPorDistrito).map(getValorDistrito);
+
+// Detectar min y max reales
+const minValor = Math.min(...valores);
+const maxValor = Math.max(...valores);
+
+const escalaChoroplethDinamica = (valor: number) => {
+  if (maxValor === minValor) return "#9a9a9aff"; // evitar NaN si todos son iguales
+
+  const rango = maxValor - minValor;
+  const porcentaje = (valor - minValor) / rango;
+
+  if (porcentaje > 0.75) return "#f21a0aff";  // rojo
+  if (porcentaje > 0.50) return "#fa9b15ff";  // naranja
+  if (porcentaje > 0.25) return "#fff134ff";  // amarillo
+  return "#2eff1bff";                         // verde
+};
+
+
+
 const obtenerCasosEnfermedad = async (distrito: string, enfermedad: string) => {
   const res = await fetch(`http://localhost:5000/api/casos_enfermedad?distrito=${distrito}&enfermedad=${enfermedad}`);
   return await res.json();
@@ -1038,53 +1071,101 @@ const getDistrictStyle = (feature: any) => {
   const isSearched = searchedDistrictId === distrito;
   const isClicked = clickedDistrictId === distrito;
   const isLayerSelected = selectedDistrictLayerIds.has(distrito);
-  const isDiseaseSelected = diagnosticoSeleccionado.length > 0;
 
+  // -------------------------------
+  //  ✨ DETECTAR DIAGNÓSTICOS
+  // -------------------------------
+  const diagnosticos = diagnosticoSeleccionado.map(d =>
+    d.toUpperCase().replace(/-|_| /g, "")
+  );
+
+  const isDiseaseSelected = diagnosticos.length > 0;
+
+  // Diagnóstico especial para TBC-TIA
+  const esTBC_TIA = diagnosticos.includes("TBCTIA") || diagnosticos.includes("TBCTIAEESS");
+
+  // -------------------------------
+  //  🎯 DEFINIR VALOR A PINTAR
+  // -------------------------------
+  const valorPintado = esTBC_TIA
+    ? (distritoData.TIA_100k ?? 0)
+    : (distritoData.total ?? 0);
+
+  // -------------------------------
+  //  🎨 ESCALA FIJA PARA TBC-TIA
+  // -------------------------------
+  const escalaTB = (valor: number) => {
+    if (valor > 75) return "#f21a0aff";     // rojo
+    if (valor > 50) return "#fa9b15ff";     // naranja
+    if (valor > 25) return "#fff134ff";     // amarillo
+    if (valor > 0)  return "#2eff1bff";     // verde
+    return "#9a9a9aff";
+  };
+
+  // -------------------------------
+  //  🎨 ESCALA DINÁMICA para otros diagnósticos
+  // -------------------------------
+  const getValorDistrito = (d: string) => {
+    const data = casosPorDistrito[d];
+    if (!data) return 0;
+    return data.total ?? 0; // SOLO TOTAL
+  };
+
+  const valores = Object.keys(casosPorDistrito).map(getValorDistrito);
+  const minValor = Math.min(...valores);
+  const maxValor = Math.max(...valores);
+
+  const escalaDinamica = (valor: number) => {
+    if (maxValor === minValor) return "#9a9a9aff";
+
+    const rango = maxValor - minValor;
+    const porcentaje = (valor - minValor) / rango;
+
+    if (porcentaje > 0.75) return "#f21a0aff";   // rojo
+    if (porcentaje > 0.50) return "#fa9b15ff";   // naranja
+    if (porcentaje > 0.25) return "#fff134ff";   // amarillo
+    return "#2eff1bff";                          // verde
+  };
+
+  // -------------------------------
+  //  🎨 COLOR FINAL
+  // -------------------------------
+  const fillColor = esTBC_TIA
+    ? escalaTB(valorPintado)
+    : escalaDinamica(valorPintado);
+
+  const fillOpacity = valorPintado > 0 ? 0.8 : 0.2;
+
+  // -------------------------------
+  //  🧩 ESTILOS BASE / HIGHLIGHT
+  // -------------------------------
   const baseStyle = {
     weight: 1,
     color: "#555",
-    fillOpacity: 0.7,
-    fillColor: "#E0E0E0",
+    fillOpacity,
+    fillColor,
   };
 
   const highlightStyle = {
     weight: 3,
     color: "#000000",
-    fillOpacity: 0.9,
+    fillOpacity,
+    fillColor,
   };
-
-  const escalaChoropleth = (valor: number) => {
-    return valor > 75 ? "#f21a0aff" :
-           valor > 50 ? "#fa9b15ff" :
-           valor > 25 ? "#fff134ff" :
-           valor > 1  ? "#2eff1bff" :
-                        "#9a9a9aff";
-  };
-
-  // 🎯 Detectar correctamente TB TIA
-  const esTB = diagnosticoSeleccionado.some(d =>
-    d.toUpperCase().replace(/[-_ ]/g, "") === "TBCTIA"
-  );
-
-  // 🔥 Valor correcto para pintar
-  const valorPintado = esTB ? distritoData.TIA_100k : distritoData.total;
-
-  const fillColor = escalaChoropleth(valorPintado);
-  const fillOpacity = valorPintado > 0 ? 0.8 : 0.2;
 
   if (!isDiseaseSelected) {
-    if (isSearched || isClicked || isLayerSelected) {
-      return { ...highlightStyle, fillColor: "#f3b14fff" };
-    }
-    return { ...baseStyle, fillOpacity: 0.2 };
+    return isSearched || isClicked || isLayerSelected
+      ? { ...highlightStyle, fillColor: "#f3b14fff" }
+      : { ...baseStyle, fillOpacity: 0.2, fillColor: "#E0E0E0" };
   }
 
   if (isSearched || isClicked || isLayerSelected) {
-    return { ...highlightStyle, fillColor, fillOpacity };
+    return { ...highlightStyle };
   }
 
-  return { ...baseStyle, fillColor, fillOpacity };
+  return { ...baseStyle };
 };
+
 
 const onEachDistrict = (feature: any, layer: LeafletLayer) => {
   const districtName = feature.properties.NM_DIST;
@@ -1142,6 +1223,7 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
       // 3. detalles múltiples diagnósticos
 // 3. detalles múltiples diagnósticos
 const detalleDiagnostico: Record<string, any> = {};
+
 
 for (const diag of diagnosticoSeleccionado) {
 
@@ -1243,6 +1325,8 @@ if (diag === "TBC TIA EESS") {
     }
   });
 };
+
+
 
   const filteredLayers = useMemo(() => {
     const searchTerm = layerSearchTerm.trim().toLowerCase();
