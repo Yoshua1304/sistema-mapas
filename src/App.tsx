@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Marker, Popup, useMap } from 'react-leaflet';
 import ReactDOMServer from 'react-dom/server';
 import { MapContainer, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet';
 import { DomEvent, Layer as LeafletLayer } from 'leaflet';
@@ -295,6 +296,27 @@ const VIGILANCIA_LAYER_DATA: Layer = {
     ]
 };
 
+// Componente para manejar el clic en el mapa cuando estamos en modo "Ubicar Coordenada"
+// Actualiza este componente para que maneje la desactivación de distritos
+const MapCoordinateClickHandler: React.FC<{
+  isPlacingMarker: boolean;
+  onMarkerPlaced: (latlng: [number, number]) => void;
+}> = ({ isPlacingMarker, onMarkerPlaced }) => {
+  const map = useMap();
+
+  useMapEvents({
+    click: (e) => {
+      if (isPlacingMarker) {
+        const { lat, lng } = e.latlng;
+        onMarkerPlaced([lat, lng]);
+      }
+    },
+    // Removemos el mousemove porque ahora el cursor se maneja con CSS
+  });
+
+  return null;
+};
+
 function App() {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [allDistricts, setAllDistricts] = useState<GeoJSONData | null>(null);
@@ -316,7 +338,10 @@ function App() {
   const [casosPorDistrito, setCasosPorDistrito] = useState<Record<string, any>>({});
   const [diagnosticoSeleccionado, setDiagnosticoSeleccionado] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [showCopyNotification, setShowCopyNotification] = useState(false);  
+  const [showCopyNotification, setShowCopyNotification] = useState(false);
+  const [isPlacingMarker, setIsPlacingMarker] = useState(false);
+  const [placedMarker, setPlacedMarker] = useState<[number, number] | null>(null);
+  const [markerAddress, setMarkerAddress] = useState<string>('');
 
 //console.log("🟦 diagnosticoSeleccionado TYPE:", typeof diagnosticoSeleccionado);
 //console.log("🟦 diagnosticoSeleccionado VALUE:", diagnosticoSeleccionado);
@@ -544,6 +569,94 @@ const resetMapToDefault = () => {
 };
 
 useEffect(() => {
+  console.log("🔄 Modo coordenada actualizado:", isPlacingMarker);
+  console.log("📐 Estilo para modo coordenada:", isPlacingMarker ? 
+    "Contorno gris punteado" : "Estilo normal");
+}, [isPlacingMarker]);
+
+useEffect(() => {
+  if (!map || !allDistricts) return;
+  
+  if (isPlacingMarker) {
+    // Ocultar todos los tooltips de distritos
+    map.eachLayer((layer: any) => {
+      if (layer.getTooltip) {
+        const tooltip = layer.getTooltip();
+        if (tooltip && tooltip.getElement) {
+          const element = tooltip.getElement();
+          if (element && element.style) {
+            element.style.display = 'none';
+          }
+        }
+      }
+    });
+    
+    // Cerrar popups abiertos
+    map.closePopup();
+  } else {
+    // Reactivar tooltips
+    map.eachLayer((layer: any) => {
+      if (layer.getTooltip) {
+        const tooltip = layer.getTooltip();
+        if (tooltip && tooltip.getElement) {
+          const element = tooltip.getElement();
+          if (element && element.style) {
+            element.style.display = 'block';
+          }
+        }
+      }
+    });
+  }
+}, [isPlacingMarker, map, allDistricts]);
+
+useEffect(() => {
+  if (!map) return;
+  
+  const mapContainer = map.getContainer();
+  
+  if (isPlacingMarker) {
+    // Agregar clase para modo coordenada
+    mapContainer.classList.add('cursor-location', 'mode-coordinate');
+    
+    // Usar cursor crosshair como fallback, con el emoji como icono en el mapa
+    mapContainer.style.cursor = 'crosshair';
+    
+    // Crear un marcador temporal que siga el cursor
+    const cursorMarker = L.marker(map.getCenter(), {
+      icon: L.divIcon({
+        html: '<div style="font-size: 24px; color: #106bc7; text-shadow: 0 0 3px white;">📍</div>',
+        className: 'cursor-pin',
+        iconSize: [32, 32],
+        iconAnchor: [16, 32]
+      }),
+      interactive: false,
+      zIndexOffset: 1000
+    }).addTo(map);
+    
+    // Actualizar posición del marcador con el cursor
+    const updateCursorMarker = (e: any) => {
+      cursorMarker.setLatLng(e.latlng);
+    };
+    
+    map.on('mousemove', updateCursorMarker);
+    
+    // Limpiar al desmontar
+    return () => {
+      map.off('mousemove', updateCursorMarker);
+      if (map.hasLayer(cursorMarker)) {
+        map.removeLayer(cursorMarker);
+      }
+      mapContainer.classList.remove('cursor-location', 'mode-coordinate');
+      mapContainer.style.cursor = '';
+    };
+    
+  } else {
+    mapContainer.classList.remove('cursor-location', 'mode-coordinate');
+    mapContainer.style.cursor = '';
+  }
+}, [isPlacingMarker, map]);
+
+useEffect(() => {
   if (!allDistricts) return;
   if (!diagnosticoSeleccionado || diagnosticoSeleccionado.length === 0) return;
 
@@ -745,6 +858,71 @@ const handleShare = async () => {
     setTimeout(() => {
       setShowCopyNotification(false);
     }, 3000);
+  }
+};
+
+const handleLocateCoordinate = () => {
+  // Si ya está en modo de colocación, desactivarlo
+  if (isPlacingMarker) {
+    setIsPlacingMarker(false);
+    
+    // Cerrar cualquier popup abierto
+    if (map) {
+      map.closePopup();
+    }
+    return;
+  }
+  
+  // Activar modo de colocación
+  setIsPlacingMarker(true);
+  
+  // Limpiar selecciones existentes de distritos
+  setClickedDistrictId(null);
+  setSearchedDistrictId(null);
+  setSelectedDistrictLayerIds(new Set());
+  
+  // Cerrar cualquier popup abierto
+  if (map) {
+    map.closePopup();
+  }
+  
+  // Si ya hay un marcador colocado, lo eliminamos
+  setPlacedMarker(null);
+  setMarkerAddress('');
+  
+  // Cambiar cursor inmediatamente
+  if (map) {
+    const container = map.getContainer();
+    container.style.cursor = 'crosshair';
+  }
+};
+
+// Función cuando se coloca un marcador
+const handleMarkerPlaced = async (latlng: [number, number]) => {
+  setPlacedMarker(latlng);
+  setIsPlacingMarker(false);
+  
+  // Restaurar cursor
+  if (map) {
+    const container = map.getContainer();
+    container.style.cursor = '';
+  }
+  
+  // Obtener dirección usando Nominatim (OpenStreetMap)
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng[0]}&lon=${latlng[1]}&zoom=18&addressdetails=1`
+    );
+    const data = await response.json();
+    
+    if (data.display_name) {
+      setMarkerAddress(data.display_name);
+    } else {
+      setMarkerAddress('Dirección no disponible');
+    }
+  } catch (error) {
+    console.error('Error obteniendo dirección:', error);
+    setMarkerAddress('Error al obtener dirección');
   }
 };
 
@@ -1057,6 +1235,22 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
   }, [allDistricts, selectedLayers]);
 
 const getDistrictStyle = (feature: any) => {
+
+  // ⭐ VERSIÓN SIMPLIFICADA PARA DEBUG
+    console.log("🔄 getDistrictStyle llamado - isPlacingMarker:", isPlacingMarker);
+    
+    if (isPlacingMarker) {
+      return {
+        weight: 2, // Más grueso para mejor visibilidad
+        color: "#333333", // Color más oscuro
+        fillOpacity: 0,
+        fillColor: "transparent",
+        opacity: 0.8,
+        dashArray: "5, 5", // Puntos más grandes
+        interactive: false,
+      };
+    }
+
   const distrito = feature.properties.NM_DIST?.toUpperCase();
   const distritoData = casosPorDistrito[distrito] || { total: 0, TIA_100k: 0 };
 
@@ -1114,139 +1308,126 @@ const getDistrictStyle = (feature: any) => {
 const onEachDistrict = (feature: any, layer: LeafletLayer) => {
   const districtName = feature.properties.NM_DIST;
 
-  // ⭐ NUEVO: ENLAZAR UN TOOLTIP CON EL NOMBRE DEL DISTRITO ⭐
-    if (districtName) {
-      layer.bindTooltip(districtName, {
-        permanent: false, // El tooltip no se queda permanentemente
-        direction: 'auto', // Lo coloca automáticamente
-        sticky: true, // Lo mantiene pegado al cursor
-        opacity: 0.9,
-        className: 'district-tooltip' // Clase opcional para estilizar con CSS
-      });
-    }
+  // ⭐ NUEVO: SOLO mostrar tooltip si NO estamos en modo coordenada
+  if (districtName && !isPlacingMarker) {
+    layer.bindTooltip(districtName, {
+      permanent: false,
+      direction: 'auto',
+      sticky: true,
+      opacity: 0.9,
+      className: 'district-tooltip'
+    });
+  } else if (districtName && isPlacingMarker) {
+    // ⭐ IMPORTANTE: Desvincular tooltip en modo coordenada
+    layer.unbindTooltip();
+  }
 
-  // ⭐ NUEVO: Efectos visuales de HOVER
-  layer.on({
-    click: async (e) => {
-      L.DomEvent.stopPropagation(e);
+  // ⭐ NUEVO: SOLO asignar eventos click si NO estamos en modo coordenada
+  if (!isPlacingMarker) {
+    layer.on({
+      click: async (e) => {
+        L.DomEvent.stopPropagation(e);
 
-      setClickedDistrictId(districtName.toUpperCase());
-      setSearchedDistrictId(null);
-      setSelectedDistrictLayerIds(new Set()); // Limpia la selección múltiple/búsqueda
+        setClickedDistrictId(districtName.toUpperCase());
+        setSearchedDistrictId(null);
+        setSelectedDistrictLayerIds(new Set());
 
-      const layer = e.target;
-    
-      if (map) { // Asegúrate de que la instancia del mapa exista
-          const bounds = layer.getBounds();
-          
-          // ⭐ AJUSTE DE ZOOM (Regla 4)
-          map.fitBounds(bounds, {
-              padding: [50, 50],
-              maxZoom: 14 
-          });
-      }
-
-      if (map) { // Asegúrate de que la instancia del mapa exista
+        const layer = e.target;
+      
+        if (map) {
           const bounds = layer.getBounds();
-          
-          // Ajusta el mapa a los límites del distrito seleccionado
           map.fitBounds(bounds, {
-              // Opcional: añade un padding para que el distrito no toque los bordes
-              padding: [50, 50],
-              // Opcional: Define un nivel de zoom máximo si no quieres que acerque demasiado
-              maxZoom: 14 // Puedes ajustar este valor según la necesidad
+            padding: [50, 50],
+            maxZoom: 14 
           });
-      }
+        }
 
       // 1. población
-      const dataPoblacion = await obtenerPoblacion(districtName);
+        const dataPoblacion = await obtenerPoblacion(districtName);
 
-      // 2. total de casos
-      const caseCount = await obtenerCasosTotales(districtName);
+        // 2. total de casos
+        const caseCount = await obtenerCasosTotales(districtName);
 
-      // 3. detalles múltiples diagnósticos
-// 3. detalles múltiples diagnósticos
-const detalleDiagnostico: Record<string, any> = {};
+        // 3. detalles múltiples diagnósticos
+        const detalleDiagnostico: Record<string, any> = {};
 
-for (const diag of diagnosticoSeleccionado) {
+        for (const diag of diagnosticoSeleccionado) {
+          const data = await obtenerCasosEnfermedad(districtName, diag);
+          const detalleArray = data.detalle || [];
 
-  const data = await obtenerCasosEnfermedad(districtName, diag);
-  const detalleArray = data.detalle || [];
-
-  // ======================================
-  // 🔵 LOGICA PARA TUBERCULOSIS
-  // ======================================
-if (diag === "TBC TIA") {
-  detalleDiagnostico[diag] = {
-    total: data.total || 0,        // <── CAMBIO AQUÍ
-    TIA_100k: data.TIA_100k || 0,
-    poblacion: data.poblacion_total || 0,
-    detalle: []
-  };
-  continue;
-}
-
-  // ======================================
-  // 🔵 LOGICA PARA TUBERCULOSIS EESS MINSA
-  // ======================================
-if (diag === "TBC TIA EESS") {
-  detalleDiagnostico[diag] = {
-    total: data.total || 0,        // <── CAMBIO AQUÍ
-    TIA_100k: data.TIA_100k || 0,
-    poblacion: data.poblacion_total || 0,
-    detalle: []
-  };
-  continue;
-}
-
-  // ======================================
-  // 🟠 LOGICA PARA IRAS
-  // ======================================
-  if (diag === "Infecciones respiratorias agudas") {
+    // ======================================
+    // 🔵 LOGICA PARA TUBERCULOSIS
+    // ======================================
+  if (diag === "TBC TIA") {
     detalleDiagnostico[diag] = {
-      total: data.total || 0,
-      detalle: detalleArray,
-
-      ira_no_neumonia:
-        detalleArray.find((d: any) => d.grupo === "IRA_NO_NEUMONIA")?.cantidad ||
-        0,
-
-      sob_asma:
-        detalleArray.find((d: any) => d.grupo === "SOB_ASMA")?.cantidad || 0,
-
-      neumonia_grave:
-        detalleArray.find((d: any) => d.grupo === "NEUMONIA_GRAVE")?.cantidad ||
-        0,
-
-      neumonia:
-        detalleArray.find((d: any) => d.grupo === "NEUMONIA")?.cantidad || 0
+      total: data.total || 0,        // <── CAMBIO AQUÍ
+      TIA_100k: data.TIA_100k || 0,
+      poblacion: data.poblacion_total || 0,
+      detalle: []
     };
     continue;
   }
 
-  // ======================================
-  // 🟡 LOGICA PARA EDAS
-  // ======================================
-  if (diag === "Enfermedades diarreicas agudas") {
+    // ======================================
+    // 🔵 LOGICA PARA TUBERCULOSIS EESS MINSA
+    // ======================================
+  if (diag === "TBC TIA EESS") {
+    detalleDiagnostico[diag] = {
+      total: data.total || 0,        // <── CAMBIO AQUÍ
+      TIA_100k: data.TIA_100k || 0,
+      poblacion: data.poblacion_total || 0,
+      detalle: []
+    };
+    continue;
+  }
+
+    // ======================================
+    // 🟠 LOGICA PARA IRAS
+    // ======================================
+    if (diag === "Infecciones respiratorias agudas") {
+      detalleDiagnostico[diag] = {
+        total: data.total || 0,
+        detalle: detalleArray,
+
+        ira_no_neumonia:
+          detalleArray.find((d: any) => d.grupo === "IRA_NO_NEUMONIA")?.cantidad ||
+          0,
+
+        sob_asma:
+          detalleArray.find((d: any) => d.grupo === "SOB_ASMA")?.cantidad || 0,
+
+        neumonia_grave:
+          detalleArray.find((d: any) => d.grupo === "NEUMONIA_GRAVE")?.cantidad ||
+          0,
+
+        neumonia:
+          detalleArray.find((d: any) => d.grupo === "NEUMONIA")?.cantidad || 0
+      };
+      continue;
+    }
+
+    // ======================================
+    // 🟡 LOGICA PARA EDAS
+    // ======================================
+    if (diag === "Enfermedades diarreicas agudas") {
+      detalleDiagnostico[diag] = {
+        total: data.total || 0,
+        daa: data.daa || 0,
+        dis: data.dis || 0,
+        detalle: detalleArray
+      };
+      continue;
+    }
+
+    // ======================================
+    // ⚪ LOGICA GENÉRICA (otros)
+    // ======================================
     detalleDiagnostico[diag] = {
       total: data.total || 0,
-      daa: data.daa || 0,
-      dis: data.dis || 0,
       detalle: detalleArray
     };
-    continue;
   }
-
-  // ======================================
-  // ⚪ LOGICA GENÉRICA (otros)
-  // ======================================
-  detalleDiagnostico[diag] = {
-    total: data.total || 0,
-    detalle: detalleArray
-  };
-}
-
-
+  
       // 4. guardar en estado
       setCasosDetallePorDistrito(prev => ({
         ...prev,
@@ -1267,6 +1448,11 @@ if (diag === "TBC TIA EESS") {
       layer.bindPopup(popupContent, { maxWidth: 400 });
     }
   });
+} else {
+    // ⭐ IMPORTANTE: En modo coordenada, deshabilitar eventos
+    layer.off('click');
+    layer.unbindPopup();
+  }
 };
 
   const filteredLayers = useMemo(() => {
@@ -1351,11 +1537,13 @@ if (diag === "TBC TIA EESS") {
             key={
               JSON.stringify(Array.from(selectedLayers)) +
               searchedDistrictId +
-              diagnosticoSeleccionado.join(",")
+              diagnosticoSeleccionado.join(",") +
+              (isPlacingMarker ? "placing" : "normal")
             }
             data={districtsToDisplay}
             style={getDistrictStyle}
             onEachFeature={onEachDistrict}
+            interactive={!isPlacingMarker}
           />
         )}
 
@@ -1480,7 +1668,17 @@ if (diag === "TBC TIA EESS") {
           <button title="Estadística">📊</button>
           <button title="Docencia">🎓</button>
           <button title="Captura">🖼️</button>
-          <button title="Ubicar Coordenada">📍</button>
+          <button 
+            title={isPlacingMarker ? "Cancelar ubicación de coordenada" : "Ubicar Coordenada"}
+            onClick={handleLocateCoordinate}
+            style={{ 
+              backgroundColor: isPlacingMarker ? '#106bc7' : 'white',
+              color: isPlacingMarker ? 'white' : 'black',
+              border: isPlacingMarker ? '2px solid #0d5aa7' : '1px solid #aaa'
+            }}
+          >
+            {isPlacingMarker ? '❌' : '📍'}
+          </button>
           <button title="Guardar">💾</button>
           <button title="Compartir" onClick={handleShare}>🔗</button>
         </div>
@@ -1506,6 +1704,81 @@ if (diag === "TBC TIA EESS") {
             ].filter(Boolean) as string[])]
           }
         />
+
+        <MapCoordinateClickHandler 
+          isPlacingMarker={isPlacingMarker}
+          onMarkerPlaced={handleMarkerPlaced}
+        />
+
+        {/* Marcador colocado */}
+        {placedMarker && (
+          <Marker position={placedMarker}>
+            <Popup>
+              <div className="coordinate-popup">
+                <h3>📍 Ubicación Marcada</h3>
+                <div className="coordinate-info">
+                  <strong>Coordenadas:</strong><br />
+                  Lat: {placedMarker[0].toFixed(6)}<br />
+                  Lng: {placedMarker[1].toFixed(6)}
+                </div>
+                <div className="address-info">
+                  <strong>Dirección:</strong><br />
+                  {markerAddress || 'Cargando...'}
+                </div>
+                <div className="utm-info">
+                  <strong>UTM:</strong><br />
+                  {(() => {
+                    try {
+                      const [easting, northing] = proj4("EPSG:4326", "EPSG:32719", [placedMarker[1], placedMarker[0]]);
+                      const zoneNumber = Math.floor((placedMarker[1] + 180) / 6) + 1;
+                      return `Este: ${easting.toFixed(2)}m\nNorte: ${northing.toFixed(2)}m\nZona: ${zoneNumber}K`;
+                    } catch (e) {
+                      return 'Error en conversión';
+                    }
+                  })()}
+                </div>
+                <button 
+                  onClick={() => {
+                    setPlacedMarker(null);
+                    setMarkerAddress('');
+                    // No necesitas setDistrictsInteractive aquí
+                  }}
+                  style={{
+                    marginTop: '10px',
+                    padding: '5px 10px',
+                    backgroundColor: '#f44336',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Eliminar Marcador
+                </button>
+              </div>
+            </Popup>
+          </Marker>
+        )}
+        
+        {isPlacingMarker && (
+          <div className="coordinate-mode-indicator">
+            <div className="coordinate-mode-content">
+              <div className="coordinate-mode-icon">📍</div>
+              <div className="coordinate-mode-text">
+                <strong>Modo: Ubicar Coordenada</strong>
+              </div>
+              <button 
+                className="coordinate-mode-cancel"
+                onClick={() => {
+                  setIsPlacingMarker(false);
+                  if (map) map.getContainer().style.cursor = '';
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
 
       </MapContainer>
 

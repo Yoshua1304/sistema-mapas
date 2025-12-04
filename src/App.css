@@ -573,3 +573,211 @@ body, html, #root {
     justify-content: center;
   }
 }
+
+/* === POPUP DE COORDENADAS === */
+.coordinate-popup {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  min-width: 250px;
+  max-width: 300px;
+}
+
+.coordinate-popup h3 {
+  margin: 0 0 15px 0;
+  color: #106bc7;
+  font-size: 1.1rem;
+  border-bottom: 2px solid #106bc7;
+  padding-bottom: 8px;
+}
+
+.coordinate-info,
+.address-info,
+.utm-info {
+  margin-bottom: 12px;
+  padding: 8px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border-left: 3px solid #106bc7;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.address-info {
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.utm-info {
+  font-family: monospace;
+  white-space: pre-line;
+}
+/* === CURSOR PERSONALIZADO CON EMOJI === */
+.map-container.cursor-location {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ctext x='16' y='24' text-anchor='middle' font-size='24' fill='%23106bc7'%3E📍%3C/text%3E%3C/svg%3E") 16 24, crosshair !important;
+}
+
+/* === INDICADOR DE MODO DE COORDENADAS MEJORADO === */
+.coordinate-mode-indicator {
+  position: absolute;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #106bc7 0%, #0d5aa7 100%);
+  color: white;
+  padding: 15px 25px;
+  border-radius: 12px;
+  z-index: 2020; /* Mayor z-index para estar sobre todo */
+  box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+  animation: pulse-coordinate 2s infinite;
+  max-width: 350px;
+  text-align: center;
+  border: 2px solid white;
+}
+
+.coordinate-mode-content {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.coordinate-mode-icon {
+  font-size: 2rem;
+  animation: bounce-icon 1s infinite alternate;
+}
+
+.coordinate-mode-text {
+  font-size: 0.9rem;
+  text-align: left;
+  flex-grow: 1;
+}
+
+.coordinate-mode-text p {
+  margin: 5px 0 0 0;
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+.coordinate-mode-text strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 1rem;
+}
+
+.coordinate-mode-cancel {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.coordinate-mode-cancel:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+@keyframes bounce-icon {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes pulse-coordinate {
+  0%, 100% {
+    box-shadow: 0 6px 20px rgba(16, 107, 199, 0.4);
+  }
+  50% {
+    box-shadow: 0 6px 25px rgba(16, 107, 199, 0.7);
+  }
+}
+
+/* === ESTILO PARA MAPA SIN DISTRITOS === */
+.map-container.districts-disabled {
+  pointer-events: all !important;
+}
+
+.map-container.districts-disabled .leaflet-overlay-pane svg path {
+  display: none !important;
+}
+
+/* === ESTILOS PARA MODO COORDENADA === */
+.leaflet-interactive.mode-coordinate {
+  pointer-events: none !important;
+  cursor: crosshair !important;
+}
+
+/* Asegurar que los tooltips no aparezcan en modo coordenada */
+.leaflet-tooltip-pane .district-tooltip {
+  display: none;
+}
+
+/* Contorno punteado para distritos en modo coordenada */
+.leaflet-overlay-pane svg path.leaflet-interactive {
+  transition: all 0.3s ease;
+}
+
+/* Cuando esté en modo coordenada, aplicar estilo punteado */
+.map-container.cursor-location .leaflet-overlay-pane svg path.leaflet-interactive {
+  stroke-dasharray: 3, 3;
+  stroke: #cccccc;
+  stroke-opacity: 0.7;
+  fill-opacity: 0;
+}
+
+/* === ESTILOS PARA CONTORNOS EN MODO COORDENADA === */
+
+/* Asegurar que los contornos sean visibles incluso en modo coordenada */
+.leaflet-overlay-pane path {
+  pointer-events: auto !important;
+}
+
+/* Estilo específico para modo coordenada - asegurar visibilidad */
+.map-container.cursor-location .leaflet-overlay-pane path {
+  stroke: #666666 !important;
+  stroke-width: 1.5px !important;
+  stroke-dasharray: 3, 3 !important;
+  stroke-opacity: 0.7 !important;
+  fill-opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Mejorar la visibilidad del contorno punteado */
+.leaflet-interactive {
+  transition: stroke 0.3s ease;
+}
+
+/* Cuando está en modo coordenada, aumentar visibilidad del contorno */
+.mode-coordinate .leaflet-interactive {
+  stroke: #666666 !important;
+  stroke-width: 1.5px !important;
+  stroke-dasharray: 3, 3 !important;
+  fill: transparent !important;
+}
+
+/* Ocultar tooltips en modo coordenada */
+.map-container.cursor-location .leaflet-tooltip {
+  display: none !important;
+}
+
+/* DEBUG: Verificar que los estilos se cargan */
+.debug-border {
+  border: 2px solid red !important;
+}
+
+/* Forzar visibilidad de contornos */
+path.leaflet-interactive {
+  vector-effect: non-scaling-stroke !important;
+}
+
+/* Asegurar que el fill transparente no oculte el contorno */
+path.leaflet-interactive[fill-opacity="0"] {
+  stroke: #666666 !important;
+  stroke-width: 1.5px !important;
+  stroke-dasharray: 3, 3 !important;
+}
