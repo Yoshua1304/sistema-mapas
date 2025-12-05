@@ -1492,13 +1492,11 @@ const filteredLayers = useMemo(() => {
           <button title="Mapa Base" onClick={() => setBaseMapSelectorOpen(true)}>
             🗺️
           </button>
-          <button title="Estadísticas">📊</button>
-          <button title="Reportes">📄</button>
-          <button title="Cargar Externo">📤</button>
-          <button title="Dibujar/Medir">✏️</button>
-          <button title="Descargar">📥</button>
+          <button title="Estadística">📊</button>
+          <button title="Docencia">🎓</button>
+          <button title="Captura">🖼️</button>
           <button title="Ubicar Coordenada">📍</button>
-          <button title="Imprimir">🖨️</button>
+          <button title="Guardar">💾</button>
           <button title="Compartir">🔗</button>
         </div>
 

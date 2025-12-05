@@ -69,17 +69,17 @@ body, html, #root {
 }
 
 .sidebar-nav .nav-button.active {
-  background-color: #195c97;
+  background-color: #106bc7;
 }
 
 .sidebar-toggle-button-close {
-  background-color: #195c97 !important; 
+  background-color: #106bc7 !important; 
   margin-top: auto; 
   padding: 15px 0 !important;
 }
 
 .sidebar-toggle-button-close:hover {
-  background-color: #195c97 !important; 
+  background-color: #106bc7 !important; 
 }
 
 .sidebar-header {
@@ -545,35 +545,6 @@ body, html, #root {
   }
 }
 
-/* === RESPONSIVE DESIGN === */
-@media (max-width: 768px) {
-  .map-search-bar {
-    top: auto;
-    bottom: 15px;
-    left: 15px;
-    right: 15px;
-    width: auto;
-  }
-  
-  .map-search-bar input { 
-    width: 100%; 
-  }
-  
-  .base-maps-widget, 
-  .map-tools, 
-  .compass, 
-  .sidebar-floating {
-    display: none;
-  }
-
-  .capture-notification {
-    bottom: 20px;
-    right: 20px;
-    left: 20px;
-    justify-content: center;
-  }
-}
-
 /* === POPUP DE COORDENADAS === */
 .coordinate-popup {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -780,4 +751,95 @@ path.leaflet-interactive[fill-opacity="0"] {
   stroke: #666666 !important;
   stroke-width: 1.5px !important;
   stroke-dasharray: 3, 3 !important;
+}
+
+
+/* === NOTIFICACIÓN DE CAPTURA === */
+.capture-notification {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  background: linear-gradient(135deg, #106bc7 0%, #0d5aa7 100%);
+  color: white;
+  padding: 14px 24px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(16, 107, 199, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 9999;
+  animation: slideInNotification 0.4s ease-out, pulseNotification 2s ease-in-out infinite;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.capture-notification-icon {
+  font-size: 1.5rem;
+  animation: bounceIcon 0.6s ease-out;
+}
+
+.capture-notification-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+@keyframes slideInNotification {
+  0% {
+    transform: translateX(100%) scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pulseNotification {
+  0%, 100% {
+    box-shadow: 0 8px 24px rgba(16, 107, 199, 0.4);
+  }
+  50% {
+    box-shadow: 0 8px 32px rgba(16, 107, 199, 0.6);
+  }
+}
+
+@keyframes bounceIcon {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* === RESPONSIVE DESIGN === */
+@media (max-width: 768px) {
+  .map-search-bar {
+    top: auto;
+    bottom: 15px;
+    left: 15px;
+    right: 15px;
+    width: auto;
+  }
+  
+  .map-search-bar input { 
+    width: 100%; 
+  }
+  
+  .base-maps-widget, 
+  .map-tools, 
+  .compass, 
+  .sidebar-floating {
+    display: none;
+  }
+
+  .capture-notification {
+    bottom: 20px;
+    right: 20px;
+    left: 20px;
+    justify-content: center;
+  }
 }
