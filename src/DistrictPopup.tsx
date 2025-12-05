@@ -87,14 +87,23 @@ const handleViewData = async () => {
     try {
         console.log("📡 [FRONT] Enviando solicitud al backend...");
         const response = await fetch(
-            `/exportar-poblacion/${districtName}`,
+            `http://localhost:5000/exportar-poblacion/${districtName}`,
             { method: "GET" }
         );
 
         console.log("📥 [FRONT] Respuesta recibida:", response);
 
         if (!response.ok) {
-            console.error("❌ [FRONT] Error en backend:", await response.json());
+            const text = await response.text();
+            console.error("❌ [FRONT] Backend respondió error:", text);
+            return;
+        }
+
+        const contentType = response.headers.get("Content-Type") || "";
+
+        if (!contentType.includes("application/vnd.openxmlformats-officedocument")) {
+            const text = await response.text();
+            console.error("❌ El backend devolvió HTML o un error:", text);
             return;
         }
 
@@ -130,6 +139,7 @@ console.log("🔑 Claves disponibles:", Object.keys(detalleDiagnostico));
 
 
 console.log("Valor recibido de districtName:", districtName);
+console.log("🟦 DEBUG: districtName recibido por DistrictPopup:", districtName);
 
   return (
     <div className="district-popup-container">
@@ -240,6 +250,7 @@ console.log("Valor recibido de districtName:", districtName);
                 .replace("diagnostico-", "")
                 .replace(/-/g, " ")
                 .toUpperCase();
+console.log("🟦 DEBUG: districtName recibido por DistrictPopup:", districtName);
 
               return (
                 <div key={diag} className="diag-item-container">
@@ -340,12 +351,18 @@ console.log("Valor recibido de districtName:", districtName);
 
         {/* ⭐⭐⭐ NUEVO BOTÓN "VER DATOS" ⭐⭐⭐ */}
         <div className="data-button-container">
-          <button className="view-data-button"     onClick={() => {
-        console.log("CLICK DETECTADO ✔");
-        handleViewData();
-    }} title={`Ver datos detallados de ${districtName}`}>
-              Ver Datos <i className="fas fa-chart-bar"></i>
+          <button
+            className="view-data-button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log("CLICK DETECTADO ✔");
+              handleViewData();
+            }}
+          >
+            Ver Datos <i className="fas fa-chart-bar"></i>
           </button>
+
         </div>
       </div>
     </div>

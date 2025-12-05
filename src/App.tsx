@@ -1,9 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-<<<<<<< HEAD
-=======
-import { Marker, Popup } from 'react-leaflet';
->>>>>>> 7edc267cda4b1c45f9f240781bb55c96226ef00c
-import ReactDOMServer from 'react-dom/server';
 import { MapContainer, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet';
 import { DomEvent, Layer as LeafletLayer } from 'leaflet';
 import * as L from 'leaflet';
@@ -12,9 +7,9 @@ import 'leaflet/dist/leaflet.css';
 import './App.css';
 import LayerItem, { Layer } from './LayerItem';
 import DistrictPopup from './DistrictPopup';
-import CoordinatePopup from './CoordinatePopup';
 import BaseMapSelector, { BaseMap } from './BaseMapSelector';
 import Legend from './Legend';
+import { createRoot } from "react-dom/client";
 
 // --- CONFIGURACIÓN DE MAPAS BASE ---
 const BASE_MAPS: BaseMap[] = [
@@ -300,29 +295,6 @@ const VIGILANCIA_LAYER_DATA: Layer = {
     ]
 };
 
-<<<<<<< HEAD
-=======
-// Componente para manejar el clic en el mapa cuando estamos en modo "Ubicar Coordenada"
-// Actualiza este componente para que maneje la desactivación de distritos
-const MapCoordinateClickHandler: React.FC<{
-  isPlacingMarker: boolean;
-  onMarkerPlaced: (latlng: [number, number]) => void;
-}> = ({ isPlacingMarker, onMarkerPlaced }) => {
-
-  useMapEvents({
-    click: (e) => {
-      if (isPlacingMarker) {
-        const { lat, lng } = e.latlng;
-        onMarkerPlaced([lat, lng]);
-      }
-    },
-    // Removemos el mousemove porque ahora el cursor se maneja con CSS
-  });
-
-  return null;
-};
-
->>>>>>> 7edc267cda4b1c45f9f240781bb55c96226ef00c
 function App() {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [allDistricts, setAllDistricts] = useState<GeoJSONData | null>(null);
@@ -1193,169 +1165,126 @@ const getDistrictStyle = (feature: any) => {
   return { ...baseStyle };
 };
 
-
 const onEachDistrict = (feature: any, layer: LeafletLayer) => {
   const districtName = feature.properties.NM_DIST;
 
-  // ⭐ NUEVO: ENLAZAR UN TOOLTIP CON EL NOMBRE DEL DISTRITO ⭐
-    if (districtName) {
-      layer.bindTooltip(districtName, {
-        permanent: false, // El tooltip no se queda permanentemente
-        direction: 'auto', // Lo coloca automáticamente
-        sticky: true, // Lo mantiene pegado al cursor
-        opacity: 0.9,
-        className: 'district-tooltip' // Clase opcional para estilizar con CSS
-      });
-    }
+  // ⭐ Tooltip
+  if (districtName) {
+    layer.bindTooltip(districtName, {
+      permanent: false,
+      direction: 'auto',
+      sticky: true,
+      opacity: 0.9,
+      className: 'district-tooltip'
+    });
+  }
 
-  // ⭐ NUEVO: Efectos visuales de HOVER
   layer.on({
-    click: async (e) => {
-      L.DomEvent.stopPropagation(e);
+    click: async (e) => {
+      L.DomEvent.stopPropagation(e);
 
-      setClickedDistrictId(districtName.toUpperCase());
-      setSearchedDistrictId(null);
-      setSelectedDistrictLayerIds(new Set()); // Limpia la selección múltiple/búsqueda
+      const districtLayer = e.target;   // ← ESTE ES EL LAYER REAL CLICKEADO
 
-      const layer = e.target;
-    
-      if (map) { // Asegúrate de que la instancia del mapa exista
-          const bounds = layer.getBounds();
-          
-          // ⭐ AJUSTE DE ZOOM (Regla 4)
-          map.fitBounds(bounds, {
-              padding: [50, 50],
-              maxZoom: 14 
-          });
-      }
+      setClickedDistrictId(districtName.toUpperCase());
+      setSearchedDistrictId(null);
+      setSelectedDistrictLayerIds(new Set());
 
-      if (map) { // Asegúrate de que la instancia del mapa exista
-          const bounds = layer.getBounds();
-          
-          // Ajusta el mapa a los límites del distrito seleccionado
-          map.fitBounds(bounds, {
-              // Opcional: añade un padding para que el distrito no toque los bordes
-              padding: [50, 50],
-              // Opcional: Define un nivel de zoom máximo si no quieres que acerque demasiado
-              maxZoom: 14 // Puedes ajustar este valor según la necesidad
-          });
+      // ⭐ Ajuste de zoom
+      if (map) {
+        const bounds = districtLayer.getBounds();
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
       }
 
-      // 1. población
+      // ⭐ Llamadas a la BD
       const dataPoblacion = await obtenerPoblacion(districtName);
-
-      // 2. total de casos
       const caseCount = await obtenerCasosTotales(districtName);
 
-      // 3. detalles múltiples diagnósticos
-// 3. detalles múltiples diagnósticos
-const detalleDiagnostico: Record<string, any> = {};
+      const detalleDiagnostico: Record<string, any> = {};
 
+      for (const diag of diagnosticoSeleccionado) {
+        const data = await obtenerCasosEnfermedad(districtName, diag);
+        const detalleArray = data.detalle || [];
 
-for (const diag of diagnosticoSeleccionado) {
+        if (diag === "TBC TIA" || diag === "TBC TIA EESS") {
+          detalleDiagnostico[diag] = {
+            total: data.total || 0,
+            TIA_100k: data.TIA_100k || 0,
+            poblacion: data.poblacion_total || 0,
+            detalle: []
+          };
+          continue;
+        }
 
-  const data = await obtenerCasosEnfermedad(districtName, diag);
-  const detalleArray = data.detalle || [];
+        if (diag === "Infecciones respiratorias agudas") {
+          detalleDiagnostico[diag] = {
+            total: data.total || 0,
+            detalle: detalleArray,
+            ira_no_neumonia: detalleArray.find((d: any) => d.grupo === "IRA_NO_NEUMONIA")?.cantidad || 0,
+            sob_asma: detalleArray.find((d: any) => d.grupo === "SOB_ASMA")?.cantidad || 0,
+            neumonia_grave: detalleArray.find((d: any) => d.grupo === "NEUMONIA_GRAVE")?.cantidad || 0,
+            neumonia: detalleArray.find((d: any) => d.grupo === "NEUMONIA")?.cantidad || 0
+          };
+          continue;
+        }
 
-  // ======================================
-  // 🔵 LOGICA PARA TUBERCULOSIS
-  // ======================================
-if (diag === "TBC TIA") {
-  detalleDiagnostico[diag] = {
-    total: data.total || 0,        // <── CAMBIO AQUÍ
-    TIA_100k: data.TIA_100k || 0,
-    poblacion: data.poblacion_total || 0,
-    detalle: []
-  };
-  continue;
-}
+        if (diag === "Enfermedades diarreicas agudas") {
+          detalleDiagnostico[diag] = {
+            total: data.total || 0,
+            daa: data.daa || 0,
+            dis: data.dis || 0,
+            detalle: detalleArray
+          };
+          continue;
+        }
 
-  // ======================================
-  // 🔵 LOGICA PARA TUBERCULOSIS EESS MINSA
-  // ======================================
-if (diag === "TBC TIA EESS") {
-  detalleDiagnostico[diag] = {
-    total: data.total || 0,        // <── CAMBIO AQUÍ
-    TIA_100k: data.TIA_100k || 0,
-    poblacion: data.poblacion_total || 0,
-    detalle: []
-  };
-  continue;
-}
+        detalleDiagnostico[diag] = {
+          total: data.total || 0,
+          detalle: detalleArray
+        };
+      }
 
-  // ======================================
-  // 🟠 LOGICA PARA IRAS
-  // ======================================
-  if (diag === "Infecciones respiratorias agudas") {
-    detalleDiagnostico[diag] = {
-      total: data.total || 0,
-      detalle: detalleArray,
-
-      ira_no_neumonia:
-        detalleArray.find((d: any) => d.grupo === "IRA_NO_NEUMONIA")?.cantidad ||
-        0,
-
-      sob_asma:
-        detalleArray.find((d: any) => d.grupo === "SOB_ASMA")?.cantidad || 0,
-
-      neumonia_grave:
-        detalleArray.find((d: any) => d.grupo === "NEUMONIA_GRAVE")?.cantidad ||
-        0,
-
-      neumonia:
-        detalleArray.find((d: any) => d.grupo === "NEUMONIA")?.cantidad || 0
-    };
-    continue;
-  }
-
-  // ======================================
-  // 🟡 LOGICA PARA EDAS
-  // ======================================
-  if (diag === "Enfermedades diarreicas agudas") {
-    detalleDiagnostico[diag] = {
-      total: data.total || 0,
-      daa: data.daa || 0,
-      dis: data.dis || 0,
-      detalle: detalleArray
-    };
-    continue;
-  }
-
-  // ======================================
-  // ⚪ LOGICA GENÉRICA (otros)
-  // ======================================
-  detalleDiagnostico[diag] = {
-    total: data.total || 0,
-    detalle: detalleArray
-  };
-}
-
-
-      // 4. guardar en estado
       setCasosDetallePorDistrito(prev => ({
         ...prev,
         [districtName]: detalleDiagnostico
       }));
 
-      // 5. render popup
-      const popupContent = ReactDOMServer.renderToString(
-        <DistrictPopup
-          districtName={districtName}
-          caseCount={caseCount}
-          poblacion={dataPoblacion}
-          diagnosticoSeleccionado={diagnosticoSeleccionado}
-          detalleDiagnostico={detalleDiagnostico}
-        />
-      );
+      // ⭐ Crear contenedor para React
+      const container = L.DomUtil.create("div");
 
-      layer.bindPopup(popupContent, { maxWidth: 400 });
+      // MUY IMPORTANTE → usar districtLayer y NO layer
+      districtLayer.bindPopup(container, { maxWidth: 400 });
+
+      // Montar el componente cuando se abre
+      districtLayer.on("popupopen", () => {
+        const root = createRoot(container);
+        root.render(
+          <DistrictPopup
+            districtName={districtName}
+            caseCount={caseCount}
+            poblacion={dataPoblacion}
+            diagnosticoSeleccionado={diagnosticoSeleccionado}
+            detalleDiagnostico={detalleDiagnostico}
+          />
+        );
+
+        (districtLayer as any)._reactRoot = root;
+      });
+
+      // Desmontar React
+      districtLayer.on("popupclose", () => {
+        const root = (districtLayer as any)._reactRoot;
+        if (root) {
+          root.unmount();
+          delete (districtLayer as any)._reactRoot;
+        }
+      });
     }
   });
 };
 
 
 
-  const filteredLayers = useMemo(() => {
+const filteredLayers = useMemo(() => {
     const searchTerm = layerSearchTerm.trim().toLowerCase();
     if (!searchTerm) {
       return layers;
@@ -1595,55 +1524,6 @@ if (diag === "TBC TIA EESS") {
           }
         />
 
-<<<<<<< HEAD
-=======
-        <MapCoordinateClickHandler 
-          isPlacingMarker={isPlacingMarker}
-          onMarkerPlaced={handleMarkerPlaced}
-        />
-
-        {/* Marcador colocado */}
-        {placedMarker && (
-          <Marker position={placedMarker}>
-            <Popup>
-              <CoordinatePopup
-                lat={placedMarker[0]}
-                lng={placedMarker[1]}
-                address={markerAddress}
-                onDelete={() => {
-                  setPlacedMarker(null);
-                  setMarkerAddress('');
-                }}
-                onCopyCoordinates={() => {
-                  // Opcional: mostrar notificación de coordenadas copiadas
-                  console.log("Coordenadas copiadas");
-                }}
-              />
-            </Popup>
-          </Marker>
-        )}
-        
-        {isPlacingMarker && (
-          <div className="coordinate-mode-indicator">
-            <div className="coordinate-mode-content">
-              <div className="coordinate-mode-icon">📍</div>
-              <div className="coordinate-mode-text">
-                <strong>Modo: Ubicar Coordenada</strong>
-              </div>
-              <button 
-                className="coordinate-mode-cancel"
-                onClick={() => {
-                  setIsPlacingMarker(false);
-                  if (map) map.getContainer().style.cursor = '';
-                }}
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        )}
-
->>>>>>> 7edc267cda4b1c45f9f240781bb55c96226ef00c
       </MapContainer>
 
       {isBaseMapSelectorOpen && (

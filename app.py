@@ -103,10 +103,14 @@ def api_poblacion():
 @app.route("/exportar-poblacion/<distrito>", methods=["GET"])
 def exportar_poblacion(distrito):
     try:
-        conn = connect()
-        query = f"""
+        # CONEXIÓN CORRECTA
+        conn = connect("EPI_TABLAS_MAESTRO")
+        if conn is None:
+            return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+        query = """
             SELECT *
-            FROM EPI_TABLAS_MAESTRO.dbo.POBLACION_2025_DIRIS_LIMA_CENTRO
+            FROM POBLACION_2025_DIRIS_LIMA_CENTRO
             WHERE UPPER(DISTRITO) = UPPER(?)
         """
         df = pd.read_sql(query, conn, params=[distrito])
@@ -131,6 +135,7 @@ def exportar_poblacion(distrito):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 # ============================================================
 # 2. ENDPOINT: CASOS POR ENFERMEDAD
