@@ -7,7 +7,7 @@
 
 /* Header Rojo */
 .district-popup-header {
-  background-color: #106bc7; /* Rojo oscuro similar a la imagen */
+  background-color: #195c97; /* Rojo oscuro similar a la imagen */
   color: white;
   padding: 10px 15px;
   text-align: center;
@@ -150,8 +150,8 @@
   padding-bottom: 4px;
 }
 
-.diag-name { font-size: 0.8rem; font-weight: bold; color: #106bc7; }
-.diag-total { font-size: 0.9rem; font-weight: bold; background: #106bc7; color: white; padding: 2px 6px; border-radius: 4px; }
+.diag-name { font-size: 0.8rem; font-weight: bold; color: #195c97; }
+.diag-total { font-size: 0.9rem; font-weight: bold; background: #195c97; color: white; padding: 2px 6px; border-radius: 4px; }
 
 .diag-details {
   display: flex;
@@ -185,7 +185,7 @@
 }
 
 .view-data-button {
-    background-color: #106bc7;
+    background-color: #195c97;
     color: white;
     border: none;
     border-radius: 6px;
@@ -209,7 +209,7 @@
 
 
 .view-data-button:hover {
-    background-color: #106bc7;
+    background-color: #195c97;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 

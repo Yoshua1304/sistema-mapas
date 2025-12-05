@@ -69,21 +69,21 @@ body, html, #root {
 }
 
 .sidebar-nav .nav-button.active {
-  background-color: #106bc7;
+  background-color: #195c97;
 }
 
 .sidebar-toggle-button-close {
-  background-color: #106bc7 !important; 
+  background-color: #195c97 !important; 
   margin-top: auto; 
   padding: 15px 0 !important;
 }
 
 .sidebar-toggle-button-close:hover {
-  background-color: #106bc7 !important; 
+  background-color: #195c97 !important; 
 }
 
 .sidebar-header {
-  background-color: #106bc7;
+  background-color: #195c97;
   color: white;
   padding: 10px 15px;
   display: flex;
@@ -371,7 +371,7 @@ body, html, #root {
   height: 0;
   border-left: 8px solid transparent;
   border-right: 8px solid transparent;
-  border-bottom: 12px solid #106bc7;
+  border-bottom: 12px solid #195c97;
 }
 
 .compass-arrow-down {
@@ -464,7 +464,7 @@ body, html, #root {
   justify-content: center;
   align-items: center;
   font-size: 1.2rem;
-  color: #106bc7;
+  color: #195c97;
   opacity: 1;
   transition: opacity 0.3s ease-in-out;
 }
@@ -583,9 +583,9 @@ body, html, #root {
 
 .coordinate-popup h3 {
   margin: 0 0 15px 0;
-  color: #106bc7;
+  color: #195c97;
   font-size: 1.1rem;
-  border-bottom: 2px solid #106bc7;
+  border-bottom: 2px solid #195c97;
   padding-bottom: 8px;
 }
 
@@ -596,7 +596,7 @@ body, html, #root {
   padding: 8px;
   background-color: #f8f9fa;
   border-radius: 4px;
-  border-left: 3px solid #106bc7;
+  border-left: 3px solid #195c97;
   font-size: 0.9rem;
   line-height: 1.4;
 }
@@ -612,7 +612,7 @@ body, html, #root {
 }
 /* === CURSOR PERSONALIZADO CON EMOJI === */
 .map-container.cursor-location {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ctext x='16' y='24' text-anchor='middle' font-size='24' fill='%23106bc7'%3E📍%3C/text%3E%3C/svg%3E") 16 24, crosshair !important;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ctext x='16' y='24' text-anchor='middle' font-size='24' fill='%23195c97'%3E📍%3C/text%3E%3C/svg%3E") 16 24, crosshair !important;
 }
 
 /* === INDICADOR DE MODO DE COORDENADAS MEJORADO === */
@@ -621,9 +621,9 @@ body, html, #root {
   top: 30px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(135deg, #106bc7 0%, #0d5aa7 100%);
+  background: linear-gradient(135deg, #195c97 0%, #0d5aa7 100%);
   color: white;
-  padding: 15px 25px;
+  padding: 6px 25px;
   border-radius: 12px;
   z-index: 2020; /* Mayor z-index para estar sobre todo */
   box-shadow: 0 6px 20px rgba(0,0,0,0.4);

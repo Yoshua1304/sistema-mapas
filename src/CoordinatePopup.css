@@ -11,9 +11,9 @@
 
 /* === HEADER AZUL === */
 .coordinate-popup-header {
-  background: linear-gradient(135deg, #106bc7 0%, #0d5aa7 100%);
+  background: linear-gradient(135deg, #195c97 0%, #0d5aa7 100%);
   color: white;
-  padding: 12px 20px;
+  padding: 8px 20px;
   text-align: center;
   font-weight: 700;
   font-size: 1rem;
@@ -44,14 +44,14 @@
   text-align: center;
   margin: 0 0 10px 0;
   font-size: 1.4rem;
-  color: #106bc7;
+  color: #195c97;
   font-weight: 700;
 }
 
 .coordinate-title-underline {
   width: 60px;
   height: 3px;
-  background: linear-gradient(to right, #106bc7, #4CAF50);
+  background: linear-gradient(to right, #195c97, #4CAF50);
   margin: 0 auto 25px auto;
   border-radius: 2px;
 }
@@ -78,7 +78,7 @@
 
 .coordinate-card.blue {
   background: linear-gradient(135deg, #e8f4fd 0%, #d1e8f1 100%);
-  border-left: 4px solid #106bc7;
+  border-left: 4px solid #195c97;
 }
 
 .coordinate-card.green {
@@ -97,7 +97,7 @@
 
 .coordinate-card-header i {
   font-size: 1.2rem;
-  color: #106bc7;
+  color: #195c97;
 }
 
 .coordinate-card.green .coordinate-card-header i {
@@ -142,7 +142,7 @@
 
 .coordinate-label i {
   font-size: 0.9rem;
-  color: #106bc7;
+  color: #195c97;
   width: 16px;
   text-align: center;
 }
@@ -273,7 +273,7 @@
 }
 
 .footer-info i {
-  color: #106bc7;
+  color: #195c97;
 }
 
 /* === SCROLLBAR === */
