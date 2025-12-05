@@ -313,12 +313,10 @@ function App() {
   const position: [number, number] = [-12.00, -77.02];
   const zoomLevel = 12;
 
-    // Casos por distrito (mapa dinámico)
   const [casosPorDistrito, setCasosPorDistrito] = useState<Record<string, any>>({});
-  // Estado para diagnóstico seleccionado
   const [diagnosticoSeleccionado, setDiagnosticoSeleccionado] = useState<string[]>([]);
-  // Estado de carga
   const [isLoading, setIsLoading] = useState(false);
+  const [showCopyNotification, setShowCopyNotification] = useState(false); 
 
 //console.log("🟦 diagnosticoSeleccionado TYPE:", typeof diagnosticoSeleccionado);
 //console.log("🟦 diagnosticoSeleccionado VALUE:", diagnosticoSeleccionado);
@@ -751,6 +749,35 @@ const obtenerPoblacion = async (distrito: string) => {
   } catch (error: any) {
     console.error("Error al obtener población:", error.message);
     return null;
+  }
+};
+
+
+// Función para copiar la URL
+const handleShare = async () => {
+  try {
+    await navigator.clipboard.writeText(window.location.href);
+    setShowCopyNotification(true);
+    
+    // Ocultar notificación después de 3 segundos
+    setTimeout(() => {
+      setShowCopyNotification(false);
+    }, 3000);
+    
+  } catch (err) {
+    console.error('Error al copiar la URL: ', err);
+    // Fallback para navegadores antiguos
+    const textArea = document.createElement('textarea');
+    textArea.value = window.location.href;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+    
+    setShowCopyNotification(true);
+    setTimeout(() => {
+      setShowCopyNotification(false);
+    }, 3000);
   }
 };
 
@@ -1497,7 +1524,7 @@ const filteredLayers = useMemo(() => {
           <button title="Captura">🖼️</button>
           <button title="Ubicar Coordenada">📍</button>
           <button title="Guardar">💾</button>
-          <button title="Compartir">🔗</button>
+          <button title="Compartir" onClick={handleShare}>🔗</button>
         </div>
 
         {/* BRÚJULA */}
@@ -1523,6 +1550,13 @@ const filteredLayers = useMemo(() => {
         />
 
       </MapContainer>
+
+      {showCopyNotification && (
+        <div className="copy-notification">
+          <div className="copy-notification-icon">✓</div>
+          <div className="copy-notification-text">URL copiada</div>
+        </div>
+      )}
 
       {isBaseMapSelectorOpen && (
         <BaseMapSelector
