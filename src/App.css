@@ -69,17 +69,17 @@ body, html, #root {
 }
 
 .sidebar-nav .nav-button.active {
-  background-color: #106bc7;
+  background-color: #195c97;
 }
 
 .sidebar-toggle-button-close {
-  background-color: #106bc7 !important; 
+  background-color: #195c97 !important; 
   margin-top: auto; 
   padding: 15px 0 !important;
 }
 
 .sidebar-toggle-button-close:hover {
-  background-color: #106bc7 !important; 
+  background-color: #195c97 !important; 
 }
 
 .sidebar-header {
