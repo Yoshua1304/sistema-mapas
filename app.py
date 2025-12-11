@@ -58,6 +58,25 @@ def exportar_datos():
     # ======================================================
     #   2️⃣ MAPEO DE DIAGNÓSTICOS → CONEXIÓN + TABLA + CAMPO
     # ======================================================
+
+    COLUMNAS_PROHIBIDAS_TBC = [
+    "Tipo de Documento",
+    "Nro. Documento",
+    "Nombre",
+    "Apellidos",
+    "F. de Nacimiento",
+    "Nacionalidad",
+    "Pais de Origen",
+    "Pertenencia Etnica",
+    "Otra Etnia",
+    "Edad",
+    "Genero",
+    "Direccion Acutal",
+    "Departamento",
+    "Provincia"
+    ]
+
+
     MAPEOS = {
         "Infecciones respiratorias agudas": {
             "conexion": get_iras_connection,
@@ -76,8 +95,29 @@ def exportar_datos():
             "tabla": "REPORTE_FEBRILES_2025",
             "campo_distrito": "[UBIGEO.1.distrito]",
             "campo_anio": "ano",
+        },
+        "TBC pulmonar": {
+            "conexion": get_TB_connection,
+            "tabla": "TB_BD_SIGTB",
+            "campo_distrito": "[Distrito EESS]",
+            "campo_anio": None,
+            "columnas_prohibidas": COLUMNAS_PROHIBIDAS_TBC
+        },
+        "TBC TIA EESS": {
+            "conexion": get_TB_connection,
+            "tabla": "TB_BD_SIGTB",
+            "campo_distrito": "Distrito",
+            "campo_anio": None
+        },
+        "TBC TIA": {
+            "conexion": get_TB_connection,
+            "tabla": "TB_BD_SIGTB",
+            "campo_distrito": "Distrito",
+            "campo_anio": None
         }
+
     }
+
 
     # ======================================================
     #   3️⃣ CREAR EXCEL EN MEMORIA
@@ -96,35 +136,47 @@ def exportar_datos():
             print("⚠ Diagnóstico sin mapeo:", dx)
             continue
 
-        info = MAPEOS[dx]
-        nombre_hoja = dx[:31]  # Excel solo acepta 31 caracteres
+    info = MAPEOS[dx]
+    nombre_hoja = dx[:31]
 
-        try:
-            print(f"📄 Generando hoja para diagnóstico: {dx}")
+    try:
+        print(f"📄 Generando hoja para diagnóstico: {dx}")
 
-            # Conexión según diagnóstico
-            conn = info["conexion"]()
+        conn = info["conexion"]()
 
+        # Consulta adaptada
+        if info["campo_anio"]:
             query_dx = f"""
                 SELECT *
                 FROM {info['tabla']}
                 WHERE UPPER({info['campo_distrito']}) = UPPER(?)
                   AND {info['campo_anio']} = 2025
             """
+        else:
+            query_dx = f"""
+                SELECT *
+                FROM {info['tabla']}
+                WHERE UPPER({info['campo_distrito']}) = UPPER(?)
+            """
 
-            df_diag = pd.read_sql(query_dx, conn, params=[distrito])
-            conn.close()
+        df_diag = pd.read_sql(query_dx, conn, params=[distrito])
+        conn.close()
 
-            if df_diag.empty:
-                df_diag = pd.DataFrame(
-                    {"Mensaje": [f"Sin registros de {dx} en {distrito} en 2025"]}
-                )
+        # --- Eliminar columnas sensibles ---
+        columnas_prohibidas = info.get("columnas_prohibidas", [])
+        df_diag = df_diag.drop(
+            columns=[c for c in columnas_prohibidas if c in df_diag.columns],
+            errors='ignore'
+        )
 
-            df_diag.to_excel(writer, index=False, sheet_name=nombre_hoja)
+        if df_diag.empty:
+            df_diag = pd.DataFrame({"Mensaje": [f"Sin registros de {dx} en {distrito}"]})
 
-        except Exception as e:
-            df_error = pd.DataFrame({"Error": [str(e)]})
-            df_error.to_excel(writer, index=False, sheet_name=f"ERROR_{nombre_hoja}")
+        df_diag.to_excel(writer, index=False, sheet_name=nombre_hoja)
+
+    except Exception as e:
+        df_error = pd.DataFrame({"Error": [str(e)]})
+        df_error.to_excel(writer, index=False, sheet_name=f"ERROR_{nombre_hoja}")
 
     writer.close()
     output.seek(0)
@@ -946,13 +998,13 @@ def tb_sigtb_distritos(distrito):
             SELECT COUNT(*) AS total
             FROM TB_BD_SIGTB
             WHERE UPPER(DIRESA_DIREC) = 'DIRIS LIMA CENTRO'
-              AND UPPER(distrito) = UPPER(?)
+              AND UPPER(Distrito EESS) = UPPER(?)
         """
 
         cursor.execute(sql, distrito)
         row = cursor.fetchone()
         conn.close()
-
+ 
         total = row[0] if row else 0
 
         return jsonify({
