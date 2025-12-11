@@ -48,7 +48,7 @@ const Legend: React.FC<LegendProps> = ({ selectedLayerNames, selectedDistrictNam
 
     return (
         <div className="legend-container">
-            <h4 className="legend-title">LEYENDA</h4>
+            <h4 className="legend-title">FILTROS</h4>
             <ul className="legend-list">
                 {legendItems.map(item => (
                     <li key={item.id} className="legend-item">
