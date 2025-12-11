@@ -81,15 +81,24 @@ const DistrictPopup: React.FC<DistrictPopupProps> = ({
 
   // ⭐ Función de ejemplo para el botón (puedes reemplazarla o eliminarla)
   // ⭐⭐⭐ FUNCIÓN CORRECTA PARA EXPORTAR EXCEL ⭐⭐⭐
+// ⭐⭐⭐ FUNCIÓN CORRECTA PARA EXPORTAR EXCEL DINÁMICO ⭐⭐⭐
 const handleViewData = async () => {
     console.log("📌 [FRONT] Botón presionado para distrito:", districtName);
+    console.log("📦 Diagnósticos seleccionados:", diagnosticoSeleccionado);
 
     try {
+        const payload = {
+            distrito: districtName,
+            diagnosticos: diagnosticoSeleccionado // ej: ["DENGUE GRAVE","TBC PULMONAR"]
+        };
+
         console.log("📡 [FRONT] Enviando solicitud al backend...");
-        const response = await fetch(
-            `http://localhost:5000/exportar-poblacion/${districtName}`,
-            { method: "GET" }
-        );
+
+        const response = await fetch("http://10.0.5.181:5000/exportar-datos", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
 
         console.log("📥 [FRONT] Respuesta recibida:", response);
 
@@ -100,14 +109,13 @@ const handleViewData = async () => {
         }
 
         const contentType = response.headers.get("Content-Type") || "";
-
         if (!contentType.includes("application/vnd.openxmlformats-officedocument")) {
             const text = await response.text();
             console.error("❌ El backend devolvió HTML o un error:", text);
             return;
         }
 
-        // Recibir blob del archivo
+        // Recibir blob
         const blob = await response.blob();
         console.log("📄 [FRONT] Archivo recibido (blob):", blob);
 
@@ -115,10 +123,10 @@ const handleViewData = async () => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `Poblacion_${districtName}.xlsx`;
+        a.download = `Datos_${districtName}.xlsx`;
         a.click();
 
-        console.log(`✅ [FRONT] Archivo descargado correctamente: Poblacion_${districtName}.xlsx`);
+        console.log(`✅ Archivo descargado correctamente: Datos_${districtName}.xlsx`);
     } catch (error) {
         console.error("🔥 [FRONT] Error inesperado:", error);
     }

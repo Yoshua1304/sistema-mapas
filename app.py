@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, make_response
 import pandas as pd
 import io
 from flask_cors import CORS
@@ -8,7 +8,141 @@ from openpyxl import Workbook
 
 
 app = Flask(__name__)
-CORS(app)
+
+# CORS Global permisivo
+CORS(app, supports_credentials=True)
+
+
+@app.route("/exportar-datos", methods=["POST", "OPTIONS"])
+def exportar_datos():
+    # ===============================
+    #   PRE-FLIGHT (CORS)
+    # ===============================
+    if request.method == "OPTIONS":
+        response = make_response("", 200)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        return response
+
+    
+    data = request.get_json()
+    distrito = data.get("distrito")
+    diagnosticos = data.get("diagnosticos", [])
+
+    print("📥 BACKEND → Distrito:", distrito)
+    print("📥 BACKEND → Diagnósticos recibidos:", diagnosticos)
+
+    if not distrito:
+        return jsonify({"error": "No se recibió el distrito"}), 400
+
+    # ======================================================
+    #   1️⃣ OBTENER POBLACIÓN (Siempre Hoja 1)
+    # ======================================================
+    try:
+        conn_pob = connect("EPI_TABLAS_MAESTRO")
+        query_pob = """
+            SELECT *
+            FROM POBLACION_2025_DIRIS_LIMA_CENTRO
+            WHERE UPPER(DISTRITO) = UPPER(?)
+        """
+        df_poblacion = pd.read_sql(query_pob, conn_pob, params=[distrito])
+        conn_pob.close()
+
+        if df_poblacion.empty:
+            return jsonify({"error": "No se encontró población para este distrito"}), 404
+
+    except Exception as e:
+        return jsonify({"error": f"Error recuperando población: {str(e)}"}), 500
+
+    # ======================================================
+    #   2️⃣ MAPEO DE DIAGNÓSTICOS → CONEXIÓN + TABLA + CAMPO
+    # ======================================================
+    MAPEOS = {
+        "Infecciones respiratorias agudas": {
+            "conexion": get_iras_connection,
+            "tabla": "REPORTE_IRA_2025",
+            "campo_distrito": "[UBIGEO.1.distrito]",
+            "campo_anio": "ano",
+        },
+        "Enfermedades diarreicas agudas": {
+            "conexion": get_edas_connection,
+            "tabla": "REPORTE_EDA_2025",
+            "campo_distrito": "[UBIGEO.1.distrito]",
+            "campo_anio": "ano",
+        },
+        "Febriles": {
+            "conexion": get_febriles_connection,
+            "tabla": "REPORTE_FEBRILES_2025",
+            "campo_distrito": "[UBIGEO.1.distrito]",
+            "campo_anio": "ano",
+        }
+    }
+
+    # ======================================================
+    #   3️⃣ CREAR EXCEL EN MEMORIA
+    # ======================================================
+    output = io.BytesIO()
+    writer = pd.ExcelWriter(output, engine="openpyxl")
+
+    # Hoja principal
+    df_poblacion.to_excel(writer, index=False, sheet_name="POBLACION")
+
+    # ======================================================
+    #   4️⃣ HOJAS SEGÚN DIAGNÓSTICOS
+    # ======================================================
+    for dx in diagnosticos:
+        if dx not in MAPEOS:
+            print("⚠ Diagnóstico sin mapeo:", dx)
+            continue
+
+        info = MAPEOS[dx]
+        nombre_hoja = dx[:31]  # Excel solo acepta 31 caracteres
+
+        try:
+            print(f"📄 Generando hoja para diagnóstico: {dx}")
+
+            # Conexión según diagnóstico
+            conn = info["conexion"]()
+
+            query_dx = f"""
+                SELECT *
+                FROM {info['tabla']}
+                WHERE UPPER({info['campo_distrito']}) = UPPER(?)
+                  AND {info['campo_anio']} = 2025
+            """
+
+            df_diag = pd.read_sql(query_dx, conn, params=[distrito])
+            conn.close()
+
+            if df_diag.empty:
+                df_diag = pd.DataFrame(
+                    {"Mensaje": [f"Sin registros de {dx} en {distrito} en 2025"]}
+                )
+
+            df_diag.to_excel(writer, index=False, sheet_name=nombre_hoja)
+
+        except Exception as e:
+            df_error = pd.DataFrame({"Error": [str(e)]})
+            df_error.to_excel(writer, index=False, sheet_name=f"ERROR_{nombre_hoja}")
+
+    writer.close()
+    output.seek(0)
+    # ======================================================
+    #   5️⃣ DEVOLVER ARCHIVO
+    # ======================================================
+    response = send_file(
+        output,
+        as_attachment=True,
+        download_name=f"Datos_{distrito}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+    # 🔥 Sin esto, otro usuario fuera de tu PC no puede descargar
+    response.headers["Access-Control-Allow-Origin"] = "*"
+
+    return response
+
 
 def get_febriles_por_distrito(distrito):
     conn = get_febriles_connection()
@@ -99,42 +233,6 @@ def api_poblacion():
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
-
-@app.route("/exportar-poblacion/<distrito>", methods=["GET"])
-def exportar_poblacion(distrito):
-    try:
-        # CONEXIÓN CORRECTA
-        conn = connect("EPI_TABLAS_MAESTRO")
-        if conn is None:
-            return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
-
-        query = """
-            SELECT *
-            FROM POBLACION_2025_DIRIS_LIMA_CENTRO
-            WHERE UPPER(DISTRITO) = UPPER(?)
-        """
-        df = pd.read_sql(query, conn, params=[distrito])
-        conn.close()
-
-        if df.empty:
-            return jsonify({"error": f"No se encontró población para {distrito}"}), 404
-
-        # Crear Excel en memoria
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name="POBLACION")
-
-        output.seek(0)
-
-        return send_file(
-            output,
-            as_attachment=True,
-            download_name=f"Poblacion_{distrito}.xlsx",
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 
 # ============================================================
@@ -867,13 +965,19 @@ def tb_sigtb_distritos(distrito):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
+@app.after_request
+def aplicar_cors(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return response
 
 # ============================================================
 # 🚀 INICIAR SERVER
 # ============================================================
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
 
 
 

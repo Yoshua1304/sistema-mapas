@@ -620,7 +620,7 @@ const detalles: Record<
 
   for (const feature of allDistricts.features) {
     const distrito = feature.properties.NM_DIST;
-    const url = `http://localhost:5000/api/casos_enfermedad?distrito=${distrito}&enfermedad=${diagnostico}`;
+    const url = `http://10.0.5.181:5000/api/casos_enfermedad?distrito=${distrito}&enfermedad=${diagnostico}`;
 
     console.log(`🌐 Consultando backend para distrito: ${distrito}`);
     console.log(`URL → ${url}`);
@@ -725,13 +725,13 @@ const detalles: Record<
 
 
 const obtenerCasosEnfermedad = async (distrito: string, enfermedad: string) => {
-  const res = await fetch(`http://localhost:5000/api/casos_enfermedad?distrito=${distrito}&enfermedad=${enfermedad}`);
+  const res = await fetch(`http://10.0.5.181:5000/api/casos_enfermedad?distrito=${distrito}&enfermedad=${enfermedad}`);
   return await res.json();
 };
 
 const obtenerCasosTotales = async (distrito: string) => {
   try {
-    const res = await fetch(`http://localhost:5000/api/casos_totales?distrito=${distrito}`);
+    const res = await fetch(`http://10.0.5.181:5000/api/casos_totales?distrito=${distrito}`);
     const data = await res.json();
     return data.total ?? 0;
   } catch (e) {
@@ -742,7 +742,7 @@ const obtenerCasosTotales = async (distrito: string) => {
 
 const obtenerPoblacion = async (distrito: string) => {
   try {
-    const res = await fetch(`http://localhost:5000/api/poblacion?distrito=${distrito}`);
+    const res = await fetch(`http://10.0.5.181:5000/api/poblacion?distrito=${distrito}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Error desconocido");
     return data;
