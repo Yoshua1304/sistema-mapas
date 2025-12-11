@@ -316,7 +316,8 @@ function App() {
   const [casosPorDistrito, setCasosPorDistrito] = useState<Record<string, any>>({});
   const [diagnosticoSeleccionado, setDiagnosticoSeleccionado] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [showCopyNotification, setShowCopyNotification] = useState(false); 
+  const [sidebarView, setSidebarView] = useState<'capas' | 'leyenda'>('capas');
+  const [showCopyNotification, setShowCopyNotification] = useState(false);
 
 //console.log("🟦 diagnosticoSeleccionado TYPE:", typeof diagnosticoSeleccionado);
 //console.log("🟦 diagnosticoSeleccionado VALUE:", diagnosticoSeleccionado);
@@ -541,6 +542,16 @@ const resetMapToDefault = () => {
     }
     
     console.log("✅ Mapa y filtros reseteados.");
+};
+
+const handleShowLegend = () => {
+  // Cambiar a vista de leyenda
+  setSidebarView('leyenda');
+  
+  // Abrir el sidebar si está cerrado
+  if (!isSidebarOpen) {
+    setSidebarOpen(true);
+  }
 };
 
 useEffect(() => {
@@ -1416,6 +1427,303 @@ const filteredLayers = useMemo(() => {
       return findName([VIGILANCIA_LAYER_DATA]) || diagnosticoId; // Devuelve el ID si no encuentra el nombre
   };
 
+  const PanelLegend = () => {
+    // Determinar qué diagnóstico está activo para mostrar la leyenda correcta
+    const diagnosticoActivo = diagnosticoSeleccionado.length > 0 
+      ? diagnosticoSeleccionado[diagnosticoSeleccionado.length - 1] 
+      : '';
+    
+    // Obtener el nombre del diagnóstico
+    const getDisplayNameForDiagnostico = (diagnosticoId: string): string => {
+      const findName = (layers: Layer[]): string | undefined => {
+        for (const layer of layers) {
+          if (layer.id === diagnosticoId) {
+            return layer.name;
+          }
+          if (layer.subLayers) {
+            const found = findName(layer.subLayers);
+            if (found) return found;
+          }
+        }
+        return undefined;
+      };
+      return findName([VIGILANCIA_LAYER_DATA]) || diagnosticoId;
+    };
+    
+    const nombreDiagnostico = diagnosticoActivo ? getDisplayNameForDiagnostico(diagnosticoActivo) : '';
+    
+    const diagId = diagnosticoActivo.trim().toUpperCase().replace(/[-_]/g, '');
+    const esTIA = diagId.includes('TBCTIA') || diagId.includes('TBCTIAEESS');
+    const esTBGeneral = diagId.includes('TBCPULMONAR') || diagId.includes('SIGTB');
+    
+    // Calcular los rangos reales de los datos actuales
+    const calcularRangos = () => {
+      if (!allDistricts || Object.keys(casosPorDistrito).length === 0) {
+        return { min: 0, max: 0, valores: [] };
+      }
+      
+      const valores: number[] = [];
+      
+      // Recorrer todos los distritos para obtener los valores actuales
+      allDistricts.features.forEach(feature => {
+        const d = feature.properties.NM_DIST?.toUpperCase();
+        let valor = 0;
+        
+        if (esTIA) {
+          if (diagId.includes('TBCTIAEESS')) {
+            valor = casosPorDistrito['TBC TIA EESS']?.[d]?.TIA_100k || 0;
+          } else if (diagId.includes('TBCTIA')) {
+            valor = casosPorDistrito['TBC_TIA']?.[d]?.TIA_100k || 0;
+          }
+        } else if (esTBGeneral) {
+          valor = casosPorDistrito['SIGTB']?.[d]?.total || 0;
+        } else if (diagnosticoActivo === 'diagnostico-edas') {
+          valor = casosPorDistrito['EDAS']?.[d]?.total || 0;
+        } else if (diagnosticoActivo === 'diagnostico-iras') {
+          valor = casosPorDistrito['IRAS']?.[d]?.total || 0;
+        } else if (diagnosticoActivo === 'diagnostico-febriles') {
+          valor = casosPorDistrito[d]?.total || 0;
+        } else {
+          valor = casosPorDistrito[d]?.total || 0;
+        }
+        
+        valores.push(valor);
+      });
+      
+      const minValor = Math.min(...valores.filter(v => !isNaN(v) && v !== null));
+      const maxValor = Math.max(...valores.filter(v => !isNaN(v) && v !== null));
+      
+      return { min: minValor, max: maxValor, valores };
+    };
+    
+    const rangos = calcularRangos();
+    
+    // Si no hay diagnóstico activo, mostrar leyenda general
+    if (!diagnosticoActivo) {
+      return (
+        <div className="panel-legend">
+          <h4>Leyenda General</h4>
+          <div className="legend-items">
+            <div className="legend-item">
+              <div className="legend-color" style={{ backgroundColor: '#f21a0aff' }}></div>
+              <div className="legend-label">Alto</div>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color" style={{ backgroundColor: '#fa9b15ff' }}></div>
+              <div className="legend-label">Medio-Alto</div>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color" style={{ backgroundColor: '#fff134ff' }}></div>
+              <div className="legend-label">Medio-Bajo</div>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color" style={{ backgroundColor: '#2eff1bff' }}></div>
+              <div className="legend-label">Bajo</div>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color" style={{ backgroundColor: '#9a9a9aff' }}></div>
+              <div className="legend-label">Sin casos</div>
+            </div>
+          </div>
+          <p className="legend-note">
+            La intensidad del color representa la magnitud de los casos o la tasa de incidencia.
+          </p>
+        </div>
+      );
+    }
+
+    // Para TIA (TBC TIA o TBC TIA EESS) - Mostrar ambas leyendas
+    if (esTIA) {
+      const tipoTIA = diagId.includes('TBCTIAEESS') ? 'TBC TIA EESS' : 'TBC TIA';
+      
+      return (
+        <div className="panel-legend">
+          <h4>Leyenda - {nombreDiagnostico}</h4>
+          <p className="legend-subtitle">Tasa de Incidencia Anual (TIA por 100,000 hab.)</p>
+          
+          {/* Leyenda de colores según TIA (escala fija) */}
+          <div className="legend-section">
+            <h5>Colores según valor TIA:</h5>
+            <div className="legend-items">
+              <div className="legend-item">
+                <div className="legend-color" style={{ backgroundColor: '#f21a0aff' }}></div>
+                <div className="legend-label">{`> 75 (Alto)`}</div>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color" style={{ backgroundColor: '#fa9b15ff' }}></div>
+                <div className="legend-label">{`50 - 75 (Medio-Alto)`}</div>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color" style={{ backgroundColor: '#fff134ff' }}></div>
+                <div className="legend-label">{`25 - 50 (Medio-Bajo)`}</div>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color" style={{ backgroundColor: '#2eff1bff' }}></div>
+                <div className="legend-label">{`0 - 25 (Bajo)`}</div>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color" style={{ backgroundColor: '#9a9a9aff' }}></div>
+                <div className="legend-label">{`0 (Sin casos)`}</div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Información adicional sobre TIA */}
+          <div className="legend-section">
+            <h5>Información TIA:</h5>
+            <div className="legend-info">
+              <div className="info-item">
+                <span className="info-label">Tipo:</span>
+                <span className="info-value">{tipoTIA}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Rango actual:</span>
+                <span className="info-value">{rangos.min.toFixed(2)} - {rangos.max.toFixed(2)} por 100,000 hab.</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Leyenda de intensidad (para referencia) */}
+          <div className="legend-section">
+            <h5>Intensidad de casos:</h5>
+            <div className="legend-items compact">
+              <div className="legend-item">
+                <div className="legend-color" style={{ backgroundColor: '#f21a0aff' }}></div>
+                <div className="legend-label">Alta</div>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color" style={{ backgroundColor: '#fa9b15ff' }}></div>
+                <div className="legend-label">Media-Alta</div>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color" style={{ backgroundColor: '#fff134ff' }}></div>
+                <div className="legend-label">Media-Baja</div>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color" style={{ backgroundColor: '#2eff1bff' }}></div>
+                <div className="legend-label">Baja</div>
+              </div>
+            </div>
+          </div>
+          
+          <p className="legend-note">
+            Los colores representan la tasa de incidencia anual calculada por cada 100,000 habitantes.
+          </p>
+        </div>
+      );
+    }
+    
+    // Para TBC pulmonar (SIGTB)
+    if (esTBGeneral) {
+      return (
+        <div className="panel-legend">
+          <h4>Leyenda - {nombreDiagnostico}</h4>
+          <p className="legend-subtitle">Casos de Tuberculosis Pulmonar</p>
+          
+          {/* Leyenda de intensidad de casos (escala dinámica) */}
+          <div className="legend-section">
+            <h5>Intensidad de casos:</h5>
+            <div className="legend-items">
+              <div className="legend-item">
+                <div className="legend-color" style={{ backgroundColor: '#f21a0aff' }}></div>
+                <div className="legend-label">Alta (75% - 100%)</div>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color" style={{ backgroundColor: '#fa9b15ff' }}></div>
+                <div className="legend-label">Media-Alta (50% - 75%)</div>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color" style={{ backgroundColor: '#fff134ff' }}></div>
+                <div className="legend-label">Media-Baja (25% - 50%)</div>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color" style={{ backgroundColor: '#2eff1bff' }}></div>
+                <div className="legend-label">Baja (0% - 25%)</div>
+              </div>
+            </div>
+          </div>
+          
+          {rangos.max > 0 ? (
+            <div className="legend-section">
+              <h5>Información de casos:</h5>
+              <div className="legend-info">
+                <div className="info-item">
+                  <span className="info-label">Rango actual:</span>
+                  <span className="info-value">{rangos.min} - {rangos.max} casos</span>
+                </div>
+                <div className="info-item">
+                  <span className="info-label">Distritos con casos:</span>
+                  <span className="info-value">{rangos.valores.filter(v => v > 0).length} de {allDistricts?.features.length}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="legend-note">
+              No hay datos cargados para este diagnóstico.
+            </p>
+          )}
+        </div>
+      );
+    }
+    
+    // Para otros diagnósticos (escala dinámica)
+    return (
+      <div className="panel-legend">
+        <h4>Leyenda - {nombreDiagnostico}</h4>
+        <p className="legend-subtitle">Intensidad de Casos (escala dinámica)</p>
+        
+        {/* Leyenda de intensidad de casos */}
+        <div className="legend-section">
+          <h5>Colores según intensidad:</h5>
+          <div className="legend-items">
+            <div className="legend-item">
+              <div className="legend-color" style={{ backgroundColor: '#f21a0aff' }}></div>
+              <div className="legend-label">Alta (75% - 100%)</div>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color" style={{ backgroundColor: '#fa9b15ff' }}></div>
+              <div className="legend-label">Media-Alta (50% - 75%)</div>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color" style={{ backgroundColor: '#fff134ff' }}></div>
+              <div className="legend-label">Media-Baja (25% - 50%)</div>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color" style={{ backgroundColor: '#2eff1bff' }}></div>
+              <div className="legend-label">Baja (0% - 25%)</div>
+            </div>
+          </div>
+        </div>
+        
+        {rangos.max > 0 ? (
+          <div className="legend-section">
+            <h5>Información de casos:</h5>
+            <div className="legend-info">
+              <div className="info-item">
+                <span className="info-label">Rango actual:</span>
+                <span className="info-value">{rangos.min} - {rangos.max} casos</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Distritos con casos:</span>
+                <span className="info-value">{rangos.valores.filter(v => v > 0).length} de {allDistricts?.features.length}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Total casos:</span>
+                <span className="info-value">{rangos.valores.reduce((a, b) => a + b, 0)}</span>
+              </div>
+            </div>
+            <p className="legend-note">
+              Los colores se ajustan dinámicamente al rango de casos actual.
+            </p>
+          </div>
+        ) : (
+          <p className="legend-note">
+            No hay datos cargados para este diagnóstico.
+          </p>
+        )}
+      </div>
+    );
+  };
 
    return (
     <div className="map-container">
@@ -1471,45 +1779,55 @@ const filteredLayers = useMemo(() => {
             </div>
             
             {isSidebarOpen && (
-              <>
-                <div className="layer-search">
-                  <input
-                    type="text"
-                    placeholder="Busca la capa que necesitas"
-                    value={layerSearchTerm}
-                    onChange={(e) => setLayerSearchTerm(e.target.value)}
-                  />
-                  <button>🔍</button>
-                </div>
-
-                <ul className="layer-list">
-                  {filteredLayers.map((layer) => (
-                    <LayerItem
-                      key={layer.id}
-                      layer={layer}
-                      selectedLayers={selectedLayers}
-                      onSelectionChange={handleLayerSelection}
-                      onDiagnosticoSelect={handleDiagnosticoSelect}
-                      diagnosticoSeleccionado={diagnosticoSeleccionado}
-                      isSearchActive={isSearchActive}
+            <>
+              {sidebarView === 'capas' ? (
+                <>
+                  <div className="layer-search">
+                    <input
+                      type="text"
+                      placeholder="Busca la capa que necesitas"
+                      value={layerSearchTerm}
+                      onChange={(e) => setLayerSearchTerm(e.target.value)}
                     />
-                  ))}
-                </ul>
-              </>
-            )}
+                    <button>🔍</button>
+                  </div>
+
+                  <ul className="layer-list">
+                    {filteredLayers.map((layer) => (
+                      <LayerItem
+                        key={layer.id}
+                        layer={layer}
+                        selectedLayers={selectedLayers}
+                        onSelectionChange={handleLayerSelection}
+                        onDiagnosticoSelect={handleDiagnosticoSelect}
+                        diagnosticoSeleccionado={diagnosticoSeleccionado}
+                        isSearchActive={isSearchActive}
+                      />
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <PanelLegend />
+              )}
+            </>
+          )}
           </div>
 
           <div className="sidebar-nav">
             <button 
-              className={`nav-button ${isSidebarOpen ? 'active' : ''}`}
-              onClick={() => setSidebarOpen(true)}
+              className={`nav-button ${isSidebarOpen && sidebarView === 'capas' ? 'active' : ''}`}
+              onClick={() => {
+                setSidebarView('capas');
+                setSidebarOpen(true);
+              }}
               title="Capas y Filtros"
             >
               <i className="fas fa-layer-group"></i> 
             </button>
 
             <button 
-              className="nav-button"
+              className={`nav-button ${isSidebarOpen && sidebarView === 'leyenda' ? 'active' : ''}`}
+              onClick={handleShowLegend}
               title="Leyenda y Simbología"
             >
               <i className="fas fa-list"></i>
