@@ -1103,141 +1103,79 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
 
 const getDistrictStyle = (feature: any) => {
   const distrito = feature.properties.NM_DIST?.toUpperCase();
-  
-  // Obtener el último diagnóstico seleccionado (el que está activo)
-  const diagnosticoActivo = diagnosticoSeleccionado.length > 0 
-    ? diagnosticoSeleccionado[diagnosticoSeleccionado.length - 1] 
-    : '';
-
-  // Normalizar el ID del diagnóstico para comparación
-  const diagId = diagnosticoActivo.trim().toUpperCase().replace(/[-_]/g, '');
-  
-  // Detectar si es algún tipo de TB
-  const esTB = diagId.includes('TBCTIA') || 
-               diagId.includes('TBCPULMONAR') ||
-               diagnosticoActivo.includes('tb_sigtb');
-
-  // Determinar qué datos usar según el diagnóstico activo
-  let distritoData: any = {};
-  
-  if (esTB) {
-    // Para TB, buscar en las claves específicas
-    if (diagId.includes('TBCTIAEESS')) {
-      distritoData = casosPorDistrito['TBC TIA EESS']?.[distrito] || {};
-    } else if (diagId.includes('TBCTIA')) {
-      distritoData = casosPorDistrito['TBC_TIA']?.[distrito] || {};
-    } else if (diagId.includes('TBCPULMONAR')) {
-      distritoData = casosPorDistrito['SIGTB']?.[distrito] || {};
-    }
-  } else if (diagnosticoActivo === 'diagnostico-edas') {
-    distritoData = casosPorDistrito['EDAS']?.[distrito] || {};
-  } else if (diagnosticoActivo === 'diagnostico-iras') {
-    distritoData = casosPorDistrito['IRAS']?.[distrito] || {};
-  } else if (diagnosticoActivo === 'diagnostico-febriles') {
-    distritoData = casosPorDistrito[distrito] || {};
-  } else {
-    // Para otros diagnósticos
-    distritoData = casosPorDistrito[distrito] || {};
-  }
-
-  // Obtener el valor a mostrar según el tipo de diagnóstico
-  let valorPintado = 0;
-  if (esTB && (diagId.includes('TBCTIA') || diagId.includes('TBCTIAEESS'))) {
-    valorPintado = distritoData.TIA_100k ?? 0;
-  } else {
-    valorPintado = distritoData.total ?? 0;
-  }
+  const distritoData = casosPorDistrito[distrito] || { total: 0, TIA_100k: 0 };
 
   const isSearched = searchedDistrictId === distrito;
   const isClicked = clickedDistrictId === distrito;
   const isLayerSelected = selectedDistrictLayerIds.has(distrito);
 
-  // Si no hay diagnóstico seleccionado, usar estilo por defecto
-  if (!diagnosticoActivo) {
-    const baseStyle = {
-      weight: 1,
-      color: "#555",
-      fillOpacity: 0.2,
-      fillColor: "#E0E0E0",
-    };
+  // -------------------------------
+  //  ✨ DETECTAR DIAGNÓSTICOS
+  // -------------------------------
+  const diagnosticos = diagnosticoSeleccionado.map(d =>
+    d.toUpperCase().replace(/-|_| /g, "")
+  );
 
-    const highlightStyle = {
-      weight: 3,
-      color: "#000000",
-      fillOpacity: 0.8,
-      fillColor: "#f3b14fff",
-    };
+  const isDiseaseSelected = diagnosticos.length > 0;
 
-    return isSearched || isClicked || isLayerSelected ? highlightStyle : baseStyle;
-  }
+  // Diagnóstico especial para TBC-TIA
+  const esTBC_TIA = diagnosticos.includes("TBCTIA") || diagnosticos.includes("TBCTIAEESS");
 
-  // ESCALA PARA TB-TIA (escala fija)
+  // -------------------------------
+  //  🎯 DEFINIR VALOR A PINTAR
+  // -------------------------------
+  const valorPintado = esTBC_TIA
+    ? (distritoData.TIA_100k ?? 0)
+    : (distritoData.total ?? 0);
+
+  // -------------------------------
+  //  🎨 ESCALA FIJA PARA TBC-TIA
+  // -------------------------------
   const escalaTB = (valor: number) => {
     if (valor > 75) return "#f21a0aff";     // rojo
     if (valor > 50) return "#fa9b15ff";     // naranja
     if (valor > 25) return "#fff134ff";     // amarillo
     if (valor > 0)  return "#2eff1bff";     // verde
-    return "#9a9a9aff";                     // gris para cero
+    return "#9a9a9aff";
   };
 
-  // ESCALA DINÁMICA para otros diagnósticos
-  const calcularEscalaDinamica = () => {
-    if (!diagnosticoActivo) return () => "#9a9a9aff";
-    
-    // Obtener todos los valores para este diagnóstico
-    const valores: number[] = [];
-    
-    if (allDistricts) {
-      allDistricts.features.forEach(feature => {
-        const d = feature.properties.NM_DIST?.toUpperCase();
-        let valor = 0;
-        
-        if (esTB) {
-          if (diagId.includes('TBCTIAEESS')) {
-            valor = casosPorDistrito['TBC TIA EESS']?.[d]?.TIA_100k || 0;
-          } else if (diagId.includes('TBCTIA')) {
-            valor = casosPorDistrito['TBC_TIA']?.[d]?.TIA_100k || 0;
-          } else if (diagId.includes('TBCPULMONAR')) {
-            valor = casosPorDistrito['SIGTB']?.[d]?.total || 0;
-          }
-        } else if (diagnosticoActivo === 'diagnostico-edas') {
-          valor = casosPorDistrito['EDAS']?.[d]?.total || 0;
-        } else if (diagnosticoActivo === 'diagnostico-iras') {
-          valor = casosPorDistrito['IRAS']?.[d]?.total || 0;
-        } else if (diagnosticoActivo === 'diagnostico-febriles') {
-          valor = casosPorDistrito[d]?.total || 0;
-        } else {
-          valor = casosPorDistrito[d]?.total || 0;
-        }
-        
-        valores.push(valor);
-      });
-    }
-    
-    const minValor = Math.min(...valores);
-    const maxValor = Math.max(...valores);
-    
-    if (maxValor === minValor) return () => "#9a9a9aff";
-    
-    return (valor: number) => {
-      const rango = maxValor - minValor;
-      const porcentaje = (valor - minValor) / rango;
-      
-      if (porcentaje > 0.75) return "#f21a0aff";
-      if (porcentaje > 0.50) return "#fa9b15ff";
-      if (porcentaje > 0.25) return "#fff134ff";
-      return "#2eff1bff";
-    };
+  // -------------------------------
+  //  🎨 ESCALA DINÁMICA para otros diagnósticos
+  // -------------------------------
+  const getValorDistrito = (d: string) => {
+    const data = casosPorDistrito[d];
+    if (!data) return 0;
+    return data.total ?? 0; // SOLO TOTAL
   };
 
-  // Determinar qué escala usar
-  const escalaColor = esTB && (diagId.includes('TBCTIA') || diagId.includes('TBCTIAEESS'))
-    ? escalaTB
-    : calcularEscalaDinamica();
+  const valores = Object.keys(casosPorDistrito).map(getValorDistrito);
+  const minValor = Math.min(...valores);
+  const maxValor = Math.max(...valores);
 
-  const fillColor = escalaColor(valorPintado);
+  const escalaDinamica = (valor: number) => {
+    if (maxValor === minValor) return "#9a9a9aff";
+
+    const rango = maxValor - minValor;
+    const porcentaje = (valor - minValor) / rango;
+
+    if (porcentaje > 0.75) return "#f21a0aff";   // rojo
+    if (porcentaje > 0.50) return "#fa9b15ff";   // naranja
+    if (porcentaje > 0.25) return "#fff134ff";   // amarillo
+    return "#2eff1bff";                          // verde
+  };
+
+  // -------------------------------
+  //  🎨 COLOR FINAL
+  // -------------------------------
+  const fillColor = esTBC_TIA
+    ? escalaTB(valorPintado)
+    : escalaDinamica(valorPintado);
+
   const fillOpacity = valorPintado > 0 ? 0.8 : 0.2;
 
+  // -------------------------------
+  //  🧩 ESTILOS BASE / HIGHLIGHT
+  // -------------------------------
   const baseStyle = {
     weight: 1,
     color: "#555",
@@ -1251,6 +1189,12 @@ const getDistrictStyle = (feature: any) => {
     fillOpacity,
     fillColor,
   };
+
+  if (!isDiseaseSelected) {
+    return isSearched || isClicked || isLayerSelected
+      ? { ...highlightStyle, fillColor: "#f3b14fff" }
+      : { ...baseStyle, fillOpacity: 0.2, fillColor: "#E0E0E0" };
+  }
 
   if (isSearched || isClicked || isLayerSelected) {
     return { ...highlightStyle };
