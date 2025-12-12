@@ -5,16 +5,14 @@ from flask_cors import CORS
 from database import connect    # tu función centralizada de conexión
 from database import get_edas_connection,get_iras_connection, get_TB_connection, get_febriles_connection
 from openpyxl import Workbook
-
-
 app = Flask(__name__)
 
 # CORS Global permisivo
 CORS(app, supports_credentials=True)
 
-
 @app.route("/exportar-datos", methods=["POST", "OPTIONS"])
 def exportar_datos():
+
     # ===============================
     #   PRE-FLIGHT (CORS)
     # ===============================
@@ -25,7 +23,6 @@ def exportar_datos():
         response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
         return response
 
-    
     data = request.get_json()
     distrito = data.get("distrito")
     diagnosticos = data.get("diagnosticos", [])
@@ -56,26 +53,15 @@ def exportar_datos():
         return jsonify({"error": f"Error recuperando población: {str(e)}"}), 500
 
     # ======================================================
-    #   2️⃣ MAPEO DE DIAGNÓSTICOS → CONEXIÓN + TABLA + CAMPO
+    #   2️⃣ MAPEO DE DIAGNÓSTICOS
     # ======================================================
 
     COLUMNAS_PROHIBIDAS_TBC = [
-    "Tipo de Documento",
-    "Nro. Documento",
-    "Nombre",
-    "Apellidos",
-    "F. de Nacimiento",
-    "Nacionalidad",
-    "Pais de Origen",
-    "Pertenencia Etnica",
-    "Otra Etnia",
-    "Edad",
-    "Genero",
-    "Direccion Acutal",
-    "Departamento",
-    "Provincia"
+        "Tipo de Documento", "Nro. Documento", "Nombre", "Apellidos",
+        "F. de Nacimiento", "Nacionalidad", "Pais de Origen",
+        "Pertenencia Etnica", "Otra Etnia", "Edad", "Genero",
+        "Direccion Acutal", "Departamento", "Provincia"
     ]
-
 
     MAPEOS = {
         "Infecciones respiratorias agudas": {
@@ -105,19 +91,17 @@ def exportar_datos():
         },
         "TBC TIA EESS": {
             "conexion": get_TB_connection,
-            "tabla": "TB_BD_SIGTB",
+            "tabla": "TB_TIA_EESS_MINSA",
             "campo_distrito": "Distrito",
             "campo_anio": None
         },
         "TBC TIA": {
             "conexion": get_TB_connection,
-            "tabla": "TB_BD_SIGTB",
+            "tabla": "TIA_TOTAL",
             "campo_distrito": "Distrito",
             "campo_anio": None
         }
-
     }
-
 
     # ======================================================
     #   3️⃣ CREAR EXCEL EN MEMORIA
@@ -132,54 +116,65 @@ def exportar_datos():
     #   4️⃣ HOJAS SEGÚN DIAGNÓSTICOS
     # ======================================================
     for dx in diagnosticos:
+
         if dx not in MAPEOS:
             print("⚠ Diagnóstico sin mapeo:", dx)
             continue
 
-    info = MAPEOS[dx]
-    nombre_hoja = dx[:31]
+        info = MAPEOS[dx]
+        nombre_hoja = dx[:31]
 
-    try:
-        print(f"📄 Generando hoja para diagnóstico: {dx}")
+        try:
+            print(f"📄 Generando hoja para diagnóstico: {dx}")
 
-        conn = info["conexion"]()
+            conn = info["conexion"]()
 
-        # Consulta adaptada
-        if info["campo_anio"]:
-            query_dx = f"""
-                SELECT *
-                FROM {info['tabla']}
-                WHERE UPPER({info['campo_distrito']}) = UPPER(?)
-                  AND {info['campo_anio']} = 2025
-            """
-        else:
-            query_dx = f"""
-                SELECT *
-                FROM {info['tabla']}
-                WHERE UPPER({info['campo_distrito']}) = UPPER(?)
-            """
+            # Consulta
+            if info["campo_anio"]:
+                query_dx = f"""
+                    SELECT *
+                    FROM {info['tabla']}
+                    WHERE UPPER({info['campo_distrito']}) = UPPER(?)
+                      AND {info['campo_anio']} = 2025
+                """
+            else:
+                query_dx = f"""
+                    SELECT *
+                    FROM {info['tabla']}
+                    WHERE UPPER({info['campo_distrito']}) = UPPER(?)
+                """
 
-        df_diag = pd.read_sql(query_dx, conn, params=[distrito])
-        conn.close()
+            df_diag = pd.read_sql(query_dx, conn, params=[distrito])
+            conn.close()
 
-        # --- Eliminar columnas sensibles ---
-        columnas_prohibidas = info.get("columnas_prohibidas", [])
-        df_diag = df_diag.drop(
-            columns=[c for c in columnas_prohibidas if c in df_diag.columns],
-            errors='ignore'
-        )
+            # Quitar columnas sensibles si corresponde
+            columnas_prohibidas = info.get("columnas_prohibidas", [])
+            df_diag = df_diag.drop(
+                columns=[c for c in columnas_prohibidas if c in df_diag.columns],
+                errors="ignore"
+            )
 
-        if df_diag.empty:
-            df_diag = pd.DataFrame({"Mensaje": [f"Sin registros de {dx} en {distrito}"]})
+            if df_diag.empty:
+                df_diag = pd.DataFrame({"Mensaje": [f"Sin registros de {dx} en {distrito}"]})
 
-        df_diag.to_excel(writer, index=False, sheet_name=nombre_hoja)
+            # Evitar nombres repetidos
+            hojas_existentes = writer.book.sheetnames
+            original = nombre_hoja
+            contador = 1
 
-    except Exception as e:
-        df_error = pd.DataFrame({"Error": [str(e)]})
-        df_error.to_excel(writer, index=False, sheet_name=f"ERROR_{nombre_hoja}")
+            while nombre_hoja in hojas_existentes:
+                nombre_hoja = f"{original}_{contador}"[:31]
+                contador += 1
+
+            df_diag.to_excel(writer, index=False, sheet_name=nombre_hoja)
+
+        except Exception as e:
+            df_error = pd.DataFrame({"Error": [str(e)]})
+            df_error.to_excel(writer, index=False, sheet_name=f"ERROR_{nombre_hoja}")
 
     writer.close()
     output.seek(0)
+
     # ======================================================
     #   5️⃣ DEVOLVER ARCHIVO
     # ======================================================
@@ -190,11 +185,8 @@ def exportar_datos():
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-    # 🔥 Sin esto, otro usuario fuera de tu PC no puede descargar
     response.headers["Access-Control-Allow-Origin"] = "*"
-
     return response
-
 
 def get_febriles_por_distrito(distrito):
     conn = get_febriles_connection()
@@ -285,7 +277,6 @@ def api_poblacion():
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
-
 
 # ============================================================
 # 2. ENDPOINT: CASOS POR ENFERMEDAD
@@ -435,7 +426,6 @@ def casos_totales():
 
     return jsonify({"total": total})
 
-
 @app.route('/api/enfermedades')
 def enfermedades():
     conn = connect("EPI_TABLAS_MAESTRO")
@@ -459,7 +449,6 @@ def enfermedades():
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
-
 
 @app.route("/api/casos_por_distrito")
 def casos_por_distrito():
@@ -612,7 +601,6 @@ def api_edas_por_distrito():
         "total_edas": total_edas
     })
 
-
 @app.get("/api/edas/<distrito>")
 def get_edas_por_distrito(distrito):
     conn = get_edas_connection()
@@ -645,7 +633,6 @@ def get_edas_por_distrito(distrito):
         "dis": dis,
         "total": daa + dis
     })
-
 
 # ============================================================
 # ENDPOINT: CASOS FEBRILES POR DISTRITO
@@ -766,7 +753,6 @@ def api_iras_distrito():
         cursor.close()
         conn.close()
 
-
 @app.route("/api/iras/<distrito>")
 def get_iras_por_distrito(distrito):
     conn = get_iras_connection()
@@ -853,7 +839,6 @@ def get_iras_por_distrito(distrito):
         cursor.close()
         conn.close()
 
-
 # ============================================================
 # ENDPOINT: TABLA COMPLETA TIA_TOTAL (TUBERCULOSIS)
 # ============================================================
@@ -899,7 +884,6 @@ def get_tia_total_por_distrito(distrito):
         "detalle": [],
         "TIA_100k": 0
     })
-
 
 @app.route("/tb_tia_total")
 def tb_tia_total():
@@ -998,7 +982,7 @@ def tb_sigtb_distritos(distrito):
             SELECT COUNT(*) AS total
             FROM TB_BD_SIGTB
             WHERE UPPER(DIRESA_DIREC) = 'DIRIS LIMA CENTRO'
-              AND UPPER(Distrito EESS) = UPPER(?)
+              AND UPPER(distrito) = UPPER(?)
         """
 
         cursor.execute(sql, distrito)
