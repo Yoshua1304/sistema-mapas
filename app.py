@@ -3,7 +3,7 @@ import pandas as pd
 import io
 from flask_cors import CORS
 from database import connect    # tu función centralizada de conexión
-from database import get_edas_connection,get_iras_connection, get_TB_connection, get_febriles_connection
+from database import get_edas_connection,get_iras_connection, get_TB_connection, get_febriles_connection, get_depresion_connection,get_violencia_connection,get_diabetes_connection,get_cancer_connection
 from openpyxl import Workbook
 app = Flask(__name__)
 
@@ -28,13 +28,13 @@ def exportar_datos():
     diagnosticos = data.get("diagnosticos", [])
 
     print("📥 BACKEND → Distrito:", distrito)
-    print("📥 BACKEND → Diagnósticos recibidos:", diagnosticos)
+    print("📥 BACKEND → Diagnósticos:", diagnosticos)
 
     if not distrito:
         return jsonify({"error": "No se recibió el distrito"}), 400
 
     # ======================================================
-    #   1️⃣ OBTENER POBLACIÓN (Siempre Hoja 1)
+    #   1️⃣ POBLACIÓN (HOJA PRINCIPAL)
     # ======================================================
     try:
         conn_pob = connect("EPI_TABLAS_MAESTRO")
@@ -47,20 +47,58 @@ def exportar_datos():
         conn_pob.close()
 
         if df_poblacion.empty:
-            return jsonify({"error": "No se encontró población para este distrito"}), 404
+            return jsonify({"error": "No se encontró población"}), 404
 
     except Exception as e:
-        return jsonify({"error": f"Error recuperando población: {str(e)}"}), 500
+        return jsonify({"error": f"Error población: {str(e)}"}), 500
 
     # ======================================================
-    #   2️⃣ MAPEO DE DIAGNÓSTICOS
+    #   2️⃣ CONFIGURACIÓN DE DIAGNÓSTICOS
     # ======================================================
-
     COLUMNAS_PROHIBIDAS_TBC = [
         "Tipo de Documento", "Nro. Documento", "Nombre", "Apellidos",
         "F. de Nacimiento", "Nacionalidad", "Pais de Origen",
         "Pertenencia Etnica", "Otra Etnia", "Edad", "Genero",
         "Direccion Acutal", "Departamento", "Provincia"
+    ]
+    COLUMNAS_PROHIBIDAS_DIABETES = [
+        "apepat", "apemat", "nombres", "sexo",
+        "fecha_nac", "edad", "usuario",
+        "ubigeo_res", "SEXO_2","dni"
+    ]
+    COLUMNAS_PROHIBIDAS_NOTIWEB_2025 = [
+        "APEPAT", "APEMAT", "NOMBRES",
+        "EDAD", "TIPO_EDAD", "SEXO",
+        "DNI", "TIPO_DOC","LATITUD", "LONGITUD", "COORDENADAS", "UBICACION",
+        "UBIGEO_DIR", "EESS_UBIGEO",
+        "DIRECCION", "DIRECCION_COMPLETA",
+        "TIPO_VIA", "NUM_PUERTA",
+        "MANZANA", "BLOCK", "INTERIOR",
+        "KILOMETRO", "LOTE", "REFERENCIA",
+        "AGRUP_RURAL", "NOMBRE_AGRUP",
+        "ETNIAPROC", "ETNIAS", "PROCEDE", "OTROPROC",
+        "USUARIO", "FECHA_MOD", "USUARIO_MOD"
+    ]
+
+    COLUMNAS_PROHIBIDAS_DEPRESION = [
+        "dni", "apepat", "apemat", "nombres", "hc",
+        "telefono", "celular", "direccion",
+        "tipo_doc", "f_nac",
+        "ubigeo", "X",
+        "idusucreo", "idusuaupdate", "idusuaupdate2",
+        "fcreo", "fupdate",
+        "fseg", "fseg2",
+        "fseg_sistema", "fseg2_sistema"
+    ]
+    COLUMNAS_PROHIBIDAS_VIOLENCIA = [
+        "codigo", "ape_pat", "ape_mat", "nom_1", "nom_2", "ide",
+        "edad", "t_edad", "sexo",
+        "ecivil", "gins",
+        "ocupa", "distri",
+        "domi", "apem_agres", "apep_agres",
+        "nom_agres", "edadagre",
+        "sexoagre", "vinculo",
+        "queotrovin", "gradoins", "ocupacion","usuario", "ubigeo2","local"
     ]
 
     MAPEOS = {
@@ -89,17 +127,38 @@ def exportar_datos():
             "campo_anio": None,
             "columnas_prohibidas": COLUMNAS_PROHIBIDAS_TBC
         },
+        "TBC TIA": {
+            "conexion": get_TB_connection,
+            "tabla": "TIA_TOTAL",
+            "campo_distrito": "Distrito",
+            "campo_anio": None
+        },
         "TBC TIA EESS": {
             "conexion": get_TB_connection,
             "tabla": "TB_TIA_EESS_MINSA",
             "campo_distrito": "Distrito",
             "campo_anio": None
         },
-        "TBC TIA": {
-            "conexion": get_TB_connection,
-            "tabla": "TIA_TOTAL",
+        "Depresion": {
+            "conexion": get_depresion_connection,
+            "tabla": "Depresion",
             "campo_distrito": "Distrito",
-            "campo_anio": None
+            "campo_anio": "Año",
+            "columnas_prohibidas": COLUMNAS_PROHIBIDAS_DEPRESION
+        },
+        "Violencia familiar": {
+            "conexion": get_violencia_connection,
+            "tabla": "VF_COMPLETO",
+            "campo_distrito":"distrito_Agredido",
+            "campo_anio":"ano",
+            "columnas_prohibidas":COLUMNAS_PROHIBIDAS_VIOLENCIA
+        },
+        "Diabetes": {
+            "conexion": get_diabetes_connection,
+            "tabla": "REPORTE_DIABETES",
+            "campo_distrito":"distrito",
+            "campo_anio":"ano",
+            "columnas_prohibidas":COLUMNAS_PROHIBIDAS_DIABETES
         }
     }
 
@@ -109,74 +168,97 @@ def exportar_datos():
     output = io.BytesIO()
     writer = pd.ExcelWriter(output, engine="openpyxl")
 
-    # Hoja principal
     df_poblacion.to_excel(writer, index=False, sheet_name="POBLACION")
 
     # ======================================================
-    #   4️⃣ HOJAS SEGÚN DIAGNÓSTICOS
+    #   4️⃣ GENERAR HOJAS POR DIAGNÓSTICO
     # ======================================================
     for dx in diagnosticos:
 
-        if dx not in MAPEOS:
-            print("⚠ Diagnóstico sin mapeo:", dx)
-            continue
-
-        info = MAPEOS[dx]
         nombre_hoja = dx[:31]
 
-        try:
-            print(f"📄 Generando hoja para diagnóstico: {dx}")
+        # ------------------ ESPECIALES ------------------
+        if dx in MAPEOS:
+            info = MAPEOS[dx]
 
-            conn = info["conexion"]()
+            try:
+                print(f"📄 Hoja especial: {dx}")
+                conn = info["conexion"]()
 
-            # Consulta
-            if info["campo_anio"]:
-                query_dx = f"""
+                if info["campo_anio"]:
+                    query = f"""
+                        SELECT *
+                        FROM {info['tabla']}
+                        WHERE UPPER({info['campo_distrito']}) = UPPER(?)
+                          AND {info['campo_anio']} = 2025
+                    """
+                else:
+                    query = f"""
+                        SELECT *
+                        FROM {info['tabla']}
+                        WHERE UPPER({info['campo_distrito']}) = UPPER(?)
+                    """
+
+                df_diag = pd.read_sql(query, conn, params=[distrito])
+                conn.close()
+
+                columnas_prohibidas = info.get("columnas_prohibidas", [])
+                df_diag = df_diag.drop(
+                    columns=[c for c in columnas_prohibidas if c in df_diag.columns],
+                    errors="ignore"
+                )
+
+            except Exception as e:
+                df_diag = pd.DataFrame({"Error": [str(e)]})
+
+        # ------------------ NOTIWEB ------------------
+        else:
+            try:
+                print(f"📄 Hoja NOTIWEB: {dx}")
+                conn = connect("EPI_TABLAS_MAESTRO")
+
+                query = """
                     SELECT *
-                    FROM {info['tabla']}
-                    WHERE UPPER({info['campo_distrito']}) = UPPER(?)
-                      AND {info['campo_anio']} = 2025
-                """
-            else:
-                query_dx = f"""
-                    SELECT *
-                    FROM {info['tabla']}
-                    WHERE UPPER({info['campo_distrito']}) = UPPER(?)
+                    FROM NOTIWEB_2025
+                    WHERE
+                        UPPER(DIAGNOSTICO) = UPPER(?)
+                        AND UPPER(DISTRITO) = UPPER(?)
                 """
 
-            df_diag = pd.read_sql(query_dx, conn, params=[distrito])
-            conn.close()
+                # ✅ EJECUTAR CONSULTA
+                df_diag = pd.read_sql(query, conn, params=[dx, distrito])
+                conn.close()
 
-            # Quitar columnas sensibles si corresponde
-            columnas_prohibidas = info.get("columnas_prohibidas", [])
-            df_diag = df_diag.drop(
-                columns=[c for c in columnas_prohibidas if c in df_diag.columns],
-                errors="ignore"
-            )
+                # 🔒 ELIMINAR COLUMNAS SENSIBLES
+                df_diag = df_diag.drop(
+                    columns=[c for c in COLUMNAS_PROHIBIDAS_NOTIWEB_2025 if c in df_diag.columns],
+                    errors="ignore"
+                )
 
-            if df_diag.empty:
-                df_diag = pd.DataFrame({"Mensaje": [f"Sin registros de {dx} en {distrito}"]})
+            except Exception as e:
+                df_diag = pd.DataFrame({"Error": [str(e)]})
 
-            # Evitar nombres repetidos
-            hojas_existentes = writer.book.sheetnames
-            original = nombre_hoja
-            contador = 1
+        # ------------------ CONTROL FINAL ------------------
+        if df_diag.empty:
+            df_diag = pd.DataFrame({
+                "Mensaje": [f"Sin registros de {dx} en {distrito}"]
+            })
 
-            while nombre_hoja in hojas_existentes:
-                nombre_hoja = f"{original}_{contador}"[:31]
-                contador += 1
+        hojas_existentes = writer.book.sheetnames
+        original = nombre_hoja
+        contador = 1
 
-            df_diag.to_excel(writer, index=False, sheet_name=nombre_hoja)
+        while nombre_hoja in hojas_existentes:
+            nombre_hoja = f"{original}_{contador}"[:31]
+            contador += 1
 
-        except Exception as e:
-            df_error = pd.DataFrame({"Error": [str(e)]})
-            df_error.to_excel(writer, index=False, sheet_name=f"ERROR_{nombre_hoja}")
+        df_diag.to_excel(writer, index=False, sheet_name=nombre_hoja)
 
     writer.close()
     output.seek(0)
 
     # ======================================================
-    #   5️⃣ DEVOLVER ARCHIVO
+    #   5️⃣ RESPUESTA
     # ======================================================
     response = send_file(
         output,
@@ -278,6 +360,124 @@ def api_poblacion():
     finally:
         conn.close()
 
+def get_depresion_por_distrito(distrito):
+    conn = get_depresion_connection()
+    if conn is None:
+        return jsonify({"error": "Error conexión salud mental"}), 500
+
+    try:
+        cursor = conn.cursor()
+
+        sql = """
+            SELECT
+                COUNT(*) AS total
+            FROM Depresion
+            WHERE
+                UPPER(Distrito) = UPPER(?)
+                AND [Año] = 2025
+        """
+
+        cursor.execute(sql, (distrito,))
+        row = cursor.fetchone()
+
+        total = row[0] if row else 0
+
+        return jsonify({
+            "distrito": distrito,
+            "enfermedad": "Depresion",
+            "total": total,
+            "detalle": [
+                {"tipo_dx": "DEPRESION", "cantidad": total}
+            ]
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
+
+def get_violencia_por_distrito(distrito):
+    conn = get_violencia_connection()
+    if conn is None:
+        return jsonify({"error": "Error conexión salud mental"}), 500
+
+    try:
+        cursor = conn.cursor()
+
+        sql = """
+            SELECT
+                COUNT(*) AS total
+            FROM VF_Completo
+            WHERE
+                UPPER(distrito_Agredido) = UPPER(?)
+                AND [ano] = 2025
+        """
+
+        cursor.execute(sql, (distrito,))
+        row = cursor.fetchone()
+
+        total = row[0] if row else 0
+
+        return jsonify({
+            "distrito": distrito,
+            "enfermedad": "Violencia",
+            "total": total,
+            "detalle": [
+                {"tipo_dx": "Violencia", "cantidad": total}
+            ]
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
+
+def get_diabetes_por_distrito(distrito):
+    conn = get_diabetes_connection()
+    if conn is None:
+        return jsonify({"error": "Error conexión Diabetes"}), 500
+
+    try:
+        cursor = conn.cursor()
+
+        sql = """
+            SELECT
+                COUNT(*) AS total
+            FROM REPORTE_DIABETES
+            WHERE
+                UPPER(distrito) = UPPER(?)
+                AND [ano] = 2025
+        """
+
+        cursor.execute(sql, (distrito,))
+        row = cursor.fetchone()
+
+        total = row[0] if row else 0
+
+        return jsonify({
+            "distrito": distrito,
+            "enfermedad": "Diabetes",
+            "total": total,
+            "detalle": [
+                {"tipo_dx": "Diabetes", "cantidad": total}
+            ]
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
+
+def get_cancer_por_distrito(distrito):
+    conn = get_cancer_connection()
+    if conn is None:
+        return jsonify({"error": "Error conexión Diabetes"}), 500
+
+    
+
 # ============================================================
 # 2. ENDPOINT: CASOS POR ENFERMEDAD
 # ============================================================
@@ -354,6 +554,40 @@ def casos_enfermedad():
         "DIAGNOSTICO-TBCPULMONAR"
     ]:
         return tb_sigtb_distritos(distrito)
+    
+    # -------------------------------------------
+    # 🟣 DEPRESIÓN
+    # -------------------------------------------
+    if enfermedad.upper() in [
+        "DEPRESION",
+        "DEPRESIÓN",
+        "DIAGNOSTICO-DEPRESION",
+        "DIAGNOSTICO-DEPRESIÓN"
+    ]:
+        return get_depresion_por_distrito(distrito)
+    
+     # -------------------------------------------
+    # 🟣 VIOLENCIA
+    # -------------------------------------------
+    if enfermedad.upper() in [
+        "VIOLENCIA",
+        "VIOLENCIA FAMILIAR",
+        "VIOLENCIAFAMILIAR",
+        "DIAGNOSTICO-VIOLENCIA",
+        "DIAGNOSTICO-VIOLENCIA-FAMILIAR"
+    ]:
+        return get_violencia_por_distrito(distrito)
+    
+    # -------------------------------------------
+    # 🟣 DIABETES
+    # -------------------------------------------
+    if enfermedad.upper() in [
+        "DIABETES",
+        "DIAGNOSTICO-DIABETES",
+    ]:
+        return get_diabetes_por_distrito(distrito)
+
+
 
     # -------------------------------------------
     # 🟢 NOTIWEB (normal)
@@ -808,30 +1042,22 @@ def get_iras_por_distrito(distrito):
         return jsonify({
             "distrito": distrito,
             "total": total,
+
+            # 🔹 CAMPOS PLANOS (LO QUE EL POPUP USA)
+            "ira_no_neumonia": ira_no_neumonia,
+            "sob_asma": sob_asma,
+            "neumonia_grave": neumonia_grave,
+            "neumonia": neumonia,
+
+            # 🔹 DETALLE (OPCIONAL / FUTURO)
             "detalle": [
-                {"grupo": "IRA_NO_NEUMONIA", "cantidad": ira_no_neumonia},
-                {"grupo": "SOB_ASMA", "cantidad": sob_asma},
-                {"grupo": "NEUMONIA_GRAVE", "cantidad": neumonia_grave},
-                {"grupo": "NEUMONIA", "cantidad": neumonia},
-            ],
-            # opcional: también devolver valores crudos si los quieres
-            "raw": {
-                "IRA_M2": int(row.IRA_M2),
-                "IRA_2_11": int(row.IRA_2_11),
-                "IRA_1_4A": int(row.IRA_1_4A),
-                "SOB_2A": int(row.SOB_2A),
-                "SOB_2_4A": int(row.SOB_2_4A),
-                "NGR_M2": int(row.NGR_M2),
-                "NGR_2_11": int(row.NGR_2_11),
-                "NGR_1_4A": int(row.NGR_1_4A),
-                "NEU_2_11": int(row.NEU_2_11),
-                "NEU_1_4A": int(row.NEU_1_4A),
-                "NEU_5_9A": int(row.NEU_5_9A),
-                "NEU_10_19": int(row.NEU_10_19),
-                "NEU_20_59": int(row.NEU_20_59),
-                "NEU_60A": int(row.NEU_60A)
-            }
+                {"tipo_dx": "IRA NO NEUMONIA", "cantidad": ira_no_neumonia},
+                {"tipo_dx": "SOB / ASMA", "cantidad": sob_asma},
+                {"tipo_dx": "NEUMONIA GRAVE", "cantidad": neumonia_grave},
+                {"tipo_dx": "NEUMONIA", "cantidad": neumonia},
+            ]
         })
+
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -958,7 +1184,6 @@ def tb_tia_total_EESS_all():
 
     return jsonify(data)
 
-
 @app.route("/tb_tia_total_EESS")
 def tb_tia_total_EESS():
     distrito = request.args.get("distrito")
@@ -979,10 +1204,9 @@ def tb_sigtb_distritos(distrito):
         cursor = conn.cursor()
 
         sql = """
-            SELECT COUNT(*) AS total
-            FROM TB_BD_SIGTB
-            WHERE UPPER(DIRESA_DIREC) = 'DIRIS LIMA CENTRO'
-              AND UPPER(distrito) = UPPER(?)
+        SELECT COUNT(*) AS total
+        FROM TB_BD_SIGTB
+        WHERE LTRIM(RTRIM(UPPER([Distrito EESS]))) = LTRIM(RTRIM(UPPER(?)))
         """
 
         cursor.execute(sql, distrito)

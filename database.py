@@ -32,3 +32,20 @@ def get_iras_connection():
 def get_TB_connection():
     return connect("EPI_BD_TUBERCULOSIS")
 
+    # 🔵 NUEVA CONEXIÓN PARA DEPRESION
+def get_depresion_connection():
+    return connect("EPI_DB_SALUD_MENTAL")
+
+    # 🔵 NUEVA CONEXIÓN PARA DEPRESION
+def get_violencia_connection():
+    return connect("EPI_BD_VIOLENCIA_FAMILIAR")
+
+# 🔴 NUEVA CONEXIÓN PARA EDAS
+def get_diabetes_connection():
+    return connect("EPI_BD_DIABETES")
+
+# 🔴 NUEVA CONEXIÓN PARA EDAS
+def get_cancer_connection():
+    return connect("EPI_BD_ENFERMEDADES_NO_TRANSMISIBLES")
+
+

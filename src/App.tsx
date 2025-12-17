@@ -247,17 +247,17 @@ const VIGILANCIA_LAYER_DATA: Layer = {
         {
             id: 'diagnostico-enf-no-transmisibles', name: 'Enfermedades No Transmisibles', subLayers: [
                 { id: 'diagnostico-salud-mental', name: 'Salud Mental', subLayers: [
-                    { id: 'diagnostico-intento-suicidio', name: 'Intento de suicidio' },
-                    { id: 'diagnostico-episodio-depresivo', name: 'Episodio depresivo' },
-                    { id: 'diagnostico-primer-episodio-psicotico', name: 'Primer episodio psicótico' },
-                    { id: 'diagnostico-violencia-familiar', name: 'Violencia familiar' },
+                    { id: 'diagnostico-Depresion', name: 'Depresion' },
+                    { id: 'diagnostico-violencia', name: 'Violencia familiar' },
                 ]},
                 { id: 'diagnostico-accidentes-transito', name: 'Accidentes de Tránsito', subLayers: [
                     { id: 'diagnostico-lesiones-transito', name: 'Lesiones por accidente de tránsito' }
                 ]},
                 { id: 'diagnostico-enf-cronicas', name: 'Enfermedades Crónicas', subLayers: [
                     { id: 'diagnostico-cancer', name: 'Cáncer' },
-                    { id: 'diagnostico-diabetes-mellitus', name: 'Diabetes mellitus' },
+                    { id: 'diagnostico-diabetes', name: 'Diabetes' },
+                    { id: 'diagnostico-renal', name: 'Renal' },
+
                 ]},
             ]
         },
@@ -435,6 +435,127 @@ const cargarIRASPorDistrito = async () => {
 
 };
 
+const cargarDepresionPorDistrito = async () => {
+  if (!allDistricts) return;
+
+  const results: Record<string, any> = {};
+
+  for (const feature of allDistricts.features) {
+    const distrito = feature.properties.NM_DIST.toUpperCase();
+
+    try {
+      const res = await fetch(
+        `/api/casos_enfermedad?distrito=${encodeURIComponent(distrito)}&enfermedad=DEPRESION`
+      );
+
+      const data = await res.json();
+
+      results[distrito] = {
+        total: data.total || 0,
+        detalle: data.detalle || [
+          { tipo_dx: "TOTAL", cantidad: data.total || 0 }
+        ]
+      };
+
+    } catch (err) {
+      console.error("❌ Error DEPRESIÓN en", distrito, err);
+
+      results[distrito] = {
+        total: 0,
+        detalle: [
+          { tipo_dx: "TOTAL", cantidad: 0 }
+        ]
+      };
+    }
+  }
+
+  setCasosPorDistrito(prev => ({
+    ...prev,
+    DEPRESION: results
+  }));
+};
+
+const cargarViolenciaPorDistrito = async () => {
+  if (!allDistricts) return;
+
+  const results: Record<string, any> = {};
+
+  for (const feature of allDistricts.features) {
+    const distrito = feature.properties.NM_DIST.toUpperCase();
+
+    try {
+      const res = await fetch(
+        `/api/casos_enfermedad?distrito=${encodeURIComponent(distrito)}&enfermedad=VIOLENCIA`
+      );
+
+      const data = await res.json();
+
+      results[distrito] = {
+        total: data.total || 0,
+        detalle: data.detalle || [
+          { tipo_dx: "TOTAL", cantidad: data.total || 0 }
+        ]
+      };
+
+    } catch (err) {
+      console.error("❌ Error VIOLENCIA en", distrito, err);
+
+      results[distrito] = {
+        total: 0,
+        detalle: [
+          { tipo_dx: "TOTAL", cantidad: 0 }
+        ]
+      };
+    }
+  }
+
+  setCasosPorDistrito(prev => ({
+    ...prev,
+    VIOLENCIA: results
+  }));
+};
+
+const cargarDiabetesPorDistrito = async () => {
+  if (!allDistricts) return;
+
+  const results: Record<string, any> = {};
+
+  for (const feature of allDistricts.features) {
+    const distrito = feature.properties.NM_DIST.toUpperCase();
+
+    try {
+      const res = await fetch(
+        `/api/casos_enfermedad?distrito=${encodeURIComponent(distrito)}&enfermedad=DIABETES`
+      );
+
+      const data = await res.json();
+
+      results[distrito] = {
+        total: data.total || 0,
+        detalle: data.detalle || [
+          { tipo_dx: "TOTAL", cantidad: data.total || 0 }
+        ]
+      };
+
+    } catch (err) {
+      console.error("❌ Error DIABETES en", distrito, err);
+
+      results[distrito] = {
+        total: 0,
+        detalle: [
+          { tipo_dx: "TOTAL", cantidad: 0 }
+        ]
+      };
+    }
+  }
+
+  setCasosPorDistrito(prev => ({
+    ...prev,
+    DIABETES: results
+  }));
+};
+
+
 const cargarTIATotal = async () => {
   try {
     const resp = await fetch("http://127.0.0.1:5000/tb_tia_total");
@@ -558,9 +679,11 @@ useEffect(() => {
   if (!allDistricts) return;
   if (!diagnosticoSeleccionado || diagnosticoSeleccionado.length === 0) return;
 
-  const diagnostico = diagnosticoSeleccionado[ diagnosticoSeleccionado.length - 1 ];
-console.log("🟢 diagnosticoSeleccionado →", diagnosticoSeleccionado);
-console.log("🟢 diagnostico final →", diagnostico);
+  const diagnostico =
+    diagnosticoSeleccionado[diagnosticoSeleccionado.length - 1];
+
+  console.log("🟢 diagnosticoSeleccionado →", diagnosticoSeleccionado);
+  console.log("🟢 diagnostico final →", diagnostico);
 
   // 🔴 EDAS
   if (diagnostico === "diagnostico-edas") {
@@ -576,35 +699,62 @@ console.log("🟢 diagnostico final →", diagnostico);
     return;
   }
 
-    // 🔵 IRAS
+  // 🔵 IRAS
   if (diagnostico === "diagnostico-iras") {
     console.log("🟦 Cargando IRAS...");
     cargarIRASPorDistrito();
     return;
   }
 
-      // 🔵 TUBERCULOSIS_TIA
-if (diagnostico.trim().toLowerCase() === "diagnostico-tbcTIA") {
+  // 🔵 TBC TIA
+  if (diagnostico.trim().toLowerCase() === "diagnostico-tbctia") {
+    console.log("🟦 Cargando TBC TIA...");
     cargarTIATotal();
     return;
-}
+  }
 
-      // 🔵 TUBERCULOSIS_TIA_EESS
-if (diagnostico.trim().toLowerCase() === "diagnostico-tbctiaeess") {
+  // 🔵 TBC TIA EESS
+  if (diagnostico.trim().toLowerCase() === "diagnostico-tbctiaeess") {
+    console.log("🟦 Cargando TBC TIA EESS...");
     cargarTIATotalEESS();
     return;
-}
+  }
 
-    // 🔵 TUBERCULOSIS
-if (diagnostico.trim().toLowerCase() === "diagnostico-tbcpulmonar") {
+  // 🔵 TBC PULMONAR
+  if (diagnostico.trim().toLowerCase() === "diagnostico-tbcpulmonar") {
+    console.log("🟦 Cargando TBC PULMONAR...");
     cargarSigtbDistritos();
     return;
-}
+  }
 
-  // 🟢 Diagnósticos NOTIWEB normales
+  // 🟣 DEPRESIÓN (BASE SALUD MENTAL)
+  if (diagnostico.trim().toLowerCase() === "diagnostico-depresion") {
+    console.log("🟣 Cargando DEPRESIÓN...");
+    cargarDepresionPorDistrito();
+    return;
+  }
+
+  // 🟣 VIOLENCIA (BASE SALUD MENTAL)
+  if (diagnostico.trim().toLowerCase() === "diagnostico-violencia") {
+    console.log("🟣 Cargando VIOLENCIA...");
+    cargarViolenciaPorDistrito();
+    return;
+  }
+
+    // 🟣 VIOLENCIA (BASE SALUD MENTAL)
+  if (diagnostico.trim().toLowerCase() === "diagnostico-diabetes") {
+    console.log("🟣 Cargando DIABETES...");
+    cargarDiabetesPorDistrito();
+    return;
+  }
+
+
+  // 🟢 NOTIWEB (genéricos)
+  console.log("🟢 Cargando diagnóstico NOTIWEB:", diagnostico);
   cargarCasosPorDiagnostico(diagnostico);
 
 }, [diagnosticoSeleccionado, allDistricts]);
+
 
 const cargarCasosPorDiagnostico = async (diagnostico: string) => {
   diagnostico = diagnostico.trim();
@@ -702,39 +852,6 @@ const detalles: Record<
   console.log("================================");
 };
 
-
-// // Obtiene el valor numérico que corresponde según el diagnóstico activo
-// const getValorDistrito = (distrito: any) => {
-//   const data = casosPorDistrito[distrito];
-//   if (!data) return 0;
-
-//   const esTB = diagnosticoSeleccionado.some(d =>
-//     d.toUpperCase().replace(/[-_ ]/g, "") === "TBCTIA"
-//   );
-
-//   return esTB ? (data.TIA_100k ?? 0) : (data.total ?? 0);
-// };
-
-// // Obtener todos los valores numéricos
-// const valores = Object.keys(casosPorDistrito).map(getValorDistrito);
-
-// // Detectar min y max reales
-// const minValor = Math.min(...valores);
-// const maxValor = Math.max(...valores);
-
-// const escalaChoroplethDinamica = (valor: number) => {
-//   if (maxValor === minValor) return "#9a9a9aff"; // evitar NaN si todos son iguales
-
-//   const rango = maxValor - minValor;
-//   const porcentaje = (valor - minValor) / rango;
-
-//   if (porcentaje > 0.75) return "#f21a0aff";  // rojo
-//   if (porcentaje > 0.50) return "#fa9b15ff";  // naranja
-//   if (porcentaje > 0.25) return "#fff134ff";  // amarillo
-//   return "#2eff1bff";                         // verde
-// };
-
-
 const obtenerCasosEnfermedad = async (distrito: string, enfermedad: string) => {
   const res = await fetch(`http://10.0.5.181:5000/api/casos_enfermedad?distrito=${distrito}&enfermedad=${enfermedad}`);
   return await res.json();
@@ -763,8 +880,6 @@ const obtenerPoblacion = async (distrito: string) => {
   }
 };
 
-
-// Función para copiar la URL
 const handleShare = async () => {
   try {
     await navigator.clipboard.writeText(window.location.href);
@@ -842,8 +957,7 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
     setDiagnosticoSeleccionado(nuevoDiagnosticoSeleccionado);
 };
 
-  
-  // Callback refs to stop event propagation to the map
+
   const sidebarRef = (instance: HTMLDivElement | null) => {
     if (instance) {
       DomEvent.disableClickPropagation(instance);
@@ -1622,19 +1736,19 @@ const filteredLayers = useMemo(() => {
           <div className="legend-items">
             <div className="legend-item">
               <div className="legend-color" style={{ backgroundColor: '#f21a0aff' }}></div>
-              <div className="legend-label">Alta (75% - 100%)</div>
+              <div className="legend-label">Muy alto riesgo de transmision (75% - 100%)</div>
             </div>
             <div className="legend-item">
               <div className="legend-color" style={{ backgroundColor: '#fa9b15ff' }}></div>
-              <div className="legend-label">Media-Alta (50% - 75%)</div>
+              <div className="legend-label">Alto riesto de transmision (50% - 75%)</div>
             </div>
             <div className="legend-item">
               <div className="legend-color" style={{ backgroundColor: '#fff134ff' }}></div>
-              <div className="legend-label">Media-Baja (25% - 50%)</div>
+              <div className="legend-label">Mediano riesgo de transmision (25% - 50%)</div>
             </div>
             <div className="legend-item">
               <div className="legend-color" style={{ backgroundColor: '#2eff1bff' }}></div>
-              <div className="legend-label">Baja (0% - 25%)</div>
+              <div className="legend-label">Bajo riesgo de transmision (0% - 25%)</div>
             </div>
           </div>
         </div>

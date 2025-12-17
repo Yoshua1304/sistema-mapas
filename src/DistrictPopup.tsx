@@ -149,232 +149,198 @@ console.log("🔑 Claves disponibles:", Object.keys(detalleDiagnostico));
 console.log("Valor recibido de districtName:", districtName);
 console.log("🟦 DEBUG: districtName recibido por DistrictPopup:", districtName);
 
-  return (
-    <div className="district-popup-container">
-      
-      {/* HEADER ROJO */}
-      <div className="district-popup-header">
-        <span>DATOS DEL DISTRITO</span>
-      </div>
+return (
+  <div className="district-popup-container">
 
-      <div className="district-popup-content">
-
-        {/* TÍTULO DISTRITO */}
-        <h2 className="popup-title">{districtName}</h2>
-        <div className="popup-title-underline"></div>
-
-        {/* TARJETAS SUPERIORES (Casos y Población) */}
-        <div className="stats-row">
-          <div className="stat-box blue">
-            <span className="stat-label">N° Casos Totales</span>
-            <span className="stat-value">{fmt(caseCount)}</span>
-          </div>
-
-          {poblacion && (
-            <div className="stat-box green">
-              <span className="stat-label">Población Total</span>
-              <span className="stat-value">{fmt(poblacion.POBLACION_TOTAL)}</span>
-            </div>
-          )}
-        </div>
-
-        {/* SECCIÓN: POBLACIÓN POR SEXO */}
-        {poblacion && (
-          <div className="info-section">
-            <h3 className="section-title">Población por Sexo</h3>
-            <div className="sexo-grid">
-              <div className="sexo-item">
-                <span className="label">Masculino</span>
-                <span className="value">{fmt(poblacion.MASCULINO)}</span>
-              </div>
-              <div className="sexo-item">
-                <span className="label">Femenino</span>
-                <span className="value">{fmt(poblacion.FEMENINO)}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* SECCIÓN: POBLACIÓN POR CURSO DE VIDA */}
-        {poblacion && (
-          <div className="info-section">
-            <h3 className="section-title">Población por Curso de Vida</h3>
-
-            <div className="life-stage-grid">
-              {/* Se pasó la función fmt al componente LifeStageRow */}
-              <LifeStageRow icon="👦" label="Niños (0-11)" value={poblacion.NIÑO} />
-              <LifeStageRow icon="👱" label="Adolescente (12-17)" value={poblacion.Adolescente} />
-              <LifeStageRow icon="🧑" label="Joven (18-29)" value={poblacion.Joven} />
-              <LifeStageRow icon="👨" label="Adulto (30-59)" value={poblacion.Adulto} />
-              <LifeStageRow icon="👴" label="Adulto Mayor (60+)" value={poblacion.Adulto_Mayor} />
-            </div>
-          </div>
-        )}
-
-        {/* ⭐⭐⭐ DETALLE MÚLTIPLES DIAGNÓSTICOS ⭐⭐⭐ */}
-        {(diagnosticoSeleccionado?.length ?? 0) > 0 && (
-          <div className="info-section">
-            <h3 className="section-title">Detalle de Diagnósticos</h3>
-
-            {diagnosticoSeleccionado.map((diag) => {
-              
-              const data = detalleDiagnostico?.[diag] || { total: 0 };
-
-              const isTBC =
-                (diag.toLowerCase().includes("tbc") && !diag.toLowerCase().includes("pulmonar")) ||
-                diag.toLowerCase().includes("tia");
-
-
-              const isEDAS =
-                diag === "diagnostico-edas" ||
-                diag === "EDAS" ||
-                diag === "Enfermedades diarreicas agudas";
-
-              const isFEBRILES =
-                diag.toLowerCase().includes("feb") ||
-                diag.toLowerCase().includes("fiebre");
-
-              const isIRAS =
-                diag === "diagnostico-iras" ||
-                diag.toLowerCase().includes("ira") ||
-                diag.toLowerCase().includes("respiratoria");
-
-              const isTBCPulmonar = diag === "diagnostico-tbcpulmonar";
-
-              // ⭐ CORRECCIÓN TS7006: Se tipó el parámetro 'code' como string y se tipó el objeto labels.
-              const labelFebriles = (code: string) => {
-                const labels: Record<string, string> = {
-                  "feb_m1": "Menor de 1 año",
-                  "feb_1_4": "1 a 4 años",
-                  "feb_5_9": "5 a 9 años",
-                  "feb_10_19": "10 a 19 años",
-                  "feb_20_59": "20 a 59 años",
-                  "feb_m60": "60 años a más",
-                };
-                return labels[code] || code;
-              };
-
-              const displayTitle = diag
-                .replace("diagnostico-", "")
-                .replace(/-/g, " ")
-                .toUpperCase();
-console.log("🟦 DEBUG: districtName recibido por DistrictPopup:", districtName);
-
-              return (
-                <div key={diag} className="diag-item-container">
-
-                  <div className="diag-header">
-                    <span className="diag-name">{displayTitle}</span>
-                    <span className="diag-total">{fmt(data.total)}</span>
-                  </div>
-
-                  {/* 🔥 EDAS: DAA + DIS */}
-                  {isEDAS && (
-                    <div className="diag-details">
-                      <div className="detail-row">
-                        <span>DAA (Diarrea Aguda)</span>
-                        <strong>{fmt(data.daa)}</strong>
-                      </div>
-                      <div className="detail-row">
-                        <span>DIS (Disentería)</span>
-                        <strong>{fmt(data.dis)}</strong>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 🔥 FEBRILES: grupos de edad */}
-                  {isFEBRILES && data.detalle && (
-                    <div className="diag-details">
-                      {data.detalle.map((item, index) => (
-                        <div key={index} className="detail-row">
-                          {/* Se asume que item.grupo_edad es un string */}
-                          <span>{labelFebriles(item.grupo_edad as string)}</span> 
-                          <strong>{fmt(item.cantidad)}</strong>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                    {isIRAS && (
-                    <div className="diag-details">
-                      <div className="detail-row">
-                        <span>IRA No Neumonía</span>
-                        <strong>{fmt(data.ira_no_neumonia)}</strong>
-                      </div>
-
-                      <div className="detail-row">
-                        <span>SOB/ASMA</span>
-                        <strong>{fmt(data.sob_asma)}</strong>
-                      </div>
-
-                      <div className="detail-row">
-                        <span>Neumonía Grave</span>
-                        <strong>{fmt(data.neumonia_grave)}</strong>
-                      </div>
-
-                      <div className="detail-row">
-                        <span>Neumonía</span>
-                        <strong>{fmt(data.neumonia)}</strong>
-                      </div>
-                    </div>
-                  )}
-                  {isTBCPulmonar && (
-                    <div className="diag-details">
-                      <div className="detail-row">
-                        <span>Casos de TBC Pulmonar Confirmada</span>
-                        <strong>{fmt(data.total)}</strong>
-                      </div>
-                    </div>
-                  )}
-
-                  {isTBC && (
-                    <div className="diag-details">
-                      <div className="detail-row">
-                        <span>Tasa TIA por 100,000 hab.</span>
-                        <strong>{fmt(data.TIA_100k)}</strong>
-                      </div>
-                      <div className="detail-row">
-                        <span>Casos Totales (TB)</span>
-                        <strong>{fmt(data.total)}</strong>
-                      </div>
-                    </div>
-                  )}
-                  {/* 🟢 OTROS DIAGNÓSTICOS (tipo_dx) */}
-                  {!isEDAS && !isFEBRILES &&!isIRAS &&!isTBC && data.detalle && data.detalle.length > 0 && (
-                    <div className="diag-details">
-                      {data.detalle.map((d) => (
-                        <div key={d.tipo_dx} className="detail-row">
-                          <span>{d.tipo_dx}</span>
-                          <strong>{fmt(d.cantidad)}</strong>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ⭐⭐⭐ NUEVO BOTÓN "VER DATOS" ⭐⭐⭐ */}
-        <div className="data-button-container">
-          <button
-            className="view-data-button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              console.log("CLICK DETECTADO ✔");
-              handleViewData();
-            }}
-          >
-            Ver Datos <i className="fas fa-chart-bar"></i>
-          </button>
-
-        </div>
-      </div>
+    {/* HEADER */}
+    <div className="district-popup-header">
+      <span>DATOS DEL DISTRITO</span>
     </div>
-  );
+
+    <div className="district-popup-content">
+
+      {/* TÍTULO */}
+      <h2 className="popup-title">{districtName}</h2>
+      <div className="popup-title-underline"></div>
+
+      {/* TARJETAS SUPERIORES */}
+      <div className="stats-row">
+        <div className="stat-box blue">
+          <span className="stat-label">N° Casos Totales</span>
+          <span className="stat-value">{fmt(caseCount)}</span>
+        </div>
+
+        {poblacion && (
+          <div className="stat-box green">
+            <span className="stat-label">Población Total</span>
+            <span className="stat-value">{fmt(poblacion.POBLACION_TOTAL)}</span>
+          </div>
+        )}
+      </div>
+
+      {/* POBLACIÓN POR SEXO */}
+      {poblacion && (
+        <div className="info-section">
+          <h3 className="section-title">Población por Sexo</h3>
+          <div className="sexo-grid">
+            <div className="sexo-item">
+              <span className="label">Masculino</span>
+              <span className="value">{fmt(poblacion.MASCULINO)}</span>
+            </div>
+            <div className="sexo-item">
+              <span className="label">Femenino</span>
+              <span className="value">{fmt(poblacion.FEMENINO)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POBLACIÓN POR CURSO DE VIDA */}
+      {poblacion && (
+        <div className="info-section">
+          <h3 className="section-title">Población por Curso de Vida</h3>
+          <div className="life-stage-grid">
+            <LifeStageRow icon="👦" label="Niños (0-11)" value={poblacion.NIÑO} />
+            <LifeStageRow icon="👱" label="Adolescente (12-17)" value={poblacion.Adolescente} />
+            <LifeStageRow icon="🧑" label="Joven (18-29)" value={poblacion.Joven} />
+            <LifeStageRow icon="👨" label="Adulto (30-59)" value={poblacion.Adulto} />
+            <LifeStageRow icon="👴" label="Adulto Mayor (60+)" value={poblacion.Adulto_Mayor} />
+          </div>
+        </div>
+      )}
+
+      {/* ==================== DETALLE DE DIAGNÓSTICOS ==================== */}
+      {(diagnosticoSeleccionado?.length ?? 0) > 0 && (
+        <div className="info-section">
+          <h3 className="section-title">Detalle de Diagnósticos</h3>
+
+          {diagnosticoSeleccionado.map((diag) => {
+
+            const data = detalleDiagnostico?.[diag] || { total: 0 };
+
+            const isEDAS = diag === "diagnostico-edas";
+            const isFEBRILES = diag.toLowerCase().includes("feb");
+            const isIRAS = diag === "diagnostico-iras";
+            const isTBCPulmonar = diag === "diagnostico-tbcpulmonar";
+            const isTBC = diag.toLowerCase().includes("tbc") || diag.toLowerCase().includes("tia");
+
+            const displayTitle = diag
+              .replace("diagnostico-", "")
+              .replace(/-/g, " ")
+              .toUpperCase();
+
+            return (
+              <div key={diag} className="diag-item-container">
+
+                <div className="diag-header">
+                  <span className="diag-name">{displayTitle}</span>
+                  <span className="diag-total">{fmt(data.total)}</span>
+                </div>
+
+                {/* EDAS */}
+                {isEDAS && (
+                  <div className="diag-details">
+                    <div className="detail-row">
+                      <span>DAA</span>
+                      <strong>{fmt(data.daa)}</strong>
+                    </div>
+                    <div className="detail-row">
+                      <span>DIS</span>
+                      <strong>{fmt(data.dis)}</strong>
+                    </div>
+                  </div>
+                )}
+
+                {/* FEBRILES */}
+                {isFEBRILES && data.detalle && (
+                  <div className="diag-details">
+                    {data.detalle.map((d, i) => (
+                      <div key={i} className="detail-row">
+                        <span>{d.grupo_edad}</span>
+                        <strong>{fmt(d.cantidad)}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* IRAS */}
+                {isIRAS && (
+                  <div className="diag-details">
+                    <div className="detail-row">
+                      <span>IRA No Neumonía</span>
+                      <strong>{fmt(data.ira_no_neumonia)}</strong>
+                    </div>
+                    <div className="detail-row">
+                      <span>SOB/ASMA</span>
+                      <strong>{fmt(data.sob_asma)}</strong>
+                    </div>
+                    <div className="detail-row">
+                      <span>Neumonía Grave</span>
+                      <strong>{fmt(data.neumonia_grave)}</strong>
+                    </div>
+                    <div className="detail-row">
+                      <span>Neumonía</span>
+                      <strong>{fmt(data.neumonia)}</strong>
+                    </div>
+                  </div>
+                )}
+
+                {/* TBC PULMONAR */}
+                {isTBCPulmonar && (
+                  <div className="diag-details">
+                    <div className="detail-row">
+                      <span>Casos Confirmados</span>
+                      <strong>{fmt(data.total)}</strong>
+                    </div>
+                  </div>
+                )}
+
+                {/* TBC / TIA */}
+                {isTBC && data.TIA_100k !== undefined && (
+                  <div className="diag-details">
+                    <div className="detail-row">
+                      <span>TIA x 100,000 hab.</span>
+                      <strong>{fmt(data.TIA_100k)}</strong>
+                    </div>
+                  </div>
+                )}
+
+                {/* 🟣 OTROS (AQUÍ ENTRA DEPRESIÓN) */}
+                {!isEDAS && !isFEBRILES && !isIRAS && !isTBC && data.detalle && (
+                  <div className="diag-details">
+                    {data.detalle.map((d) => (
+                      <div key={d.tipo_dx} className="detail-row">
+                        <span>{d.tipo_dx}</span>
+                        <strong>{fmt(d.cantidad)}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* BOTÓN EXPORTAR */}
+      <div className="data-button-container">
+        <button
+          className="view-data-button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleViewData();
+          }}
+        >
+          Ver Datos <i className="fas fa-chart-bar"></i>
+        </button>
+      </div>
+
+    </div>
+  </div>
+);
+
 };
 
 export default DistrictPopup;
