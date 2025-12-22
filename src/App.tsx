@@ -1954,7 +1954,7 @@ const filteredLayers = useMemo(() => {
           <button title="Mapa Base" onClick={() => setBaseMapSelectorOpen(true)}>
             🗺️
           </button>
-          <button title="Principal">🖥️</button>
+          <button title="Principal" onClick={() => window.location.href = 'http://10.0.5.237:8000'}>🖥️</button>
           <button title="Estadística" onClick={() => window.location.href = 'http://10.0.2.22/geoestadistica/'}>📊</button>
           <button title="Docencia" onClick={() => window.location.href = 'http://10.0.21.76:2005/mapa_ris/'}>🎓</button>
           <button title="Captura">🖼️</button>
