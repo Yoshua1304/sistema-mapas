@@ -3,7 +3,7 @@ import pandas as pd
 import io
 from flask_cors import CORS
 from database import connect    # tu función centralizada de conexión
-from database import get_edas_connection,get_iras_connection, get_TB_connection, get_febriles_connection, get_depresion_connection,get_violencia_connection,get_diabetes_connection,get_cancer_connection,get_renal_connection,get_transito_connection
+from database import get_edas_connection,get_iras_connection, get_TB_connection, get_febriles_connection, get_depresion_connection,get_violencia_connection,get_diabetes_connection,get_cancer_connection,get_renal_connection,get_transito_connection,get_mortalidad_connection
 from openpyxl import Workbook
 app = Flask(__name__)
 
@@ -667,6 +667,119 @@ def get_transito_por_distrito(distrito):
     finally:
         conn.close()
 
+def get_mortalidad_materna_por_distrito(distrito):
+    conn = get_mortalidad_connection()
+    if conn is None:
+        return jsonify({"error": "Error conexión Mortalidad Materna"}), 500
+
+    try:
+        cursor = conn.cursor()
+
+        sql = """
+            SELECT COUNT(*) AS total
+            FROM MM_REPORTE_2024
+            WHERE
+                LTRIM(RTRIM(nom_ubigeo)) COLLATE Latin1_General_CI_AI
+                = LTRIM(RTRIM(?)) COLLATE Latin1_General_CI_AI
+                AND [ano] = 2025
+        """
+
+        cursor.execute(sql, (distrito,))
+        row = cursor.fetchone()
+        total = row[0] if row else 0
+
+        return jsonify({
+            "nom_ubigeo": distrito,
+            "enfermedad": "mortalidad_materna",
+            "total": total,
+            "detalle": [
+                {"tipo_dx": "mortalidad_materna", "cantidad": total}
+            ]
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
+
+
+def get_mortalidad_extrema_por_distrito(distrito):
+    conn = get_mortalidad_connection()
+    if conn is None:
+        return jsonify({"error": "Error conexión Diabetes"}), 500
+
+    try:
+        cursor = conn.cursor()
+
+        sql = """
+            SELECT
+                COUNT(*) AS total
+            FROM MME_REPORTE_2024
+            WHERE
+                UPPER(distrito) = UPPER(?)
+                AND [anio_not] = 2025
+        """
+
+        cursor.execute(sql, (distrito,))
+        row = cursor.fetchone()
+
+        total = row[0] if row else 0
+
+        return jsonify({
+            "distrito": distrito,
+            "enfermedad": "mortalidad_materna",
+            "total": total,
+            "detalle": [
+                {"tipo_dx": "mortalidad_materna", "cantidad": total}
+            ]
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
+
+def get_mortalidad_neonatal_por_distrito(distrito):
+    conn = get_mortalidad_connection()
+    if conn is None:
+        return jsonify({"error": "Error conexión Diabetes"}), 500
+
+    try:
+        cursor = conn.cursor()
+
+        sql = """
+            SELECT
+                COUNT(*) AS total
+            FROM MNP_REPORTE_2024
+            WHERE
+                UPPER(distrito) = UPPER(?)
+                AND [anio] = 2025
+        """
+
+        cursor.execute(sql, (distrito,))
+        row = cursor.fetchone()
+
+        total = row[0] if row else 0
+
+        return jsonify({
+            "distrito": distrito,
+            "enfermedad": "mortalidad_neonatal_perinatal",
+            "total": total,
+            "detalle": [
+                {"tipo_dx": "mortalidad_neonatal_perinatal", "cantidad": total}
+            ]
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
+
+
+
 # ============================================================
 # 2. ENDPOINT: CASOS POR ENFERMEDAD
 # ============================================================
@@ -798,7 +911,7 @@ def casos_enfermedad():
         return get_renal_por_distrito(distrito)
 
     # -------------------------------------------
-    # 🟣 RENAL
+    # 🟣 TRANSITO
     # -------------------------------------------
     if enfermedad.upper() in [
         "ACCIDENTE TRANSITO",
@@ -807,6 +920,40 @@ def casos_enfermedad():
         "DIAGNOSTICO-TRANSITO",
     ]:
         return get_transito_por_distrito(distrito)
+    
+    # -------------------------------------------
+    # 🟣 MUERTE MATERNA
+    # -------------------------------------------
+    if enfermedad.upper() in [
+        "MUERTE MATERNA",
+        "DIAGNOSTICO-MUERTE-MATERNA",
+        "MATERNA",
+        "DIAGNOSTICO-MATERNA",
+    ]:
+        return get_mortalidad_materna_por_distrito(distrito)
+
+    # -------------------------------------------
+    # 🟣 MUERTE MATERNA EXTREMA
+    # -------------------------------------------
+    if enfermedad.upper() in [
+        "MUERTE MATERNA EXTREMA",
+        "DIAGNOSTICO-MUERTE-MATERNA-EXTREMA",
+        "MATERNA EXTREMA",
+        "DIAGNOSTICO-MATERNA-EXTREMA",
+    ]:
+        return get_mortalidad_extrema_por_distrito(distrito)
+    
+    # -------------------------------------------
+    # 🟣 MUERTE PERINATAL NEONATAL
+    # -------------------------------------------
+    if enfermedad.upper() in [
+        "MUERTE PERINATAL NEONATAL",
+        "DIAGNOSTICO-MUERTE-PERINATAL-NEONATAL",
+        "PERINATAL-NEONATAL",
+        "DIAGNOSTICO-PERINATAL-NEONATAL",
+    ]:
+        return get_mortalidad_neonatal_por_distrito(distrito)
+
 
     # -------------------------------------------
     # 🟢 NOTIWEB (normal)

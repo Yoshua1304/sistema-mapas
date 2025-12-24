@@ -271,11 +271,9 @@ const VIGILANCIA_LAYER_DATA: Layer = {
         {
             id: 'diagnostico-materno-perinatal', name: 'Materno Perinatal', subLayers: [
                 { id: 'diagnostico-madre-nino', name: 'Madre Niño', subLayers: [
-              { id: 'diagnostico-muerte-materna-directa', name: 'Muerte materna directa' },
-              { id: 'diagnostico-muerte-materna-directa-tardia', name: 'Muerte materna directa tardía' },
-              { id: 'diagnostico-muerte-materna-indirecta', name: 'Muerte materna indirecta' },
-              { id: 'diagnostico-muerte-materna-indirecta-tardia', name: 'Muerte materna indirecta tardía' },
-              { id: 'diagnostico-muerte-materna-incidental', name: 'Muerte materna incidental' }
+              { id: 'diagnostico-muerte-materna', name: 'Muerte materna' },
+              { id: 'diagnostico-muerte-materna-extrema', name: 'Muerte materna extrema' },
+              { id: 'diagnostico-muerte-perinatal-neonatal', name: 'Muerte perinatal neonatal' },
           ]}
             ]
         },

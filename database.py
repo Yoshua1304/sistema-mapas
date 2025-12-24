@@ -56,4 +56,6 @@ def get_renal_connection():
 def get_transito_connection():
     return connect("EPI_BD_ACCIDENTES_TRANSITO")
 
-
+# 🔵 NUEVA CONEXIÓN PARA TUBERCULOSIS
+def get_mortalidad_connection():
+    return connect("EPI_BD_VIGILANCIA_EPIDEMIOLOGICA_DE_MORTALIDAD")
