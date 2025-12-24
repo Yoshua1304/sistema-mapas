@@ -947,10 +947,10 @@ def casos_enfermedad():
     # 🟣 MUERTE PERINATAL NEONATAL
     # -------------------------------------------
     if enfermedad.upper() in [
-        "MUERTE PERINATAL NEONATAL",
-        "DIAGNOSTICO-MUERTE-PERINATAL-NEONATAL",
-        "PERINATAL-NEONATAL",
-        "DIAGNOSTICO-PERINATAL-NEONATAL",
+        "MUERTE FETAL NEONATAL",
+        "DIAGNOSTICO-MUERTE-FETAL-NEONATAL",
+        "FETAL-NEONATAL",
+        "DIAGNOSTICO-FETAL-NEONATAL",
     ]:
         return get_mortalidad_neonatal_por_distrito(distrito)
 
