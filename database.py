@@ -48,4 +48,12 @@ def get_diabetes_connection():
 def get_cancer_connection():
     return connect("EPI_BD_ENFERMEDADES_NO_TRANSMISIBLES")
 
+# 🔴 NUEVA CONEXIÓN PARA EDAS
+def get_renal_connection():
+    return connect("EPI_BD_RENAL")
+
+# 🔴 NUEVA CONEXIÓN PARA EDAS
+def get_transito_connection():
+    return connect("EPI_BD_ACCIDENTES_TRANSITO")
+
 

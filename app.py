@@ -3,7 +3,7 @@ import pandas as pd
 import io
 from flask_cors import CORS
 from database import connect    # tu función centralizada de conexión
-from database import get_edas_connection,get_iras_connection, get_TB_connection, get_febriles_connection, get_depresion_connection,get_violencia_connection,get_diabetes_connection,get_cancer_connection
+from database import get_edas_connection,get_iras_connection, get_TB_connection, get_febriles_connection, get_depresion_connection,get_violencia_connection,get_diabetes_connection,get_cancer_connection,get_renal_connection,get_transito_connection
 from openpyxl import Workbook
 app = Flask(__name__)
 
@@ -65,6 +65,10 @@ def exportar_datos():
         "apepat", "apemat", "nombres", "sexo",
         "fecha_nac", "edad", "usuario",
         "ubigeo_res", "SEXO_2","dni"
+    ]
+    COLUMNAS_PROHIBIDAS_RENAL = [
+        "nroDoc", "apellidoMaterno", "apellidoPaterno", "nombres",
+        "nombreCompleto", "fechaNacimiento", "ubigeo","direccion"
     ]
     COLUMNAS_PROHIBIDAS_NOTIWEB_2025 = [
         "APEPAT", "APEMAT", "NOMBRES",
@@ -159,6 +163,30 @@ def exportar_datos():
             "campo_distrito":"distrito",
             "campo_anio":"ano",
             "columnas_prohibidas":COLUMNAS_PROHIBIDAS_DIABETES
+        },
+            "Renal": {
+            "conexion": get_renal_connection,
+            "tabla": "BD_RENAL",
+            "campo_distrito":"distrito",
+            "campo_anio":"año",
+            "columnas_prohibidas":COLUMNAS_PROHIBIDAS_RENAL
+        },
+        "Cáncer": {
+            "conexion": get_cancer_connection,
+            "tablas": [
+                {
+                    "nombre": "CANCER_INFANTIL",
+                    "tabla": "REPORTE_CANCER_INFANTIL",
+                    "campo_distrito": "Distrito",
+                    "campo_anio": "AÑO"
+                },
+                {
+                    "nombre": "CANCER_ADULTO",
+                    "tabla": "REPORTE_CANCER_ADULTO",
+                    "campo_distrito": "Distrito",
+                    "campo_anio": "AÑO"
+                }
+            ]
         }
     }
 
@@ -174,6 +202,39 @@ def exportar_datos():
     #   4️⃣ GENERAR HOJAS POR DIAGNÓSTICO
     # ======================================================
     for dx in diagnosticos:
+        # =====================================
+        # 🟣 CÁNCER (DOS TABLAS)
+        # =====================================
+        if dx == "Cáncer":
+            info = MAPEOS["Cáncer"]
+
+            for t in info["tablas"]:
+                try:
+                    print(f"📄 Hoja cáncer: {dx} - {t['nombre']}")
+                    conn = info["conexion"]()
+
+                    query = f"""
+                        SELECT *
+                        FROM {t['tabla']}
+                        WHERE UPPER({t['campo_distrito']}) = UPPER(?)
+                        AND {t['campo_anio']} = 2025
+                    """
+
+                    df_diag = pd.read_sql(query, conn, params=[distrito])
+                    conn.close()
+
+                    if df_diag.empty:
+                        df_diag = pd.DataFrame({
+                            "Mensaje": [f"Sin registros de {t['nombre']} en {distrito}"]
+                        })
+
+                except Exception as e:
+                    df_diag = pd.DataFrame({"Error": [str(e)]})
+
+                hoja = f"{dx}_{t['nombre']}"[:31]
+                df_diag.to_excel(writer, index=False, sheet_name=hoja)
+
+            continue  # 🔥 FUNDAMENTAL
 
         nombre_hoja = dx[:31]
 
@@ -474,9 +535,137 @@ def get_diabetes_por_distrito(distrito):
 def get_cancer_por_distrito(distrito):
     conn = get_cancer_connection()
     if conn is None:
+        return jsonify({"error": "Error conexión CÁNCER"}), 500
+
+    try:
+        cursor = conn.cursor()
+
+        query = """
+            SELECT
+                SUM(CASE WHEN origen = 'ADULTO' THEN total ELSE 0 END) AS CANCER_ADULTO,
+                SUM(CASE WHEN origen = 'INFANTIL' THEN total ELSE 0 END) AS CANCER_INFANTIL
+            FROM (
+                SELECT
+                    'ADULTO' AS origen,
+                    COUNT(*) AS total
+                FROM REPORTE_CANCER_ADULTO
+                WHERE Año = 2025
+                  AND UPPER(Distrito) = UPPER(?)
+
+                UNION ALL
+
+                SELECT
+                    'INFANTIL' AS origen,
+                    COUNT(*) AS total
+                FROM REPORTE_CANCER_INFANTIL
+                WHERE Año = 2025
+                  AND UPPER(Distrito) = UPPER(?)
+            ) t
+        """
+
+        cursor.execute(query, (distrito, distrito))
+        row = cursor.fetchone()
+
+        cancer_adulto = int(row.CANCER_ADULTO) if row and row.CANCER_ADULTO else 0
+        cancer_infantil = int(row.CANCER_INFANTIL) if row and row.CANCER_INFANTIL else 0
+
+        total = cancer_adulto + cancer_infantil
+
+        return jsonify({
+            "distrito": distrito,
+            "total": total,
+            "detalle": [
+                {
+                    "tipo_dx": "CANCER ADULTO",
+                    "cantidad": cancer_adulto
+                },
+                {
+                    "tipo_dx": "CANCER INFANTIL",
+                    "cantidad": cancer_infantil
+                }
+            ]
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        cursor.close()
+        conn.close()
+  
+def get_renal_por_distrito(distrito):
+    conn = get_renal_connection()
+    if conn is None:
         return jsonify({"error": "Error conexión Diabetes"}), 500
 
-    
+    try:
+        cursor = conn.cursor()
+
+        sql = """
+            SELECT
+                COUNT(*) AS total
+            FROM BD_RENAL
+            WHERE
+                UPPER(distrito) = UPPER(?)
+                AND [año] = 2025
+        """
+
+        cursor.execute(sql, (distrito,))
+        row = cursor.fetchone()
+
+        total = row[0] if row else 0
+
+        return jsonify({
+            "distrito": distrito,
+            "enfermedad": "renal",
+            "total": total,
+            "detalle": [
+                {"tipo_dx": "Renal", "cantidad": total}
+            ]
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
+
+def get_transito_por_distrito(distrito):
+    conn = get_transito_connection()
+    if conn is None:
+        return jsonify({"error": "Error conexión Diabetes"}), 500
+
+    try:
+        cursor = conn.cursor()
+
+        sql = """
+            SELECT
+                COUNT(*) AS total
+            FROM REPORTE_ACCIDENTES_TRANSITO
+            WHERE
+                UPPER(DISTRITO) = UPPER(?)
+                AND [ANO] = 2025
+        """
+
+        cursor.execute(sql, (distrito,))
+        row = cursor.fetchone()
+
+        total = row[0] if row else 0
+
+        return jsonify({
+            "distrito": distrito,
+            "enfermedad": "Transito",
+            "total": total,
+            "detalle": [
+                {"tipo_dx": "Transito", "cantidad": total}
+            ]
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
 
 # ============================================================
 # 2. ENDPOINT: CASOS POR ENFERMEDAD
@@ -587,7 +776,37 @@ def casos_enfermedad():
     ]:
         return get_diabetes_por_distrito(distrito)
 
+    # -------------------------------------------
+    # 🟤 CÁNCER TOTAL
+    # -------------------------------------------
+    if enfermedad.upper() in [
+        "CANCER",
+        "CÁNCER",
+        "CANCER TOTAL",
+        "DIAGNOSTICO-CANCER",
+        "DIAGNOSTICO-CANCER-TOTAL"
+    ]:
+        return get_cancer_por_distrito(distrito)
 
+    # -------------------------------------------
+    # 🟣 RENAL
+    # -------------------------------------------
+    if enfermedad.upper() in [
+        "RENAL",
+        "DIAGNOSTICO-RENAL",
+    ]:
+        return get_renal_por_distrito(distrito)
+
+    # -------------------------------------------
+    # 🟣 RENAL
+    # -------------------------------------------
+    if enfermedad.upper() in [
+        "ACCIDENTE TRANSITO",
+        "DIAGNOSTICO-ACCIDENTE-TRANSITO",
+        "TRANSITO",
+        "DIAGNOSTICO-TRANSITO",
+    ]:
+        return get_transito_por_distrito(distrito)
 
     # -------------------------------------------
     # 🟢 NOTIWEB (normal)

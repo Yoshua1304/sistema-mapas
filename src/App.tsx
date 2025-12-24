@@ -251,7 +251,7 @@ const VIGILANCIA_LAYER_DATA: Layer = {
                     { id: 'diagnostico-violencia', name: 'Violencia familiar' },
                 ]},
                 { id: 'diagnostico-accidentes-transito', name: 'Accidentes de Tránsito', subLayers: [
-                    { id: 'diagnostico-lesiones-transito', name: 'Lesiones por accidente de tránsito' }
+                    { id: 'diagnostico-Accidente-Transito', name: 'Accidente Transito' }
                 ]},
                 { id: 'diagnostico-enf-cronicas', name: 'Enfermedades Crónicas', subLayers: [
                     { id: 'diagnostico-cancer', name: 'Cáncer' },
