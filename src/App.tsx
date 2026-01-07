@@ -250,9 +250,9 @@ const VIGILANCIA_LAYER_DATA: Layer = {
                     { id: 'diagnostico-Depresion', name: 'Depresion' },
                     { id: 'diagnostico-violencia', name: 'Violencia familiar' },
                 ]},
-                { id: 'diagnostico-accidentes-transito', name: 'Accidentes de Tránsito', subLayers: [
-                    { id: 'diagnostico-Accidente-Transito', name: 'Accidente Transito' }
-                ]},
+  //              { id: 'diagnostico-accidentes-transito', name: 'Accidentes de Tránsito', subLayers: [
+  //                  { id: 'diagnostico-Accidente-Transito', name: 'Accidente Transito' }
+  //              ]},
                 { id: 'diagnostico-enf-cronicas', name: 'Enfermedades Crónicas', subLayers: [
                     { id: 'diagnostico-cancer', name: 'Cáncer' },
                     { id: 'diagnostico-diabetes', name: 'Diabetes' },
@@ -261,33 +261,45 @@ const VIGILANCIA_LAYER_DATA: Layer = {
                 ]},
             ]
         },
-        {
-            id: 'diagnostico-vigilancia-hospitalaria', name: 'Vigilancia Hospitalaria', subLayers: [
-                { id: 'diagnostico-iaas', name: 'Infecciones Asociadas a la Atención de la Salud', subLayers: [
-                    { id: 'diagnostico-iaas-sub', name: 'Infecciones Asociadas a la Atención de la Salud' }
-                ]},
-            ]
-        },
+ //    {
+ //           id: 'diagnostico-vigilancia-hospitalaria', name: 'Vigilancia Hospitalaria', subLayers: [
+ //              { id: 'diagnostico-iaas', name: 'Infecciones Asociadas a la Atención de la Salud', subLayers: [
+ //                 { id: 'diagnostico-iaas-sub', name: 'Infecciones Asociadas a la Atención de la Salud' }
+ //            ]},
+ //        ]
+ //   },
         {
             id: 'diagnostico-materno', name: 'Vigilancia Materno', subLayers: [
               { id: 'diagnostico-muerte-materna', name: 'Muerte materna' },
               { id: 'diagnostico-muerte-materna-extrema', name: 'Muerte materna extrema' },
-              { id: 'diagnostico-muerte-fetal-neonatal', name: 'Muerte fetal neonatal' },
+             { id: 'diagnostico-muerte-fetal-neonatal', name: 'Muerte fetal neonatal' },
             ]
         },
         {
             id: 'diagnostico-riesgos-ambientales', name: 'Riesgos Ambientales', subLayers: [
                 { id: 'diagnostico-plaguicidas-metales', name: 'Plaguicidas y Metales', subLayers: [
-                    { id: 'diagnostico-efecto-plaguicidas', name: 'Efecto tóxico de plaguicidas' }
+                    { id: 'diagnostico-efecto-plaguicidas', name: 'Efecto toxico de plaguicidas' },
+                    //{ id: 'diagnostico-Mercurio-y-sus-compuestos', name: 'Mercurio y sus compuestos' },
+                    //{ id: 'diagnostico-Insec.-Org.-Fosf.-y-Carbonatos', name: 'Insec. Org. Fosf. y Carbonatos' },
+                    //{ id: 'diagnostico-Efecto toxico-de-otras-susteansias-inorganicas', name: 'Efecto toxico de otras sustansias inorganicas' },
+                    { id: 'diagnostico-Metal,-no-Especificado', name: 'Metal, no Especificado' },
+                    //{ id: 'diagnostico-Plaguicida-no-especificado', name: 'Plaguicida no especificado' },
+                    //{ id: 'diagnostico-Cromo-y-sus-compuestos', name: 'Cromo y sus compuestos' },
+                    //{ id: 'diagnostico-Otros-plaguicidas', name: 'Otros plaguicidas' },
+                    //{ id: 'diagnostico-Rodenticidas', name: 'Rodenticidas' },
+                    //{ id: 'diagnostico-insec.-halogenados', name: 'insec. halogenados' },
+                    //{ id: 'diagnostico-derivados-halogenados-de-hidrocarburos-alifaticos-y-aromaticos', name: 'derivados halogenados de hidrocarburos alifaticos y aromaticos' },
+                    //{ id: 'diagnostico-Otros-metales', name: 'Otros metales' },
+                    //{ id: 'diagnostico-Cadmio-y-sus-compuestos', name: 'Cadmio y sus compuestos' }
                 ]}
             ]
         },
-        {
-            id: 'diagnostico-otras-vigilancias', name: 'Otras Vigilancias', subLayers: [
-                { id: 'diagnostico-brotes-epidemias', name: 'Brotes, epidemias y emergencias sanitarias' },
-                { id: 'diagnostico-cambio-climatico', name: 'Cambio Climático-Emergencias y Desastres' },
-            ]
-        }
+//        {
+//           id: 'diagnostico-otras-vigilancias', name: 'Otras Vigilancias', subLayers: [
+//                { id: 'diagnostico-brotes-epidemias', name: 'Brotes, epidemias y emergencias sanitarias' },
+//                { id: 'diagnostico-cambio-climatico', name: 'Cambio Climático-Emergencias y Desastres' },
+//            ]
+//        }
     ]
 };
 

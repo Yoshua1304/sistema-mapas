@@ -83,6 +83,23 @@ def exportar_datos():
         "ETNIAPROC", "ETNIAS", "PROCEDE", "OTROPROC",
         "USUARIO", "FECHA_MOD", "USUARIO_MOD"
     ]
+    COLUMNAS_PROHIBIDAS_MUERTE_MATERNA = [
+        "apepat", "apemat", "nombres", "sexo",
+        "hclinica", "edad", "usuario","fechamod"
+        "cargo", "nombre_notificante","dni"
+    ]
+
+    COLUMNAS_PROHIBIDAS_MUERTE_MATERNA_EXTREMA = [
+        "tipo_documento", "numero_documento", "paterno", "materno",
+        "nombres", "edad", "historia_cli","medico_tratante"
+        "medico_colegiatura", "responsable","cargo","profesion","profesion_otro",
+        "usuario_reg_me","usuario_mod_me","usuario_reg_inv","usuario_mod_inv"
+    ]
+
+    COLUMNAS_PROHIBIDAS_MUERTE_FETAL_NEONATAL = [
+        "ubigeo_res", "edadges", "ape_nom", "apepat","fecha_met","hora_mte","responsable","dni_madre",
+        "apemat","nombres" ,"sexo", "fech_nac","hora_nac","latitud","longitud","usuario"
+    ]
 
     COLUMNAS_PROHIBIDAS_DEPRESION = [
         "dni", "apepat", "apemat", "nombres", "hc",
@@ -164,12 +181,33 @@ def exportar_datos():
             "campo_anio":"ano",
             "columnas_prohibidas":COLUMNAS_PROHIBIDAS_DIABETES
         },
-            "Renal": {
+         "Renal": {
             "conexion": get_renal_connection,
             "tabla": "BD_RENAL",
             "campo_distrito":"distrito",
             "campo_anio":"año",
             "columnas_prohibidas":COLUMNAS_PROHIBIDAS_RENAL
+        },
+         "Muerte materna": {
+            "conexion": get_mortalidad_connection,
+            "tabla": "MM_REPORTE_2024",
+            "campo_distrito":"nom_ubigeo",
+            "campo_anio":"ano",
+            "columnas_prohibidas": COLUMNAS_PROHIBIDAS_MUERTE_MATERNA
+        },
+         "Muerte materna extrema": {
+            "conexion": get_mortalidad_connection,
+            "tabla": "MME_REPORTE_2024",
+            "campo_distrito":"distrito",
+            "campo_anio":"anio_not",
+            "columnas_prohibidas": COLUMNAS_PROHIBIDAS_MUERTE_MATERNA_EXTREMA
+        },
+         "Muerte fetal neonatal": {
+            "conexion": get_mortalidad_connection,
+            "tabla": "MNP_REPORTE_2024",
+            "campo_distrito":"distrito",
+            "campo_anio":"anio",
+            "columnas_prohibidas": COLUMNAS_PROHIBIDAS_MUERTE_FETAL_NEONATAL
         },
         "Cáncer": {
             "conexion": get_cancer_connection,
@@ -703,7 +741,6 @@ def get_mortalidad_materna_por_distrito(distrito):
     finally:
         conn.close()
 
-
 def get_mortalidad_extrema_por_distrito(distrito):
     conn = get_mortalidad_connection()
     if conn is None:
@@ -777,7 +814,6 @@ def get_mortalidad_neonatal_por_distrito(distrito):
 
     finally:
         conn.close()
-
 
 
 # ============================================================
