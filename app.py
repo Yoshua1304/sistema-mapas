@@ -40,7 +40,7 @@ def exportar_datos():
         conn_pob = connect("EPI_TABLAS_MAESTRO")
         query_pob = """
             SELECT *
-            FROM POBLACION_2025_DIRIS_LIMA_CENTRO
+            FROM POBLACION_2026_DIRIS_LIMA_CENTRO
             WHERE UPPER(DISTRITO) = UPPER(?)
         """
         df_poblacion = pd.read_sql(query_pob, conn_pob, params=[distrito])
@@ -438,7 +438,7 @@ def api_poblacion():
             SUM([Joven]) AS Joven,
             SUM([Adulto]) AS Adulto,
             SUM([Adulto Mayor]) AS Adulto_Mayor
-        FROM [POBLACION_2025_DIRIS_LIMA_CENTRO]
+        FROM [POBLACION_2026_DIRIS_LIMA_CENTRO]
         WHERE UPPER([DISTRITO]) = UPPER(?)
     """
 
