@@ -31,6 +31,7 @@ const LayerItem: React.FC<LayerItemProps> = ({
 
   const [isExpanded, setIsExpanded] = useState(isInitiallyExpanded);
   const hasSubLayers = layer.subLayers && layer.subLayers.length > 0;
+  const isLeaf = !hasSubLayers;
 
   useEffect(() => {
     if (isSearchActive && hasSubLayers) {
@@ -75,17 +76,20 @@ const LayerItem: React.FC<LayerItemProps> = ({
 
         {/* Checkbox principal (mostrar la capa) */}
         {/* Para capas diagnósticas: este checkbox será la única UI */}
-        <input
-          type="checkbox"
-          checked={
-            layer.id.startsWith("diagnostico-")
-              ? !!diagnosticoSeleccionado?.includes(layer.name)
-              : isSelected
-          }
-          onChange={handleSelect}
-          onClick={(e) => e.stopPropagation()}
-          className="layer-checkbox"
-        />
+        {isLeaf && (
+          <input
+            type="checkbox"
+            checked={
+              layer.id.startsWith("diagnostico-")
+                ? !!diagnosticoSeleccionado?.includes(layer.name)
+                : isSelected
+            }
+            onChange={handleSelect}
+            onClick={(e) => e.stopPropagation()}
+            className="layer-checkbox"
+          />
+        )}
+
 
         <span className="layer-name">{layer.name}</span>
       </div>
