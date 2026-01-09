@@ -98,6 +98,15 @@
           padding: 5px 10px;
         }
       }
+
+      /* === MODO EMBEBIDO (iframe) === */
+      .embed-mode .header {
+        display: none;
+      }
+
+      .embed-mode .app-wrapper {
+        height: 100vh;
+      }
     </style>
   </head>
   <body>
@@ -116,6 +125,12 @@
       <div id="root"></div>
       
     </div>
+    <script>
+      if (window.self !== window.top) {
+        document.documentElement.classList.add('embed-mode');
+      }
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
