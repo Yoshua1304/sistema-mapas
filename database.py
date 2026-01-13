@@ -1,20 +1,21 @@
 import pyodbc
 
-SERVER = '10.0.0.10'
-USERNAME = 'knuñes'
-PASSWORD = '123456'
+SERVER = 'DIRISLIMA'   # o 10.0.5.181
 DRIVER = '{ODBC Driver 17 for SQL Server}'
 
 def connect(db_name: str):
-    """Conecta a la base de datos indicada."""
     try:
-        return pyodbc.connect(
-            f"DRIVER={DRIVER};SERVER={SERVER};DATABASE={db_name};UID={USERNAME};PWD={PASSWORD}"
+        conn = pyodbc.connect(
+            f"DRIVER={DRIVER};"
+            f"SERVER={SERVER};"
+            f"DATABASE={db_name};"
+            "Trusted_Connection=yes;"
+            "TrustServerCertificate=yes;"
         )
+        return conn
     except Exception as e:
-        print(f"❌ Error de conexión a {db_name}:", e)
+        print(f"❌ Error de conexión a {db_name}: {e}")
         return None
-
 
 # 🔴 NUEVA CONEXIÓN PARA EDAS
 def get_edas_connection():

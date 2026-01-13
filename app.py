@@ -37,7 +37,7 @@ def exportar_datos():
     #   1️⃣ POBLACIÓN (HOJA PRINCIPAL)
     # ======================================================
     try:
-        conn_pob = connect("EPI_TABLAS_MAESTRO")
+        conn_pob = connect("EPI_TABLAS_MAESTRO_2025")
         query_pob = """
             SELECT *
             FROM POBLACION_2026_DIRIS_LIMA_CENTRO
@@ -79,9 +79,9 @@ def exportar_datos():
         "TIPO_VIA", "NUM_PUERTA",
         "MANZANA", "BLOCK", "INTERIOR",
         "KILOMETRO", "LOTE", "REFERENCIA",
-        "AGRUP_RURAL", "NOMBRE_AGRUP",
+        "AGRUP_RURAL", "NOMBRE_AGRUP","coordenadas",
         "ETNIAPROC", "ETNIAS", "PROCEDE", "OTROPROC",
-        "USUARIO", "FECHA_MOD", "USUARIO_MOD"
+        "USUARIO", "FECHA_MOD", "USUARIO_MOD","LATITUD_UBIGEO","LONGITUD_UBIGEO","Ubicacion"
     ]
     COLUMNAS_PROHIBIDAS_MUERTE_MATERNA = [
         "apepat", "apemat", "nombres", "sexo",
@@ -314,7 +314,7 @@ def exportar_datos():
         else:
             try:
                 print(f"📄 Hoja NOTIWEB: {dx}")
-                conn = connect("EPI_TABLAS_MAESTRO")
+                conn = connect("EPI_TABLAS_MAESTRO_2025")
 
                 query = """
                     SELECT *
@@ -422,7 +422,7 @@ def get_febriles_por_distrito(distrito):
 def api_poblacion():
     distrito = request.args.get("distrito", "").strip()
 
-    conn = connect("EPI_TABLAS_MAESTRO")
+    conn = connect("EPI_TABLAS_MAESTRO_2025")
     if conn is None:
         return jsonify({"error": "Error al conectar a BD"}), 500
 
@@ -994,7 +994,7 @@ def casos_enfermedad():
     # -------------------------------------------
     # 🟢 NOTIWEB (normal)
     # -------------------------------------------
-    conn = connect("EPI_TABLAS_MAESTRO")
+    conn = connect("EPI_TABLAS_MAESTRO_2025")
     if conn is None:
         return jsonify({"error": "Error de conexión"}), 500
 
@@ -1043,7 +1043,7 @@ def casos_totales():
     if not distrito:
         return jsonify({"error": "Falta el distrito"}), 400
 
-    conn = connect("EPI_TABLAS_MAESTRO")
+    conn = connect("EPI_TABLAS_MAESTRO_2025")
     if conn is None:
         return jsonify({"error": "Error al conectar a BD"}), 500
 
@@ -1064,7 +1064,7 @@ def casos_totales():
 
 @app.route('/api/enfermedades')
 def enfermedades():
-    conn = connect("EPI_TABLAS_MAESTRO")
+    conn = connect("EPI_TABLAS_MAESTRO_2025")
     if conn is None:
         return jsonify({"error": "Error al conectar a BD"}), 500
 
@@ -1093,7 +1093,7 @@ def casos_por_distrito():
     if not enfermedad:
         return jsonify({"error": "Falta parámetro 'enfermedad'"}), 400
 
-    conn = connect("EPI_TABLAS_MAESTRO")
+    conn = connect("EPI_TABLAS_MAESTRO_2025")
     if conn is None:
         return jsonify({"error": "Error de conexión"}), 500
 
@@ -1129,7 +1129,7 @@ def casos_diagnostico():
     if not diagnostico:
         return jsonify({"error": "Falta parámetro 'diagnostico'"}), 400
 
-    conn = connect("EPI_TABLAS_MAESTRO")
+    conn = connect("EPI_TABLAS_MAESTRO_2025")
     if conn is None:
         return jsonify({"error": "Error de conexión"}), 500
 
@@ -1155,7 +1155,7 @@ def api_casos_por_diagnostico():
     if not diagnostico:
         return jsonify({"error": "Falta parámetro 'diagnostico'"}), 400
 
-    conn = connect("EPI_TABLAS_MAESTRO")
+    conn = connect("EPI_TABLAS_MAESTRO_2025")
     if conn is None:
         return jsonify({"error": "Error al conectar a BD"}), 500
 
@@ -1665,8 +1665,8 @@ if __name__ == "__main__":
 # PASSWORD = os.getenv('DB_PASSWORD', '123456')
 # DRIVER = '{ODBC Driver 17 for SQL Server}'
 
-# # BASE DE DATOS 1: POBLACIÓN (EPI_TABLAS_MAESTRO)
-# DB_POBLACION = os.getenv('DB_DATABASE_POB', 'EPI_TABLAS_MAESTRO')
+# # BASE DE DATOS 1: POBLACIÓN (EPI_TABLAS_MAESTRO_2025)
+# DB_POBLACION = os.getenv('DB_DATABASE_POB', 'EPI_TABLAS_MAESTRO_2025')
 # CONNECTION_POBLACION = (
 #     f"DRIVER={DRIVER};SERVER={SERVER};DATABASE={DB_POBLACION};UID={USERNAME};PWD={PASSWORD}"
 # )

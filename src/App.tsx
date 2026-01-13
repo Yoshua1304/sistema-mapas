@@ -1002,6 +1002,29 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
       .catch(error => console.error("Error al cargar los límites de la DIRIS:", error));
   },  [diagnosticoSeleccionado]);
 
+    useEffect(() => {
+    fetch('/JURISDICCION_EESS_DLC_update.geojson')
+      .then(response => response.json())
+      .then((data: GeoJSONData) => {
+        setAllDistricts(data);
+        
+        const EstablecimientosNames = data.features.map(feature => ({
+          id: `${feature.properties.layer}`,
+          name: feature.properties.layer,
+        }));
+
+        const EstableLayer: Layer = {
+          id: 'Establecimientos',
+          name: 'Establecimientos',
+          subLayers: EstablecimientosNames,
+        };
+
+        setLayers(currentLayers => [currentLayers[0], EstableLayer]);
+      })
+      .catch(error => console.error("Error al cargar los límites de la DIRIS:", error));
+  },  [diagnosticoSeleccionado]);
+
+
   useEffect(() => {
     // 1. Cierra el popup abierto de Leaflet inmediatamente
     if (map) {
