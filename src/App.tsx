@@ -306,6 +306,9 @@ const VIGILANCIA_LAYER_DATA: Layer = {
 function App() {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [allDistricts, setAllDistricts] = useState<GeoJSONData | null>(null);
+  const [allEstablecimientos, setAllEstablecimientos] = useState<GeoJSONData | null>(null);
+  const [activeGeoJSON, setActiveGeoJSON] = useState<GeoJSONData | null>(null);
+  const [geoJSONType, setGeoJSONType] = useState<'distritos' | 'establecimientos'>('distritos');
   const [layers, setLayers] = useState<Layer[]>([VIGILANCIA_LAYER_DATA]);
   const [selectedLayers, setSelectedLayers] = useState<Set<string>>(new Set(['distritos']));
   const [layerSearchTerm, setLayerSearchTerm] = useState('');
@@ -649,28 +652,33 @@ const cargarSigtbDistritos = async () => {
 
 
 const resetMapToDefault = () => {
-    // 1. Limpiar filtros de Diagnóstico y casos
-    setDiagnosticoSeleccionado([]);
-    setCasosPorDistrito({}); 
-    // setCasosDetallePorDistrito({}); // Si existe y se usa, también debe limpiarse
-
-    // 2. Restablecer la selección de capas (solo 'distritos' por defecto)
-    const defaultLayers = new Set(['distritos']);
-    setSelectedLayers(defaultLayers);
-    setSelectedDistrictLayerIds(new Set()); 
-
-    // 3. Limpiar búsquedas y clics
-    setLayerSearchTerm('');
-    setMapSearchTerm('');
-    setSearchedDistrictId(null);
-    setClickedDistrictId(null);
-    
-    // 4. Volver a la vista inicial del mapa
-    if (map) {
-        map.setView(position, zoomLevel); 
-    }
-    
-    console.log("✅ Mapa y filtros reseteados.");
+  // 1. Limpiar filtros de Diagnóstico y casos
+  setDiagnosticoSeleccionado([]);
+  setCasosPorDistrito({});
+  
+  // 2. Restablecer la selección de capas (solo 'distritos-layer' por defecto)
+  const defaultLayers = new Set(['distritos-layer']);
+  setSelectedLayers(defaultLayers);
+  setSelectedDistrictLayerIds(new Set());
+  
+  // 3. Volver a distritos como GeoJSON activo
+  if (allDistricts) {
+    setActiveGeoJSON(allDistricts);
+    setGeoJSONType('distritos');
+  }
+  
+  // 4. Limpiar búsquedas y clics
+  setLayerSearchTerm('');
+  setMapSearchTerm('');
+  setSearchedDistrictId(null);
+  setClickedDistrictId(null);
+  
+  // 5. Volver a la vista inicial del mapa
+  if (map) {
+    map.setView(position, zoomLevel);
+  }
+  
+  console.log("✅ Mapa y filtros reseteados.");
 };
 
 const handleShowLegend = () => {
@@ -687,8 +695,10 @@ useEffect(() => {
   if (!allDistricts) return;
   if (!diagnosticoSeleccionado || diagnosticoSeleccionado.length === 0) return;
 
-  const diagnostico =
-    diagnosticoSeleccionado[diagnosticoSeleccionado.length - 1];
+  // Si estamos en modo establecimientos, no cargamos datos de diagnósticos
+  if (geoJSONType === 'establecimientos') return;
+
+  const diagnostico = diagnosticoSeleccionado[diagnosticoSeleccionado.length - 1];
 
   console.log("🟢 diagnosticoSeleccionado →", diagnosticoSeleccionado);
   console.log("🟢 diagnostico final →", diagnostico);
@@ -761,7 +771,7 @@ useEffect(() => {
   console.log("🟢 Cargando diagnóstico NOTIWEB:", diagnostico);
   cargarCasosPorDiagnostico(diagnostico);
 
-}, [diagnosticoSeleccionado, allDistricts]);
+}, [diagnosticoSeleccionado, allDistricts, geoJSONType]);
 
 
 const cargarCasosPorDiagnostico = async (diagnostico: string) => {
@@ -981,49 +991,52 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
   };
 
   useEffect(() => {
+    // Cargar DISTRITOS
     fetch('/distrito_solo_lima.geojson')
       .then(response => response.json())
-      .then((data: GeoJSONData) => {
-        setAllDistricts(data);
-        
-        const districtNames = data.features.map(feature => ({
-          id: `${feature.properties.NM_DIST}`,
-          name: feature.properties.NM_DIST,
-        }));
+      .then((distritosData: GeoJSONData) => {
+        setAllDistricts(distritosData);
 
-        const districtLayer: Layer = {
-          id: 'distritos',
-          name: 'Distritos',
-          subLayers: districtNames,
-        };
+        // Ahora cargar ESTABLECIMIENTOS
+        fetch('/JURISDICCION_EESS_DLC_update.geojson')
+          .then(response => response.json())
+          .then((estableData: GeoJSONData) => {
+            setAllEstablecimientos(estableData);
 
-        setLayers(currentLayers => [currentLayers[0], districtLayer]);
+            // Crear las capas SIN SUBLAYERS (hojas)
+            const districtLayer: Layer = {
+              id: 'distritos-layer',
+              name: 'Distritos',
+              // SIN subLayers - esto la hace una hoja
+            };
+
+            const estableLayer: Layer = {
+              id: 'establecimientos-layer',
+              name: 'Establecimientos',
+              // SIN subLayers - esto la hace una hoja
+            };
+
+            // Agregar AMBAS capas al árbol
+            setLayers(currentLayers => [
+              currentLayers[0], // Capa de vigilancia
+              districtLayer,
+              estableLayer
+            ]);
+
+            // Establecer distritos como activos por defecto
+            setActiveGeoJSON(distritosData);
+          })
+          .catch(error => console.error("Error al cargar establecimientos:", error));
       })
-      .catch(error => console.error("Error al cargar los límites de la DIRIS:", error));
-  },  [diagnosticoSeleccionado]);
+      .catch(error => console.error("Error al cargar distritos:", error));
+  }, [diagnosticoSeleccionado]);
 
-    useEffect(() => {
-    fetch('/JURISDICCION_EESS_DLC_update.geojson')
-      .then(response => response.json())
-      .then((data: GeoJSONData) => {
-        setAllDistricts(data);
-        
-        const EstablecimientosNames = data.features.map(feature => ({
-          id: `${feature.properties.layer}`,
-          name: feature.properties.layer,
-        }));
-
-        const EstableLayer: Layer = {
-          id: 'Establecimientos',
-          name: 'Establecimientos',
-          subLayers: EstablecimientosNames,
-        };
-
-        setLayers(currentLayers => [currentLayers[0], EstableLayer]);
-      })
-      .catch(error => console.error("Error al cargar los límites de la DIRIS:", error));
-  },  [diagnosticoSeleccionado]);
-
+  // Sincronizar la selección inicial
+  useEffect(() => {
+    if (allDistricts) {
+      setSelectedLayers(new Set(['distritos-layer']));
+    }
+  }, [allDistricts]);
 
   useEffect(() => {
     // 1. Cierra el popup abierto de Leaflet inmediatamente
@@ -1113,9 +1126,24 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
         }
     }
     
-    // Si se hace clic en la capa principal 'distritos', limpia la selección individual
-    if (layerId === 'distritos' && !isSelected) {
-        newSelectedDistrictLayerIds.clear();
+    if (layerId === 'distritos-layer') {
+      if (isSelected) {
+        handleGeoJSONChange('distritos');
+        newSelectedLayers.add(layerId);
+        newSelectedLayers.delete('establecimientos-layer');
+      }
+      setSelectedLayers(newSelectedLayers);
+      return;
+    }
+
+    if (layerId === 'establecimientos-layer') {
+      if (isSelected) {
+        handleGeoJSONChange('establecimientos');
+        newSelectedLayers.add(layerId);
+        newSelectedLayers.delete('distritos-layer');
+      }
+      setSelectedLayers(newSelectedLayers);
+      return;
     }
 
     setSelectedLayers(newSelectedLayers);
@@ -1150,38 +1178,42 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
 
   const handleMapSearch = () => {
     const searchTerm = mapSearchTerm.trim().toLowerCase();
-    if (!searchTerm || !allDistricts || !map) {
-        setSearchedDistrictId(null);
-        return;
-    };
+    if (!searchTerm || !activeGeoJSON || !map) {
+      setSearchedDistrictId(null);
+      return;
+    }
 
-    const foundDistrict = allDistricts.features.find(feature =>
-      feature.properties.NM_DIST.toLowerCase().includes(searchTerm)
-    );
+    let foundFeature;
+    let foundId;
 
-    if (foundDistrict) {
-    // ⭐ MODIFICACIÓN CLAVE DE ZOOM ⭐
-    if (map) { 
-        // 1. Crear una capa temporal con la geometría del distrito
-        // Asegúrate de que L esté disponible (importa * as L from 'leaflet' si lo necesitas)
-        const tempLayer = L.geoJson(foundDistrict); 
-        
-        // 2. Obtener los límites del polígono
-        const bounds = tempLayer.getBounds();
-        
-        // 3. Ajustar la vista del mapa, usando los mismos parámetros que el zoom por click
-        map.fitBounds(bounds, {
-            padding: [50, 50],
-            maxZoom: 14 // Usa el mismo valor de maxZoom que en onEachDistrict
-        });
-    
-        setSearchedDistrictId(`${foundDistrict.properties.NM_DIST}`);
-      } else {
-        alert('No se pudieron encontrar las coordenadas para este distrito.');
-        setSearchedDistrictId(null);
+    if (geoJSONType === 'distritos') {
+      foundFeature = activeGeoJSON.features.find(feature =>
+        feature.properties.NM_DIST.toLowerCase().includes(searchTerm)
+      );
+      if (foundFeature) {
+        foundId = foundFeature.properties.NM_DIST;
       }
     } else {
-      alert('Distrito no encontrado. Por favor, intente con otro nombre.');
+      foundFeature = activeGeoJSON.features.find(feature =>
+        feature.properties.layer.toLowerCase().includes(searchTerm)
+      );
+      if (foundFeature) {
+        foundId = foundFeature.properties.layer;
+      }
+    }
+
+    if (foundFeature && foundId) {
+      const tempLayer = L.geoJson(foundFeature);
+      const bounds = tempLayer.getBounds();
+      map.fitBounds(bounds, {
+        padding: [50, 50],
+        maxZoom: 14
+      });
+
+      setSearchedDistrictId(foundId.toUpperCase());
+      setClickedDistrictId(null);
+    } else {
+      alert(`${geoJSONType === 'distritos' ? 'Distrito' : 'Establecimiento'} no encontrado.`);
       setSearchedDistrictId(null);
     }
   };
@@ -1198,18 +1230,54 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
         return;
     }
     
-    // ⭐ Lógica de Autocompletado (solo si hay distritos cargados)
-    if (allDistricts && value.trim() !== '') {
+    // ⭐ Lógica de Autocompletado según el tipo activo
+    if (value.trim() !== '') {
       const searchTermLower = value.trim().toLowerCase();
-      const filteredNames = allDistricts.features
-        .map(feature => feature.properties.NM_DIST) // Obtener solo el nombre
-        .filter(name => name && name.toLowerCase().includes(searchTermLower)); // Filtrar
-
-      setSuggestionResults(filteredNames.slice(0, 10)); // Mostrar hasta 10 sugerencias
+      let filteredNames: string[] = [];
+      
+      if (geoJSONType === 'distritos' && allDistricts) {
+        filteredNames = allDistricts.features
+          .map(feature => feature.properties.NM_DIST)
+          .filter(name => name && name.toLowerCase().includes(searchTermLower));
+      } else if (geoJSONType === 'establecimientos' && allEstablecimientos) {
+        filteredNames = allEstablecimientos.features
+          .map(feature => feature.properties.layer)
+          .filter(name => name && name.toLowerCase().includes(searchTermLower));
+      }
+      
+      setSuggestionResults(filteredNames.slice(0, 10));
       setIsSuggestionsOpen(true);
     } else {
-        setSuggestionResults([]);
-        setIsSuggestionsOpen(false);
+      setSuggestionResults([]);
+      setIsSuggestionsOpen(false);
+    }
+  };
+
+  // Añade esta función después de tus estados:
+  const handleGeoJSONChange = (type: 'distritos' | 'establecimientos') => {
+    setGeoJSONType(type);
+    
+    // Limpiar selecciones anteriores
+    setClickedDistrictId(null);
+    setSearchedDistrictId(null);
+    setSelectedDistrictLayerIds(new Set());
+    
+    if (type === 'distritos' && allDistricts) {
+      setActiveGeoJSON(allDistricts);
+      setSelectedLayers(prev => {
+        const newSet = new Set(prev);
+        newSet.add('distritos-layer');
+        newSet.delete('establecimientos-layer');
+        return newSet;
+      });
+    } else if (type === 'establecimientos' && allEstablecimientos) {
+      setActiveGeoJSON(allEstablecimientos);
+      setSelectedLayers(prev => {
+        const newSet = new Set(prev);
+        newSet.add('establecimientos-layer');
+        newSet.delete('distritos-layer');
+        return newSet;
+      });
     }
   };
 
@@ -1239,14 +1307,34 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
     }
   };
 
-  const districtsToDisplay = useMemo(() => {
-    if (!allDistricts || !selectedLayers.has('distritos')) {
-        return null;
-    }
-    return allDistricts;
-  }, [allDistricts, selectedLayers]);
-
 const getDistrictStyle = (feature: any) => {
+  // Si estamos mostrando establecimientos, estilo diferente
+  if (geoJSONType === 'establecimientos') {
+    const establecimientoName = feature.properties.layer?.toUpperCase();
+    const isSearched = searchedDistrictId === establecimientoName;
+    const isClicked = clickedDistrictId === establecimientoName;
+    
+    const baseStyle = {
+      weight: 2,
+      color: "#1a73e8",
+      fillOpacity: 0.3,
+      fillColor: "#4285F4", // Azul para establecimientos
+    };
+    
+    const highlightStyle = {
+      weight: 4,
+      color: "#0d47a1",
+      fillOpacity: 0.5,
+      fillColor: "#4285F4",
+    };
+    
+    if (isSearched || isClicked) {
+      return highlightStyle;
+    }
+    
+    return baseStyle;
+  }
+  
   const distrito = feature.properties.NM_DIST?.toUpperCase();
   const distritoData = casosPorDistrito[distrito] || { total: 0, TIA_100k: 0 };
 
@@ -1349,11 +1437,13 @@ const getDistrictStyle = (feature: any) => {
 };
 
 const onEachDistrict = (feature: any, layer: LeafletLayer) => {
-  const districtName = feature.properties.NM_DIST;
+  const name = geoJSONType === 'distritos' 
+    ? feature.properties.NM_DIST 
+    : feature.properties.layer;
 
   // ⭐ Tooltip
-  if (districtName) {
-    layer.bindTooltip(districtName, {
+  if (name) {
+    layer.bindTooltip(name, {
       permanent: false,
       direction: 'auto',
       sticky: true,
@@ -1366,9 +1456,10 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
     click: async (e) => {
       L.DomEvent.stopPropagation(e);
 
-      const districtLayer = e.target;   // ← ESTE ES EL LAYER REAL CLICKEADO
+      const districtLayer = e.target;
 
-      setClickedDistrictId(districtName.toUpperCase());
+      const clickedName = name.toUpperCase();
+      setClickedDistrictId(clickedName);
       setSearchedDistrictId(null);
       setSelectedDistrictLayerIds(new Set());
 
@@ -1378,14 +1469,26 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
         map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
       }
 
-      // ⭐ Llamadas a la BD
-      const dataPoblacion = await obtenerPoblacion(districtName);
-      const caseCount = await obtenerCasosTotales(districtName);
+      // Si es establecimiento, mostrar popup simple
+      if (geoJSONType === 'establecimientos') {
+        layer.bindPopup(`
+          <div class="district-popup">
+            <h4>${name}</h4>
+            <p><strong>Tipo:</strong> Establecimiento de Salud</p>
+            <p><strong>Jurisdicción:</strong> ${feature.properties.jurisdiccion || 'No disponible'}</p>
+          </div>
+        `).openPopup();
+        return;
+      }
+
+      // ⭐ Solo para distritos: Llamadas a la BD
+      const dataPoblacion = await obtenerPoblacion(name);
+      const caseCount = await obtenerCasosTotales(name);
 
       const detalleDiagnostico: Record<string, any> = {};
 
       for (const diag of diagnosticoSeleccionado) {
-        const data = await obtenerCasosEnfermedad(districtName, diag);
+        const data = await obtenerCasosEnfermedad(name, diag);
         const detalleArray = data.detalle || [];
 
         if (diag === "TBC TIA" || diag === "TBC TIA EESS") {
@@ -1428,18 +1531,18 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
 
       setCasosDetallePorDistrito(prev => ({
         ...prev,
-        [districtName]: detalleDiagnostico
+        [name]: detalleDiagnostico
       }));
 
       // ⭐ Crear contenedor para React
       const container = L.DomUtil.create("div");
       
       districtLayer.bindPopup(container, {
-          maxWidth: 400,
-          minWidth: 300,
-          className: "district-popup-container",
-          autoPan: true,  // <-- Esto debería resolver el problema
-          autoPanPadding: [30, 30]  // <-- Espacio extra alrededor
+        maxWidth: 400,
+        minWidth: 300,
+        className: "district-popup-container",
+        autoPan: true,
+        autoPanPadding: [30, 30]
       });
 
       // Montar el componente cuando se abre
@@ -1447,7 +1550,7 @@ const onEachDistrict = (feature: any, layer: LeafletLayer) => {
         const root = createRoot(container);
         root.render(
           <DistrictPopup
-            districtName={districtName}
+            districtName={name}
             caseCount={caseCount}
             poblacion={dataPoblacion}
             diagnosticoSeleccionado={diagnosticoSeleccionado}
@@ -1844,14 +1947,14 @@ const filteredLayers = useMemo(() => {
           setSelectedDistrictLayerIds={setSelectedDistrictLayerIds}
         />
 
-        {districtsToDisplay && (
+        {activeGeoJSON  && (
           <GeoJSON
             key={
               JSON.stringify(Array.from(selectedLayers)) +
               searchedDistrictId +
               diagnosticoSeleccionado.join(",")
             }
-            data={districtsToDisplay}
+            data={activeGeoJSON}
             style={getDistrictStyle}
             onEachFeature={onEachDistrict}
           />

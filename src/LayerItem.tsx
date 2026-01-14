@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 export interface Layer {
   id: string;
   name: string;
+  type?: 'geojson' | 'diagnostico';
   subLayers?: Layer[];
 }
 
