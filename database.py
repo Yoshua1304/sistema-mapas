@@ -1,18 +1,25 @@
 import pyodbc
+import os  # Necesario para leer variables de entorno
 
-SERVER = 'DIRISLIMA'   # o 10.0.5.181
-DRIVER = '{ODBC Driver 17 for SQL Server}'
+SERVER = os.getenv('DB_SERVER', '10.0.0.10')
+DRIVER = '{ODBC Driver 18 for SQL Server}'
+USER = os.getenv('DB_USER')
+PASSWORD = os.getenv('DB_PASSWORD')
 
 def connect(db_name: str):
     try:
-        conn = pyodbc.connect(
-            f"DRIVER={DRIVER};"
-            f"SERVER={SERVER};"
-            f"DATABASE={db_name};"
-            "Trusted_Connection=yes;"
-            "TrustServerCertificate=yes;"
-        )
-        return conn
+        if not USER:
+            conn_str = (
+                f"DRIVER={DRIVER};SERVER={SERVER};DATABASE={db_name};"
+                "Trusted_Connection=yes;TrustServerCertificate=yes;"
+            )
+        else:
+            conn_str = (
+                f"DRIVER={DRIVER};SERVER={SERVER};DATABASE={db_name};"
+                f"UID={USER};PWD={PASSWORD};TrustServerCertificate=yes;"
+            )
+        
+        return pyodbc.connect(conn_str)
     except Exception as e:
         print(f"❌ Error de conexión a {db_name}: {e}")
         return None

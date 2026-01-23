@@ -1,12 +1,17 @@
 #pip install flask pyodbc pandas flask-cors openpyxl
-from flask import Flask, request, jsonify, send_file, make_response
+from flask import Flask, request, jsonify, send_file, make_response, send_from_directory
 import pandas as pd
+import os
 import io
 from flask_cors import CORS
-from database import connect    # tu función centralizada de conexión
+from database import connect
 from database import get_edas_connection,get_iras_connection, get_TB_connection, get_febriles_connection, get_depresion_connection,get_violencia_connection,get_diabetes_connection,get_cancer_connection,get_renal_connection,get_transito_connection,get_mortalidad_connection
 from openpyxl import Workbook
-app = Flask(__name__)
+app = Flask(__name__, static_folder='dist', static_url_path='/')
+
+@app.route('/')
+def serve():
+    return send_from_directory(app.static_folder, 'index.html')
 
 # CORS Global permisivo
 CORS(app, supports_credentials=True)
@@ -35,7 +40,7 @@ def exportar_datos():
         return jsonify({"error": "No se recibió el distrito"}), 400
 
     # ======================================================
-    #   1️⃣ POBLACIÓN (HOJA PRINCIPAL)
+    #   1️⃣ POBLACIÓN
     # ======================================================
     try:
         conn_pob = connect("EPI_TABLAS_MAESTRO_2025")
@@ -1628,6 +1633,792 @@ def tb_sigtb_distritos(distrito):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ============================================================
+# ENDPOINTS PARA ESTABLECIMIENTOS
+# ============================================================
+
+@app.route("/api/casos_totales_establecimiento", methods=["GET"])
+def api_casos_totales_establecimiento():
+    establecimiento = request.args.get("establecimiento", "").strip()
+    
+    if not establecimiento:
+        return jsonify({"error": "Falta parámetro 'establecimiento'"}), 400
+    
+    # Para NOTIWEB_2025 - asumiendo columna 'ESTABLECIMIENTO'
+    try:
+        conn = connect("EPI_TABLAS_MAESTRO_2025")
+        if conn is None:
+            return jsonify({"error": "Error de conexión"}), 500
+        
+        cursor = conn.cursor()
+        
+        # Buscar en NOTIWEB_2025
+        sql = """
+            SELECT COUNT(*) 
+            FROM NOTIWEB_2025
+            WHERE UPPER(ESTABLECIMIENTO) = UPPER(?)
+               OR UPPER([NOMBRE EESS]) = UPPER(?)
+               OR UPPER([EESS]) = UPPER(?)
+        """
+        
+        cursor.execute(sql, (establecimiento, establecimiento, establecimiento))
+        row = cursor.fetchone()
+        total = row[0] if row else 0
+        
+        conn.close()
+        
+        return jsonify({
+            "establecimiento": establecimiento,
+            "total": total
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/poblacion_establecimiento", methods=["GET"])
+def api_poblacion_establecimiento():
+    establecimiento = request.args.get("establecimiento", "").strip()
+    
+    if not establecimiento:
+        return jsonify({"error": "Falta parámetro 'establecimiento'"}), 400
+    
+    # Intenta obtener población del establecimiento desde alguna tabla
+    try:
+        conn = connect("EPI_TABLAS_MAESTRO_2025")
+        cursor = conn.cursor()
+        
+        # Esto es un ejemplo - ajusta según tu estructura de datos
+        query = """
+            SELECT 
+                SUM([MASCULINO] + [FEMENINO]) AS POBLACION_TOTAL,
+                SUM([MASCULINO]) AS MASCULINO,
+                SUM([FEMENINO]) AS FEMENINO
+            FROM POBLACION_2026_DIRIS_LIMA_CENTRO
+            WHERE UPPER(DISTRITO) IN (
+                SELECT DISTINCT UPPER(DISTRITO) 
+                FROM NOTIWEB_2025 
+                WHERE UPPER(ESTABLECIMIENTO) = UPPER(?)
+                   OR UPPER([NOMBRE EESS]) = UPPER(?)
+            )
+        """
+        
+        cursor.execute(query, (establecimiento, establecimiento))
+        row = cursor.fetchone()
+        
+        if row and row[0]:
+            return jsonify({
+                "establecimiento": establecimiento,
+                "POBLACION_TOTAL": row[0],
+                "MASCULINO": row[1] or 0,
+                "FEMENINO": row[2] or 0
+            })
+        
+        return jsonify({
+            "establecimiento": establecimiento,
+            "mensaje": "No hay datos de población específicos para este establecimiento"
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
+@app.route("/api/casos_enfermedad_establecimiento", methods=["GET"])
+def api_casos_enfermedad_establecimiento():
+    establecimiento = request.args.get("establecimiento", "").strip()
+    enfermedad = request.args.get("enfermedad", "").strip()
+    
+    if not establecimiento or not enfermedad:
+        return jsonify({"error": "Faltan parámetros 'establecimiento' o 'enfermedad'"}), 400
+    
+    enfermedad_upper = enfermedad.upper()
+    
+    # 🔴 EDAS
+    if enfermedad_upper in ["ENFERMEDADES DIARREICAS AGUDAS", "EDAS", "EDA"]:
+        return get_edas_por_establecimiento(establecimiento)
+    
+    # 🔵 FEBRILES
+    if enfermedad_upper in ["FEBRILES"]:
+        return get_febriles_por_establecimiento(establecimiento)
+    
+    # 🔵 IRAS
+    if enfermedad_upper in ["INFECCIONES RESPIRATORIAS AGUDAS", "IRA", "IRAS"]:
+        return get_iras_por_establecimiento(establecimiento)
+    
+    # 🟠 TBC
+    if enfermedad_upper in ["TBC TIA", "TBC", "TIA"]:
+        return get_tia_por_establecimiento(establecimiento)
+    
+    if enfermedad_upper in ["TBC TIA EESS"]:
+        return get_tia_eess_por_establecimiento(establecimiento)
+    
+    if enfermedad_upper in ["TBC PULMONAR"]:
+        return get_tbc_pulmonar_por_establecimiento(establecimiento)
+    
+    # 🟣 DEPRESIÓN
+    if enfermedad_upper in ["DEPRESION", "DEPRESIÓN"]:
+        return get_depresion_por_establecimiento(establecimiento)
+    
+    # 🟣 VIOLENCIA
+    if enfermedad_upper in ["VIOLENCIA", "VIOLENCIA FAMILIAR"]:
+        return get_violencia_por_establecimiento(establecimiento)
+    
+    # 🟣 DIABETES
+    if enfermedad_upper in ["DIABETES"]:
+        return get_diabetes_por_establecimiento(establecimiento)
+    
+    # 🟤 CÁNCER
+    if enfermedad_upper in ["CANCER", "CÁNCER"]:
+        return get_cancer_por_establecimiento(establecimiento)
+    
+    # 🟣 RENAL
+    if enfermedad_upper in ["RENAL"]:
+        return get_renal_por_establecimiento(establecimiento)
+    
+    # 🟣 MUERTE MATERNA
+    if enfermedad_upper in ["MUERTE MATERNA"]:
+        return get_mortalidad_materna_por_establecimiento(establecimiento)
+    
+    # Para NOTIWEB_2025
+    try:
+        conn = connect("EPI_TABLAS_MAESTRO_2025")
+        if conn is None:
+            return jsonify({"error": "Error de conexión"}), 500
+        
+        cursor = conn.cursor()
+        
+        sql = """
+            SELECT
+                [TIPO_DX],
+                COUNT(*) AS Cantidad
+            FROM [NOTIWEB_2025]
+            WHERE (UPPER(ESTABLECIMIENTO) = UPPER(?)
+               OR UPPER([NOMBRE EESS]) = UPPER(?)
+               OR UPPER([EESS]) = UPPER(?))
+              AND UPPER([DIAGNOSTICO]) = UPPER(?)
+            GROUP BY [TIPO_DX]
+            ORDER BY Cantidad DESC
+        """
+        
+        cursor.execute(sql, (establecimiento, establecimiento, establecimiento, enfermedad))
+        rows = cursor.fetchall()
+        
+        total = sum(r[1] for r in rows)
+        
+        detalle = [
+            {"tipo_dx": r[0], "cantidad": r[1]}
+            for r in rows
+        ]
+        
+        conn.close()
+        
+        return jsonify({
+            "establecimiento": establecimiento,
+            "enfermedad": enfermedad,
+            "total": total,
+            "detalle": detalle
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ============================================================
+# FUNCIONES ESPECÍFICAS POR ESTABLECIMIENTO
+# ============================================================
+
+def get_edas_por_establecimiento(establecimiento):
+    conn = get_edas_connection()
+    if conn is None:
+        return jsonify({"error": "No connection"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        
+        sql = """
+            SELECT 
+                SUM(DAA_C1 + DAA_C1_4 + DAA_C5 + DAA_C5_11 + DAA_C12_17 + DAA_C18_29 + DAA_C30_59 + DAA_C60) as total_daa,
+                SUM(DIS_C1 + DIS_C1_4 + DIS_C5 + DIS_C5_11 + DIS_C12_17 + DIS_C18_29 + DIS_C30_59 + DIS_C60) as total_dis
+            FROM REPORTE_EDA_2025
+            WHERE UPPER([EESS]) = UPPER(?)
+               OR UPPER([ESTABLECIMIENTO]) = UPPER(?)
+        """
+        
+        cursor.execute(sql, (establecimiento, establecimiento))
+        row = cursor.fetchone()
+        
+        daa = int(row[0]) if row and row[0] else 0
+        dis = int(row[1]) if row and row[1] else 0
+        
+        return jsonify({
+            "establecimiento": establecimiento,
+            "daa": daa,
+            "dis": dis,
+            "total": daa + dis,
+            "detalle": [
+                {"tipo_dx": "DAA", "cantidad": daa},
+                {"tipo_dx": "DIS", "cantidad": dis}
+            ]
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+def get_febriles_por_establecimiento(establecimiento):
+    conn = get_febriles_connection()
+    if conn is None:
+        return jsonify({"error": "No connection"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        
+        COLUMNAS_FEBRILES = ['feb_m1', 'feb_1_4', 'feb_5_9', 'feb_10_19', 'feb_20_59', 'feb_m60']
+        sum_clause = " + ".join([f"[{col}]" for col in COLUMNAS_FEBRILES])
+        
+        sql = f"""
+            SELECT
+                {", ".join([f"SUM([{col}]) AS {col}" for col in COLUMNAS_FEBRILES])},
+                SUM({sum_clause}) AS total_febriles
+            FROM REPORTE_FEBRILES_2025
+            WHERE UPPER([EESS]) = UPPER(?)
+               OR UPPER([ESTABLECIMIENTO]) = UPPER(?)
+        """
+        
+        cursor.execute(sql, (establecimiento, establecimiento))
+        row = cursor.fetchone()
+        
+        if not row:
+            return jsonify({
+                "establecimiento": establecimiento,
+                "total": 0,
+                "detalle": []
+            })
+        
+        column_names = [col[0] for col in cursor.description]
+        data = dict(zip(column_names, row))
+        
+        detalle = [
+            {"grupo_edad": col, "cantidad": int(data[col]) if data[col] else 0}
+            for col in COLUMNAS_FEBRILES
+        ]
+        
+        return jsonify({
+            "establecimiento": establecimiento,
+            "total": int(data["total_febriles"]),
+            "detalle": detalle
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+def get_iras_por_establecimiento(establecimiento):
+    conn = get_iras_connection()
+    if conn is None:
+        return jsonify({"error": "No connection"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        
+        sql = """
+            SELECT 
+                COALESCE(SUM([IRA_M2]),0)      AS IRA_M2,
+                COALESCE(SUM([IRA_2_11]),0)    AS IRA_2_11,
+                COALESCE(SUM([IRA_1_4A]),0)    AS IRA_1_4A,
+
+                COALESCE(SUM([SOB_2A]),0)      AS SOB_2A,
+                COALESCE(SUM([SOB_2_4A]),0)    AS SOB_2_4A,
+
+                COALESCE(SUM([NGR_M2]),0)      AS NGR_M2,
+                COALESCE(SUM([NGR_2_11]),0)    AS NGR_2_11,
+                COALESCE(SUM([NGR_1_4A]),0)    AS NGR_1_4A,
+
+                COALESCE(SUM([NEU_2_11]),0)    AS NEU_2_11,
+                COALESCE(SUM([NEU_1_4A]),0)    AS NEU_1_4A,
+                COALESCE(SUM([NEU_5_9A]),0)    AS NEU_5_9A,
+                COALESCE(SUM([NEU_10_19]),0)   AS NEU_10_19,
+                COALESCE(SUM([NEU_20_59]),0)   AS NEU_20_59,
+                COALESCE(SUM([NEU_60A]),0)     AS NEU_60A
+            FROM REPORTE_IRA_2025
+            WHERE UPPER([EESS]) = UPPER(?)
+               OR UPPER([ESTABLECIMIENTO]) = UPPER(?)
+        """
+        
+        cursor.execute(sql, (establecimiento, establecimiento))
+        row = cursor.fetchone()
+        
+        if not row:
+            return jsonify({
+                "establecimiento": establecimiento,
+                "total": 0,
+                "detalle": []
+            })
+        
+        ira_no_neumonia = int(row.IRA_M2) + int(row.IRA_2_11) + int(row.IRA_1_4A)
+        sob_asma = int(row.SOB_2A) + int(row.SOB_2_4A)
+        neumonia_grave = int(row.NGR_M2) + int(row.NGR_2_11) + int(row.NGR_1_4A)
+        neumonia = (
+            int(row.NEU_2_11) + int(row.NEU_1_4A) + int(row.NEU_5_9A) +
+            int(row.NEU_10_19) + int(row.NEU_20_59) + int(row.NEU_60A)
+        )
+        
+        total = ira_no_neumonia + sob_asma + neumonia_grave + neumonia
+        
+        return jsonify({
+            "establecimiento": establecimiento,
+            "total": total,
+            "ira_no_neumonia": ira_no_neumonia,
+            "sob_asma": sob_asma,
+            "neumonia_grave": neumonia_grave,
+            "neumonia": neumonia,
+            "detalle": [
+                {"tipo_dx": "IRA NO NEUMONIA", "cantidad": ira_no_neumonia},
+                {"tipo_dx": "SOB / ASMA", "cantidad": sob_asma},
+                {"tipo_dx": "NEUMONIA GRAVE", "cantidad": neumonia_grave},
+                {"tipo_dx": "NEUMONIA", "cantidad": neumonia},
+            ]
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+def get_tia_por_establecimiento(establecimiento):
+    conn = get_TB_connection()
+    if conn is None:
+        return jsonify({"error": "No connection"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        
+        sql = """
+            SELECT 
+                casos,
+                TIA_100k
+            FROM TIA_TOTAL
+            WHERE UPPER([Distrito_EESS]) = UPPER(?)
+               OR UPPER([EESS]) = UPPER(?)
+        """
+        
+        cursor.execute(sql, (establecimiento, establecimiento))
+        row = cursor.fetchone()
+        
+        if not row:
+            return jsonify({
+                "establecimiento": establecimiento,
+                "total": 0,
+                "TIA_100k": 0,
+                "detalle": []
+            })
+        
+        return jsonify({
+            "establecimiento": establecimiento,
+            "total": row[0] if row[0] else 0,
+            "TIA_100k": float(row[1]) if row[1] else 0,
+            "detalle": []
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+def get_tia_eess_por_establecimiento(establecimiento):
+    conn = get_TB_connection()
+    if conn is None:
+        return jsonify({"error": "No connection"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        
+        sql = """
+            SELECT 
+                casos,
+                TIA_100k
+            FROM TB_TIA_EESS_MINSA
+            WHERE UPPER([Distrito_EESS]) = UPPER(?)
+               OR UPPER([EESS]) = UPPER(?)
+        """
+        
+        cursor.execute(sql, (establecimiento, establecimiento))
+        row = cursor.fetchone()
+        
+        if not row:
+            return jsonify({
+                "establecimiento": establecimiento,
+                "total": 0,
+                "TIA_100k": 0,
+                "detalle": []
+            })
+        
+        return jsonify({
+            "establecimiento": establecimiento,
+            "total": row[0] if row[0] else 0,
+            "TIA_100k": float(row[1]) if row[1] else 0,
+            "detalle": []
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+def get_tbc_pulmonar_por_establecimiento(establecimiento):
+    conn = get_TB_connection()
+    if conn is None:
+        return jsonify({"error": "No connection"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        
+        sql = """
+            SELECT COUNT(*) AS total
+            FROM TB_BD_SIGTB
+            WHERE UPPER([Establecimiento de Salud]) = UPPER(?)
+               OR UPPER([EESS]) = UPPER(?)
+        """
+        
+        cursor.execute(sql, (establecimiento, establecimiento))
+        row = cursor.fetchone()
+        
+        total = row[0] if row else 0
+        
+        return jsonify({
+            "establecimiento": establecimiento,
+            "total": total,
+            "detalle": []
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+def get_depresion_por_establecimiento(establecimiento):
+    conn = get_depresion_connection()
+    if conn is None:
+        return jsonify({"error": "No connection"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        
+        sql = """
+            SELECT COUNT(*) AS total
+            FROM Depresion
+            WHERE UPPER([Establecimiento]) = UPPER(?)
+               OR UPPER([EESS]) = UPPER(?)
+        """
+        
+        cursor.execute(sql, (establecimiento, establecimiento))
+        row = cursor.fetchone()
+        
+        total = row[0] if row else 0
+        
+        return jsonify({
+            "establecimiento": establecimiento,
+            "total": total,
+            "detalle": [
+                {"tipo_dx": "DEPRESION", "cantidad": total}
+            ]
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+def get_violencia_por_establecimiento(establecimiento):
+    conn = get_violencia_connection()
+    if conn is None:
+        return jsonify({"error": "No connection"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        
+        sql = """
+            SELECT COUNT(*) AS total
+            FROM VF_Completo
+            WHERE UPPER([ESTABLECIMIENTO]) = UPPER(?)
+               OR UPPER([EESS]) = UPPER(?)
+        """
+        
+        cursor.execute(sql, (establecimiento, establecimiento))
+        row = cursor.fetchone()
+        
+        total = row[0] if row else 0
+        
+        return jsonify({
+            "establecimiento": establecimiento,
+            "total": total,
+            "detalle": [
+                {"tipo_dx": "Violencia", "cantidad": total}
+            ]
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+def get_diabetes_por_establecimiento(establecimiento):
+    conn = get_diabetes_connection()
+    if conn is None:
+        return jsonify({"error": "No connection"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        
+        sql = """
+            SELECT COUNT(*) AS total
+            FROM REPORTE_DIABETES
+            WHERE UPPER([EESS]) = UPPER(?)
+               OR UPPER([ESTABLECIMIENTO]) = UPPER(?)
+        """
+        
+        cursor.execute(sql, (establecimiento, establecimiento))
+        row = cursor.fetchone()
+        
+        total = row[0] if row else 0
+        
+        return jsonify({
+            "establecimiento": establecimiento,
+            "total": total,
+            "detalle": [
+                {"tipo_dx": "Diabetes", "cantidad": total}
+            ]
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+def get_cancer_por_establecimiento(establecimiento):
+    conn = get_cancer_connection()
+    if conn is None:
+        return jsonify({"error": "No connection"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        
+        sql = """
+            SELECT
+                'CANCER' as tipo_dx,
+                COUNT(*) as total
+            FROM (
+                SELECT * FROM REPORTE_CANCER_ADULTO
+                WHERE UPPER([EESS]) = UPPER(?)
+                   OR UPPER([ESTABLECIMIENTO]) = UPPER(?)
+                UNION ALL
+                SELECT * FROM REPORTE_CANCER_INFANTIL
+                WHERE UPPER([EESS]) = UPPER(?)
+                   OR UPPER([ESTABLECIMIENTO]) = UPPER(?)
+            ) as cancer_total
+        """
+        
+        cursor.execute(sql, (establecimiento, establecimiento, establecimiento, establecimiento))
+        row = cursor.fetchone()
+        
+        total = row[1] if row else 0
+        
+        return jsonify({
+            "establecimiento": establecimiento,
+            "total": total,
+            "detalle": [
+                {"tipo_dx": "CANCER", "cantidad": total}
+            ]
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+def get_renal_por_establecimiento(establecimiento):
+    conn = get_renal_connection()
+    if conn is None:
+        return jsonify({"error": "No connection"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        
+        sql = """
+            SELECT COUNT(*) AS total
+            FROM BD_RENAL
+            WHERE UPPER([EESS]) = UPPER(?)
+               OR UPPER([ESTABLECIMIENTO]) = UPPER(?)
+        """
+        
+        cursor.execute(sql, (establecimiento, establecimiento))
+        row = cursor.fetchone()
+        
+        total = row[0] if row else 0
+        
+        return jsonify({
+            "establecimiento": establecimiento,
+            "total": total,
+            "detalle": [
+                {"tipo_dx": "Renal", "cantidad": total}
+            ]
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+def get_mortalidad_materna_por_establecimiento(establecimiento):
+    conn = get_mortalidad_connection()
+    if conn is None:
+        return jsonify({"error": "No connection"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        
+        sql = """
+            SELECT COUNT(*) AS total
+            FROM MM_REPORTE_2024
+            WHERE UPPER([EESS]) = UPPER(?)
+               OR UPPER([ESTABLECIMIENTO]) = UPPER(?)
+        """
+        
+        cursor.execute(sql, (establecimiento, establecimiento))
+        row = cursor.fetchone()
+        
+        total = row[0] if row else 0
+        
+        return jsonify({
+            "establecimiento": establecimiento,
+            "total": total,
+            "detalle": [
+                {"tipo_dx": "mortalidad_materna", "cantidad": total}
+            ]
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+# ============================================================
+# ENDPOINT PARA EXPORTAR DATOS DE ESTABLECIMIENTO
+# ============================================================
+
+@app.route("/exportar-datos-establecimiento", methods=["POST", "OPTIONS"])
+def exportar_datos_establecimiento():
+    if request.method == "OPTIONS":
+        response = make_response("", 200)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        return response
+
+    data = request.get_json()
+    establecimiento = data.get("establecimiento")
+    diagnosticos = data.get("diagnosticos", [])
+
+    if not establecimiento:
+        return jsonify({"error": "No se recibió el establecimiento"}), 400
+
+    # Crear Excel en memoria
+    output = io.BytesIO()
+    writer = pd.ExcelWriter(output, engine="openpyxl")
+
+    # Información del establecimiento (hoja principal)
+    info_df = pd.DataFrame([{
+        "Establecimiento": establecimiento,
+        "Jurisdicción": "DIRIS LIMA CENTRO",
+        "Fecha consulta": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+    }])
+    info_df.to_excel(writer, index=False, sheet_name="INFORMACION")
+
+    # Para cada diagnóstico, buscar datos
+    for dx in diagnosticos:
+        nombre_hoja = dx.replace("diagnostico-", "").upper()[:31]
+        
+        try:
+            # Convertir diagnóstico a nombre para búsqueda
+            diag_nombre = dx.replace("diagnostico-", "")
+            
+            # Buscar en NOTIWEB_2025
+            conn = connect("EPI_TABLAS_MAESTRO_2025")
+            if conn:
+                query = """
+                    SELECT *
+                    FROM NOTIWEB_2025
+                    WHERE (UPPER(ESTABLECIMIENTO) = UPPER(?)
+                       OR UPPER([NOMBRE EESS]) = UPPER(?)
+                       OR UPPER([EESS]) = UPPER(?))
+                      AND UPPER(DIAGNOSTICO) = UPPER(?)
+                """
+                
+                df_diag = pd.read_sql(query, conn, params=[establecimiento, establecimiento, establecimiento, diag_nombre])
+                conn.close()
+                
+                if not df_diag.empty:
+                    # Eliminar columnas sensibles
+                    columnas_prohibidas = [
+                        "APEPAT", "APEMAT", "NOMBRES", "EDAD", "TIPO_EDAD", "SEXO",
+                        "DNI", "TIPO_DOC", "LATITUD", "LONGITUD", "COORDENADAS", 
+                        "UBICACION", "UBIGEO_DIR", "DIRECCION", "DIRECCION_COMPLETA",
+                        "TIPO_VIA", "NUM_PUERTA", "MANZANA", "BLOCK", "INTERIOR",
+                        "KILOMETRO", "LOTE", "REFERENCIA", "USUARIO", "FECHA_MOD"
+                    ]
+                    
+                    df_diag = df_diag.drop(
+                        columns=[c for c in columnas_prohibidas if c in df_diag.columns],
+                        errors="ignore"
+                    )
+                    
+                    hojas_existentes = writer.book.sheetnames
+                    original = nombre_hoja
+                    contador = 1
+                    
+                    while nombre_hoja in hojas_existentes:
+                        nombre_hoja = f"{original}_{contador}"[:31]
+                        contador += 1
+                    
+                    df_diag.to_excel(writer, index=False, sheet_name=nombre_hoja)
+                else:
+                    # Hoja vacía con mensaje
+                    df_vacio = pd.DataFrame({
+                        "Mensaje": [f"No se encontraron registros de {diag_nombre} para el establecimiento {establecimiento}"]
+                    })
+                    df_vacio.to_excel(writer, index=False, sheet_name=nombre_hoja)
+                    
+        except Exception as e:
+            df_error = pd.DataFrame({"Error": [str(e)]})
+            df_error.to_excel(writer, index=False, sheet_name=nombre_hoja)
+
+    writer.close()
+    output.seek(0)
+
+    response = send_file(
+        output,
+        as_attachment=True,
+        download_name=f"Datos_{establecimiento.replace(' ', '_')}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    return response
+
 @app.after_request
 def aplicar_cors(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
@@ -1636,11 +2427,17 @@ def aplicar_cors(response):
     response.headers["Access-Control-Allow-Headers"] = "Content-Type"
     return response
 
+@app.errorhandler(404)
+def not_found(e):
+    # Si Flask no encuentra la ruta, le entrega el index.html a React
+    # para que React Router se encargue de la navegación.
+    return send_from_directory(app.static_folder, 'index.html')
+
 # ============================================================
 # 🚀 INICIAR SERVER
 # ============================================================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=True)
 
 
 
