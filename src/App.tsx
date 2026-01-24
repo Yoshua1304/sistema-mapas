@@ -368,6 +368,8 @@ function App() {
   const [sidebarView, setSidebarView] = useState<'capas' | 'leyenda'>('capas');
   const [showCopyNotification, setShowCopyNotification] = useState(false);
 
+  const [isLoadingEstablecimiento, setIsLoadingEstablecimiento] = useState(false);
+
 //console.log("🟦 diagnosticoSeleccionado TYPE:", typeof diagnosticoSeleccionado);
 //console.log("🟦 diagnosticoSeleccionado VALUE:", diagnosticoSeleccionado);
 //console.log("🟦 diagnosticoSeleccionado IS ARRAY:", Array.isArray(diagnosticoSeleccionado));
@@ -978,22 +980,55 @@ const obtenerCasosEnfermedadEstablecimiento = async (establecimiento: string, en
     let diagNombre = enfermedad.replace('diagnostico-', '');
     
     // Mapear nombres específicos si es necesario
-    if (diagNombre.toUpperCase().includes("TBC") && diagNombre.toUpperCase().includes("TIA")) {
-      diagNombre = "TBC TIA";
-    } else if (diagNombre.toUpperCase() === "TBCTIAEESS") {
-      diagNombre = "TBC TIA EESS";
-    } else if (diagNombre.toUpperCase() === "TBCPULMONAR") {
-      diagNombre = "TBC Pulmonar";
-    }
+    const nombreMapeo: Record<string, string> = {
+      'diagnostico-edas': 'EDAS',
+      'diagnostico-febriles': 'FEBRILES',
+      'diagnostico-iras': 'IRAS',
+      'diagnostico-tbcTIA': 'TBC TIA',
+      'diagnostico-tbctiaeess': 'TBC TIA EESS',
+      'diagnostico-tbcpulmonar': 'TBC PULMONAR',
+      'diagnostico-depresion': 'DEPRESION',
+      'diagnostico-violencia': 'VIOLENCIA',
+      'diagnostico-diabetes': 'DIABETES',
+      'diagnostico-cancer': 'CANCER',
+      'diagnostico-renal': 'RENAL',
+      'diagnostico-muerte-materna': 'MUERTE MATERNA',
+      'diagnostico-muerte-materna-extrema': 'MUERTE MATERNA EXTREMA',
+      'diagnostico-muerte-fetal-neonatal': 'MUERTE FETAL NEONATAL',
+      'diagnostico-tos-ferina': 'TOS FERINA',
+      'diagnostico-parotiditis': 'PAROTIDITIS',
+      'diagnostico-varicela-sin-complicaciones': 'VARICELA',
+      'diagnostico-rubeola': 'RUBEOLA',
+      'diagnostico-sifilis-congenita': 'SIFILIS CONGENITA',
+      'diagnostico-sifilis-materna': 'SIFILIS MATERNA',
+      'diagnostico-sifilis-no-especificada': 'SIFILIS',
+      'diagnostico-hepatitis-b': 'HEPATITIS B',
+      'diagnostico-esavi': 'ESAVI',
+      'diagnostico-difteria': 'DIFTERIA',
+      'diagnostico-leptospirosis': 'LEPTOSPIROSIS',
+      'diagnostico-loxcelismo': 'LOXCELISMO',
+      'diagnostico-ofidismo': 'OFIDISMO',
+      'diagnostico-chikungunya': 'CHIKUNGUNYA',
+      'diagnostico-zika': 'ZIKA',
+      'diagnostico-dengue-sin-signos': 'DENGUE SIN SIGNOS',
+      'diagnostico-dengue-con-signos': 'DENGUE CON SIGNOS',
+      'diagnostico-dengue-grave': 'DENGUE GRAVE',
+      'diagnostico-chagas': 'CHAGAS',
+      'diagnostico-efecto-plaguicidas': 'EFECTO TOXICO PLAGUICIDAS',
+      'diagnostico-Metal,-no-Especificado': 'METAL NO ESPECIFICADO',
+    };
     
-    console.log(`🔍 Consultando casos para establecimiento: ${establecimiento}, diagnóstico: ${diagNombre}`);
+    // Usar el mapeo o el nombre original
+    const enfermedadParaBackend = nombreMapeo[enfermedad] || diagNombre;
+    
+    console.log(`🔍 Consultando casos para establecimiento: ${establecimiento}, diagnóstico: ${enfermedadParaBackend}`);
     
     const res = await fetch(
-      `http://10.0.5.237:5001/api/casos_enfermedad_establecimiento?establecimiento=${encodeURIComponent(establecimiento)}&enfermedad=${encodeURIComponent(diagNombre)}`
+      `http://10.0.5.237:5001/api/casos_enfermedad_establecimiento?establecimiento=${encodeURIComponent(establecimiento)}&enfermedad=${encodeURIComponent(enfermedadParaBackend)}`
     );
     
     if (!res.ok) {
-      console.error(`❌ Error HTTP ${res.status} para ${establecimiento}: ${diagNombre}`);
+      console.error(`❌ Error HTTP ${res.status} para ${establecimiento}: ${enfermedadParaBackend}`);
       return { 
         total: 0, 
         detalle: [],
@@ -1003,14 +1038,28 @@ const obtenerCasosEnfermedadEstablecimiento = async (establecimiento: string, en
     
     const data = await res.json();
     console.log(`✅ Datos obtenidos para ${establecimiento}:`, data);
-    return data;
+    
+    // Asegurarnos de que la respuesta tenga la estructura esperada
+    return {
+      total: data.total || 0,
+      daa: data.daa || 0,
+      dis: data.dis || 0,
+      ira_no_neumonia: data.ira_no_neumonia || 0,
+      sob_asma: data.sob_asma || 0,
+      neumonia_grave: data.neumonia_grave || 0,
+      neumonia: data.neumonia || 0,
+      TIA_100k: data.TIA_100k || 0,
+      detalle: data.detalle || [],
+      rawData: data
+    };
     
   } catch (error: any) {
     console.error(`❌ Error al obtener casos de enfermedad en establecimiento ${establecimiento}:`, error.message);
     return { 
       total: 0, 
       detalle: [],
-      error: error.message
+      error: error.message,
+      rawData: null
     };
   }
 };
@@ -1836,19 +1885,21 @@ useEffect(() => {
         L.DomEvent.stopPropagation(e);
 
         const districtLayer = e.target;
-
         const clickedName = name.toUpperCase();
         
         console.log("🖱️ Clic en:", clickedName, "Tipo:", geoJSONType);
         
         // ⭐ COMPORTAMIENTO NUEVO: CLIC EN EL MAPA REEMPLAZA LA SELECCIÓN
         if (geoJSONType === 'establecimientos') {
+          // Activar loading
+          setIsLoadingEstablecimiento(true);
+          
           // 1. Limpiar TODAS las selecciones anteriores
-          setSelectedDistrictLayerIds(new Set([clickedName])); // Solo este establecimiento
+          setSelectedDistrictLayerIds(new Set([clickedName]));
           setClickedDistrictId(clickedName);
           setSearchedDistrictId(null);
           
-          // 2. Actualizar selección en el panel (solo este establecimiento)
+          // 2. Actualizar selección en el panel
           const newSelectedLayers = new Set(selectedLayers);
           
           // Remover todos los establecimientos previamente seleccionados
@@ -1865,7 +1916,7 @@ useEffect(() => {
           console.log("🏥 Establecimiento seleccionado (clic mapa):", clickedName);
           console.log("📋 Nueva selección:", Array.from(new Set([clickedName])));
 
-          // 3. Crear popup para establecimiento usando el nuevo componente
+          // 3. Crear popup para establecimiento
           const container = L.DomUtil.create("div");
           
           // Obtener casos para este establecimiento
@@ -1874,7 +1925,7 @@ useEffect(() => {
           
           // Si hay diagnósticos seleccionados, obtener datos del establecimiento
           if (diagnosticoSeleccionado.length > 0) {
-            // Obtener casos totales del establecimiento usando la función
+            // Obtener casos totales del establecimiento
             try {
               caseCount = await obtenerCasosTotalesEstablecimiento(name);
               console.log(`📊 Casos totales para ${name}: ${caseCount}`);
@@ -1883,46 +1934,40 @@ useEffect(() => {
               caseCount = 0;
             }
             
-            // Para cada diagnóstico seleccionado, usar la función correspondiente
+            // Para cada diagnóstico seleccionado, obtener datos
             for (const diag of diagnosticoSeleccionado) {
               console.log(`📋 Procesando diagnóstico: ${diag} para establecimiento ${name}`);
               try {
                 const data = await obtenerCasosEnfermedadEstablecimiento(name, diag);
                 console.log(`✅ Datos obtenidos para ${diag}:`, data);
                 
-                // Extraer el nombre del diagnóstico sin el prefijo
-                const diagNombre = diag.replace('diagnostico-', '');
-                
-                if (diagNombre.toUpperCase().includes("TBC TIA") || diagNombre.toUpperCase().includes("TBCTIA")) {
-                  detalleDiagnostico[diag] = {
-                    total: data.total || 0,
-                    TIA_100k: data.TIA_100k || 0,
-                    detalle: data.detalle || [],
-                    rawData: data // Para depuración
-                  };
-                } else if (diagNombre.toUpperCase().includes("EDAS")) {
+                // Asignar los datos según el tipo de diagnóstico
+                if (diag === 'diagnostico-edas') {
                   detalleDiagnostico[diag] = {
                     total: data.total || 0,
                     daa: data.daa || 0,
                     dis: data.dis || 0,
-                    detalle: data.detalle || [],
-                    rawData: data // Para depuración
+                    detalle: data.detalle || []
                   };
-                } else if (diagNombre.toUpperCase().includes("IRAS")) {
+                } else if (diag === 'diagnostico-iras') {
                   detalleDiagnostico[diag] = {
                     total: data.total || 0,
                     ira_no_neumonia: data.ira_no_neumonia || 0,
                     sob_asma: data.sob_asma || 0,
                     neumonia_grave: data.neumonia_grave || 0,
                     neumonia: data.neumonia || 0,
-                    detalle: data.detalle || [],
-                    rawData: data // Para depuración
+                    detalle: data.detalle || []
+                  };
+                } else if (diag.includes('tbc') || diag.includes('TBC')) {
+                  detalleDiagnostico[diag] = {
+                    total: data.total || 0,
+                    TIA_100k: data.TIA_100k || 0,
+                    detalle: data.detalle || []
                   };
                 } else {
                   detalleDiagnostico[diag] = {
                     total: data.total || 0,
-                    detalle: data.detalle || [],
-                    rawData: data // Para depuración
+                    detalle: data.detalle || []
                   };
                 }
               } catch (err) {
@@ -1930,14 +1975,13 @@ useEffect(() => {
                 detalleDiagnostico[diag] = { 
                   total: 0, 
                   detalle: [],
-                  error: "Error al cargar datos",
-                  mensaje: "Error al cargar datos"
+                  error: "Error al cargar datos"
                 };
               }
             }
           }
           
-          // Obtener población asignada al establecimiento (si existe) usando la función
+          // Obtener población asignada al establecimiento
           let dataPoblacion = null;
           try {
             dataPoblacion = await obtenerPoblacionEstablecimiento(name);
@@ -1947,10 +1991,13 @@ useEffect(() => {
             dataPoblacion = null;
           }
           
+          // Desactivar loading
+          setIsLoadingEstablecimiento(false);
+          
           // Crear popup con un contenedor vacío inicialmente
           districtLayer.bindPopup(container, {
-            maxWidth: 400,
-            minWidth: 350,
+            maxWidth: 450,
+            minWidth: 400,
             className: "establecimiento-popup-container",
             autoPan: true,
             autoPanPadding: [30, 30]
@@ -2491,6 +2538,13 @@ useEffect(() => {
           </div>
         )}
 
+        {isLoadingEstablecimiento && (
+            <div className="loading-overlay">
+              <img src="/logo.png" alt="Cargando..." className="loading-logo" />
+              <p>Cargando datos del establecimiento...</p>
+            </div>
+        )}
+
         <MapResetClickHandler 
           setClickedDistrictId={setClickedDistrictId}
           setSearchedDistrictId={setSearchedDistrictId}
@@ -2675,18 +2729,16 @@ useEffect(() => {
 
         <MouseCoordinates />
 
-        <div className="legend-container">
-          <Legend 
-            selectedLayerNames={diagnosticoSeleccionado.map(getDisplayNameForDiagnostico)}
-            selectedDistrictNames={
-              [...new Set([
-                clickedDistrictId, 
-                ...Array.from(selectedDistrictLayerIds),
-                searchedDistrictId
-              ].filter(Boolean) as string[])]
-            }
-          />
-        </div>
+        <Legend 
+          selectedLayerNames={diagnosticoSeleccionado.map(getDisplayNameForDiagnostico)}
+          selectedDistrictNames={
+            [...new Set([
+              clickedDistrictId, 
+              ...Array.from(selectedDistrictLayerIds),
+              searchedDistrictId
+            ].filter(Boolean) as string[])]
+          }
+        />
 
       </MapContainer>
 

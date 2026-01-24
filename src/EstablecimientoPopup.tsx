@@ -109,7 +109,7 @@ const EstablecimientoPopup: React.FC<EstablecimientoProps> = ({
             diagnosticos: diagnosticoSeleccionado
         };
 
-        const response = await fetch("http://10.0.5.181:5000/exportar-datos-establecimiento", {
+        const response = await fetch("http://10.0.5.237:5001/exportar-datos-establecimiento", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)

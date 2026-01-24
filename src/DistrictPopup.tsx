@@ -125,7 +125,7 @@ const DistrictPopup: React.FC<DistrictPopupProps> = ({
             diagnosticos: diagnosticoSeleccionado
         };
 
-        const response = await fetch("http://10.0.5.181:5000/exportar-datos", {
+        const response = await fetch("http://10.0.5.237:5001/exportar-datos", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)

@@ -1632,6 +1632,7 @@ def tb_sigtb_distritos(distrito):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
 # ============================================================
 # ENDPOINTS PARA ESTABLECIMIENTOS
 # ============================================================
@@ -1681,12 +1682,47 @@ def api_poblacion_establecimiento():
     if not establecimiento:
         return jsonify({"error": "Falta parámetro 'establecimiento'"}), 400
     
-    # En tu base de datos actual, probablemente no haya población por establecimiento
-    # Por ahora devolvemos null
-    return jsonify({
-        "establecimiento": establecimiento,
-        "mensaje": "No hay datos de población por establecimiento en la base de datos actual"
-    })
+    try:
+        conn = connect("EPI_TABLAS_MAESTRO_2025")
+        if conn is None:
+            return jsonify({"error": "Error de conexión"}), 500
+        
+        cursor = conn.cursor()
+        
+        # Usar POBLACION_2026_RIS_EESS_DLC
+        sql = """
+            SELECT
+                SUM([MASCULINO] + [FEMENINO]) AS POBLACION_TOTAL,
+				SUM([MASCULINO]) AS MASCULINO,
+				SUM([FEMENINO]) AS FEMENINO,
+				SUM([NIÑO]) AS NIÑO,
+				SUM([Adolescente]) AS Adolescente,
+				SUM([Joven]) AS Joven,
+				SUM([Adulto]) AS Adulto,
+				SUM([Adulto Mayor]) AS Adulto_Mayor
+            FROM [POBLACION_2026_RIS_EESS_DLC]
+            WHERE UPPER([ESTABLECIMIENTOS]) = UPPER(?)
+        """
+        
+        cursor.execute(sql, (establecimiento,))
+        row = cursor.fetchone()
+        
+        if not row or row[0] is None:
+            return jsonify({
+                "establecimiento": establecimiento,
+                "mensaje": "No hay datos de población para este establecimiento"
+            })
+        
+        resultado = dict(zip([col[0] for col in cursor.description], row))
+        resultado["establecimiento"] = establecimiento
+        
+        conn.close()
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/casos_enfermedad_establecimiento", methods=["GET"])
 def api_casos_enfermedad_establecimiento():
@@ -1710,13 +1746,15 @@ def api_casos_enfermedad_establecimiento():
     if enfermedad_upper in ["INFECCIONES RESPIRATORIAS AGUDAS", "IRA", "IRAS"]:
         return get_iras_por_establecimiento(establecimiento)
     
-    # 🟠 TBC
+    # 🟠 TBC TIA
     if enfermedad_upper in ["TBC TIA", "TBC", "TIA"]:
         return get_tia_por_establecimiento(establecimiento)
     
+    # 🟠 TBC TIA EESS
     if enfermedad_upper in ["TBC TIA EESS"]:
         return get_tia_eess_por_establecimiento(establecimiento)
     
+    # 🟠 TBC PULMONAR
     if enfermedad_upper in ["TBC PULMONAR"]:
         return get_tbc_pulmonar_por_establecimiento(establecimiento)
     
@@ -1740,11 +1778,23 @@ def api_casos_enfermedad_establecimiento():
     if enfermedad_upper in ["RENAL"]:
         return get_renal_por_establecimiento(establecimiento)
     
+    # 🟣 ACCIDENTES TRÁNSITO
+    if enfermedad_upper in ["ACCIDENTE TRANSITO", "TRANSITO"]:
+        return get_transito_por_establecimiento(establecimiento)
+    
     # 🟣 MUERTE MATERNA
     if enfermedad_upper in ["MUERTE MATERNA"]:
         return get_mortalidad_materna_por_establecimiento(establecimiento)
     
-    # Para NOTIWEB_2025
+    # 🟣 MUERTE MATERNA EXTREMA
+    if enfermedad_upper in ["MUERTE MATERNA EXTREMA"]:
+        return get_mortalidad_extrema_por_establecimiento(establecimiento)
+    
+    # 🟣 MUERTE FETAL NEONATAL
+    if enfermedad_upper in ["MUERTE FETAL NEONATAL"]:
+        return get_mortalidad_neonatal_por_establecimiento(establecimiento)
+    
+    # Para NOTIWEB_2025 - usando columna ESTABLECIMIENTO
     try:
         conn = connect("EPI_TABLAS_MAESTRO_2025")
         if conn is None:
@@ -1757,15 +1807,13 @@ def api_casos_enfermedad_establecimiento():
                 [TIPO_DX],
                 COUNT(*) AS Cantidad
             FROM [NOTIWEB_2025]
-            WHERE (UPPER(ESTABLECIMIENTO) = UPPER(?)
-               OR UPPER([NOMBRE EESS]) = UPPER(?)
-               OR UPPER([EESS]) = UPPER(?))
+            WHERE UPPER([ESTABLECIMIENTO]) = UPPER(?)
               AND UPPER([DIAGNOSTICO]) = UPPER(?)
             GROUP BY [TIPO_DX]
             ORDER BY Cantidad DESC
         """
         
-        cursor.execute(sql, (establecimiento, establecimiento, establecimiento, enfermedad))
+        cursor.execute(sql, (establecimiento, enfermedad))
         rows = cursor.fetchall()
         
         total = sum(r[1] for r in rows)
@@ -1786,7 +1834,7 @@ def api_casos_enfermedad_establecimiento():
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
+    
 # ============================================================
 # FUNCIONES ESPECÍFICAS POR ESTABLECIMIENTO
 # ============================================================
@@ -1804,11 +1852,10 @@ def get_edas_por_establecimiento(establecimiento):
                 SUM(DAA_C1 + DAA_C1_4 + DAA_C5 + DAA_C5_11 + DAA_C12_17 + DAA_C18_29 + DAA_C30_59 + DAA_C60) as total_daa,
                 SUM(DIS_C1 + DIS_C1_4 + DIS_C5 + DIS_C5_11 + DIS_C12_17 + DIS_C18_29 + DIS_C30_59 + DIS_C60) as total_dis
             FROM REPORTE_EDA_2025
-            WHERE UPPER([EESS]) = UPPER(?)
-               OR UPPER([ESTABLECIMIENTO]) = UPPER(?)
+            WHERE UPPER([EESS.ESTABLECIMIENTO]) = UPPER(?)
         """
         
-        cursor.execute(sql, (establecimiento, establecimiento))
+        cursor.execute(sql, (establecimiento,))
         row = cursor.fetchone()
         
         daa = int(row[0]) if row and row[0] else 0
@@ -1847,11 +1894,10 @@ def get_febriles_por_establecimiento(establecimiento):
                 {", ".join([f"SUM([{col}]) AS {col}" for col in COLUMNAS_FEBRILES])},
                 SUM({sum_clause}) AS total_febriles
             FROM REPORTE_FEBRILES_2025
-            WHERE UPPER([EESS]) = UPPER(?)
-               OR UPPER([ESTABLECIMIENTO]) = UPPER(?)
+            WHERE UPPER([EESS.ESTABLECIMIENTO]) = UPPER(?)
         """
         
-        cursor.execute(sql, (establecimiento, establecimiento))
+        cursor.execute(sql, (establecimiento,))
         row = cursor.fetchone()
         
         if not row:
@@ -1909,11 +1955,10 @@ def get_iras_por_establecimiento(establecimiento):
                 COALESCE(SUM([NEU_20_59]),0)   AS NEU_20_59,
                 COALESCE(SUM([NEU_60A]),0)     AS NEU_60A
             FROM REPORTE_IRA_2025
-            WHERE UPPER([EESS]) = UPPER(?)
-               OR UPPER([ESTABLECIMIENTO]) = UPPER(?)
+            WHERE UPPER([EESS.ESTABLECIMIENTO]) = UPPER(?)
         """
         
-        cursor.execute(sql, (establecimiento, establecimiento))
+        cursor.execute(sql, (establecimiento,))
         row = cursor.fetchone()
         
         if not row:
@@ -1962,16 +2007,17 @@ def get_tia_por_establecimiento(establecimiento):
     try:
         cursor = conn.cursor()
         
+        # TIA_TOTAL no tiene columna específica para establecimiento
+        # Puedes usar la columna Distrito_EESS si existe, o buscar en TIA por establecimiento
         sql = """
             SELECT 
                 casos,
                 TIA_100k
             FROM TIA_TOTAL
             WHERE UPPER([Distrito_EESS]) = UPPER(?)
-               OR UPPER([EESS]) = UPPER(?)
         """
         
-        cursor.execute(sql, (establecimiento, establecimiento))
+        cursor.execute(sql, (establecimiento,))
         row = cursor.fetchone()
         
         if not row:
@@ -2003,16 +2049,16 @@ def get_tia_eess_por_establecimiento(establecimiento):
     try:
         cursor = conn.cursor()
         
+        # TB_TIA_EESS_MINSA no tiene columna específica para establecimiento
         sql = """
             SELECT 
                 casos,
                 TIA_100k
             FROM TB_TIA_EESS_MINSA
             WHERE UPPER([Distrito_EESS]) = UPPER(?)
-               OR UPPER([EESS]) = UPPER(?)
         """
         
-        cursor.execute(sql, (establecimiento, establecimiento))
+        cursor.execute(sql, (establecimiento,))
         row = cursor.fetchone()
         
         if not row:
@@ -2048,10 +2094,9 @@ def get_tbc_pulmonar_por_establecimiento(establecimiento):
             SELECT COUNT(*) AS total
             FROM TB_BD_SIGTB
             WHERE UPPER([Establecimiento de Salud]) = UPPER(?)
-               OR UPPER([EESS]) = UPPER(?)
         """
         
-        cursor.execute(sql, (establecimiento, establecimiento))
+        cursor.execute(sql, (establecimiento,))
         row = cursor.fetchone()
         
         total = row[0] if row else 0
@@ -2079,11 +2124,10 @@ def get_depresion_por_establecimiento(establecimiento):
         sql = """
             SELECT COUNT(*) AS total
             FROM Depresion
-            WHERE UPPER([Establecimiento]) = UPPER(?)
-               OR UPPER([EESS]) = UPPER(?)
+            WHERE UPPER([nom_eess]) = UPPER(?)
         """
         
-        cursor.execute(sql, (establecimiento, establecimiento))
+        cursor.execute(sql, (establecimiento,))
         row = cursor.fetchone()
         
         total = row[0] if row else 0
@@ -2113,11 +2157,10 @@ def get_violencia_por_establecimiento(establecimiento):
         sql = """
             SELECT COUNT(*) AS total
             FROM VF_Completo
-            WHERE UPPER([ESTABLECIMIENTO]) = UPPER(?)
-               OR UPPER([EESS]) = UPPER(?)
+            WHERE UPPER([estab_s]) = UPPER(?)
         """
         
-        cursor.execute(sql, (establecimiento, establecimiento))
+        cursor.execute(sql, (establecimiento,))
         row = cursor.fetchone()
         
         total = row[0] if row else 0
@@ -2147,11 +2190,10 @@ def get_diabetes_por_establecimiento(establecimiento):
         sql = """
             SELECT COUNT(*) AS total
             FROM REPORTE_DIABETES
-            WHERE UPPER([EESS]) = UPPER(?)
-               OR UPPER([ESTABLECIMIENTO]) = UPPER(?)
+            WHERE UPPER([ESTABLECIMIENTO]) = UPPER(?)
         """
         
-        cursor.execute(sql, (establecimiento, establecimiento))
+        cursor.execute(sql, (establecimiento,))
         row = cursor.fetchone()
         
         total = row[0] if row else 0
@@ -2184,16 +2226,14 @@ def get_cancer_por_establecimiento(establecimiento):
                 COUNT(*) as total
             FROM (
                 SELECT * FROM REPORTE_CANCER_ADULTO
-                WHERE UPPER([EESS]) = UPPER(?)
-                   OR UPPER([ESTABLECIMIENTO]) = UPPER(?)
+                WHERE UPPER([Establecimiento]) = UPPER(?)
                 UNION ALL
                 SELECT * FROM REPORTE_CANCER_INFANTIL
-                WHERE UPPER([EESS]) = UPPER(?)
-                   OR UPPER([ESTABLECIMIENTO]) = UPPER(?)
+                WHERE UPPER([Establecimiento]) = UPPER(?)
             ) as cancer_total
         """
         
-        cursor.execute(sql, (establecimiento, establecimiento, establecimiento, establecimiento))
+        cursor.execute(sql, (establecimiento, establecimiento))
         row = cursor.fetchone()
         
         total = row[1] if row else 0
@@ -2223,11 +2263,10 @@ def get_renal_por_establecimiento(establecimiento):
         sql = """
             SELECT COUNT(*) AS total
             FROM BD_RENAL
-            WHERE UPPER([EESS]) = UPPER(?)
-               OR UPPER([ESTABLECIMIENTO]) = UPPER(?)
+            WHERE UPPER([establecimiento]) = UPPER(?)
         """
         
-        cursor.execute(sql, (establecimiento, establecimiento))
+        cursor.execute(sql, (establecimiento,))
         row = cursor.fetchone()
         
         total = row[0] if row else 0
@@ -2237,6 +2276,39 @@ def get_renal_por_establecimiento(establecimiento):
             "total": total,
             "detalle": [
                 {"tipo_dx": "Renal", "cantidad": total}
+            ]
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+def get_transito_por_establecimiento(establecimiento):
+    conn = get_transito_connection()
+    if conn is None:
+        return jsonify({"error": "No connection"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        
+        sql = """
+            SELECT COUNT(*) AS total
+            FROM REPORTE_ACCIDENTES_TRANSITO
+            WHERE UPPER([ESTABLECIMIENTO]) = UPPER(?)
+        """
+        
+        cursor.execute(sql, (establecimiento,))
+        row = cursor.fetchone()
+        
+        total = row[0] if row else 0
+        
+        return jsonify({
+            "establecimiento": establecimiento,
+            "total": total,
+            "detalle": [
+                {"tipo_dx": "Transito", "cantidad": total}
             ]
         })
         
@@ -2257,11 +2329,10 @@ def get_mortalidad_materna_por_establecimiento(establecimiento):
         sql = """
             SELECT COUNT(*) AS total
             FROM MM_REPORTE_2024
-            WHERE UPPER([EESS]) = UPPER(?)
-               OR UPPER([ESTABLECIMIENTO]) = UPPER(?)
+            WHERE UPPER([establecimiento]) = UPPER(?)
         """
         
-        cursor.execute(sql, (establecimiento, establecimiento))
+        cursor.execute(sql, (establecimiento,))
         row = cursor.fetchone()
         
         total = row[0] if row else 0
@@ -2271,6 +2342,72 @@ def get_mortalidad_materna_por_establecimiento(establecimiento):
             "total": total,
             "detalle": [
                 {"tipo_dx": "mortalidad_materna", "cantidad": total}
+            ]
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+def get_mortalidad_extrema_por_establecimiento(establecimiento):
+    conn = get_mortalidad_connection()
+    if conn is None:
+        return jsonify({"error": "No connection"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        
+        sql = """
+            SELECT COUNT(*) AS total
+            FROM MME_REPORTE_2024
+            WHERE UPPER([nom_eess]) = UPPER(?)
+        """
+        
+        cursor.execute(sql, (establecimiento,))
+        row = cursor.fetchone()
+        
+        total = row[0] if row else 0
+        
+        return jsonify({
+            "establecimiento": establecimiento,
+            "total": total,
+            "detalle": [
+                {"tipo_dx": "mortalidad_materna", "cantidad": total}
+            ]
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+def get_mortalidad_neonatal_por_establecimiento(establecimiento):
+    conn = get_mortalidad_connection()
+    if conn is None:
+        return jsonify({"error": "No connection"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        
+        sql = """
+            SELECT COUNT(*) AS total
+            FROM MNP_REPORTE_2024
+            WHERE UPPER([establecimiento.x]) = UPPER(?)
+        """
+        
+        cursor.execute(sql, (establecimiento,))
+        row = cursor.fetchone()
+        
+        total = row[0] if row else 0
+        
+        return jsonify({
+            "establecimiento": establecimiento,
+            "total": total,
+            "detalle": [
+                {"tipo_dx": "mortalidad_neonatal_perinatal", "cantidad": total}
             ]
         })
         
