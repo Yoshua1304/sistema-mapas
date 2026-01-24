@@ -7,6 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import './App.css';
 import LayerItem, { Layer } from './LayerItem';
 import DistrictPopup from './DistrictPopup';
+import EstablecimientoPopup from './EstablecimientoPopup';
 import BaseMapSelector, { BaseMap } from './BaseMapSelector';
 import Legend from './Legend';
 import { createRoot } from "react-dom/client";
@@ -65,21 +66,59 @@ const MapResetClickHandler: React.FC<MapResetHandlerProps> = ({
   setSelectedDistrictLayerIds,
 }) => {
   useMapEvents({
-    click: () => {
-      // Si el evento llega aquí, significa que se hizo clic en el mapa 
-      // y que ninguna capa (distrito/establecimiento) detuvo la propagación.
+    click: (e) => {
+      // ⭐ VERIFICACIÓN CRÍTICA: Comprobar si el clic fue en un elemento interactivo
+      const target = e.originalEvent.target as HTMLElement;
       
-      console.log("🗺️ Clic en el mapa (fuera de elementos) - Limpiando selecciones");
+      // Si el clic fue en un popup o sus contenidos, NO limpiar selecciones
+      const isClickOnPopup = target.closest('.leaflet-popup') !== null;
+      const isClickOnTooltip = target.closest('.leaflet-tooltip') !== null;
+      const isClickOnSidebar = target.closest('.sidebar-floating') !== null;
+      const isClickOnMapSearch = target.closest('.map-search-bar-container') !== null;
+      const isClickOnMapTools = target.closest('.map-tools') !== null;
       
-      // 1. Limpiamos el resaltado por clic directo
-      setClickedDistrictId(null);
+      // ⭐ Elementos específicos de tu aplicación que NO deben disparar el reset
+      const isClickOnDistrictPopup = target.closest('.district-popup-container') !== null;
+      const isClickOnEstablecimientoPopup = target.closest('.establecimiento-popup-container') !== null;
+      const isClickOnLegend = target.closest('.legend-container') !== null;
+      const isClickOnCompass = target.closest('.compass') !== null;
+      const isClickOnCoordinates = target.closest('.mouse-coordinates') !== null;
       
-      // 2. Limpiamos el resaltado por búsqueda
-      setSearchedDistrictId(null);
+      if (
+        isClickOnPopup ||
+        isClickOnTooltip ||
+        isClickOnSidebar ||
+        isClickOnMapSearch ||
+        isClickOnMapTools ||
+        isClickOnDistrictPopup ||
+        isClickOnEstablecimientoPopup ||
+        isClickOnLegend ||
+        isClickOnCompass ||
+        isClickOnCoordinates
+      ) {
+        console.log("🛑 Clic en elemento interactivo - NO limpiar selecciones");
+        return;
+      }
       
-      // 3. Limpiamos TODAS las selecciones
-      setSelectedDistrictLayerIds(new Set()); 
+      // Si el evento llega aquí, significa que se hizo clic en el mapa vacío
+      console.log("🗺️ Clic en mapa vacío - Limpiando selecciones");
+      
+      // Limpiar selecciones solo si no hay popups abiertos
+      const map = e.target;
+      if (!map._popup || !map._popup.isOpen()) {
+        setClickedDistrictId(null);
+        setSearchedDistrictId(null);
+        setSelectedDistrictLayerIds(new Set());
+      } else {
+        console.log("ℹ️ Hay un popup abierto, manteniendo selecciones");
+      }
     },
+    
+    // ⭐ Añadir también manejo para cuando se cierra un popup manualmente
+    popupclose: () => {
+      console.log("📌 Popup cerrado - Manteniendo selección visual");
+      // No limpiar las selecciones aquí, solo mantener la visual
+    }
   });
 
   return null;
@@ -348,7 +387,7 @@ const cargarFebrilesPorDistrito = async () => {
     const distrito = feature.properties.NM_DIST;
 
     try {
-      const resp = await fetch(`http://127.0.0.1:5000/api/febriles_distrito?distrito=${distrito}`);
+      const resp = await fetch(`http://10.0.5.237:5001/api/febriles_distrito?distrito=${distrito}`);
       const data = await resp.json();
 
       resultados[distrito] = {
@@ -574,7 +613,7 @@ const cargarDiabetesPorDistrito = async () => {
 
 const cargarTIATotal = async () => {
   try {
-    const resp = await fetch("http://127.0.0.1:5000/tb_tia_total");
+    const resp = await fetch("http://10.0.5.237:5001/tb_tia_total");
     const data = await resp.json();
 
     // Transformamos a un diccionario: { "LIMA": { TIA_100k: 222.09 }, ... }
@@ -603,7 +642,7 @@ const cargarTIATotal = async () => {
 
 const cargarTIATotalEESS = async () => {
   try {
-    const resp = await fetch("http://127.0.0.1:5000/tb_tia_total_EESS");
+    const resp = await fetch("http://10.0.5.237:5001/tb_tia_total_EESS");
     const data = await resp.json();
 
     // Transformamos a un diccionario: { "LIMA": { TIA_100k: 222.09 }, ... }
@@ -632,7 +671,7 @@ const cargarTIATotalEESS = async () => {
 
 const cargarSigtbDistritos = async () => {
   try {
-    const resp = await fetch("http://127.0.0.1:5000/tb_sigtb_distritos");
+    const resp = await fetch("http://10.0.5.237:5001/tb_sigtb_distritos");
     const data = await resp.json();
 
     const resultados: Record<string, { total: number }> = {};
@@ -808,7 +847,7 @@ const detalles: Record<
 
   for (const feature of allDistricts.features) {
     const distrito = feature.properties.NM_DIST;
-    const url = `http://10.0.5.181:5000/api/casos_enfermedad?distrito=${distrito}&enfermedad=${diagnostico}`;
+    const url = `http://10.0.5.237:5001/api/casos_enfermedad?distrito=${distrito}&enfermedad=${diagnostico}`;
 
     console.log(`🌐 Consultando backend para distrito: ${distrito}`);
     console.log(`URL → ${url}`);
@@ -880,13 +919,13 @@ const detalles: Record<
 };
 
 const obtenerCasosEnfermedad = async (distrito: string, enfermedad: string) => {
-  const res = await fetch(`http://10.0.5.181:5000/api/casos_enfermedad?distrito=${distrito}&enfermedad=${enfermedad}`);
+  const res = await fetch(`http://10.0.5.237:5001/api/casos_enfermedad?distrito=${distrito}&enfermedad=${enfermedad}`);
   return await res.json();
 };
 
 const obtenerCasosTotales = async (distrito: string) => {
   try {
-    const res = await fetch(`http://10.0.5.181:5000/api/casos_totales?distrito=${distrito}`);
+    const res = await fetch(`http://10.0.5.237:5001/api/casos_totales?distrito=${distrito}`);
     const data = await res.json();
     return data.total ?? 0;
   } catch (e) {
@@ -897,13 +936,82 @@ const obtenerCasosTotales = async (distrito: string) => {
 
 const obtenerPoblacion = async (distrito: string) => {
   try {
-    const res = await fetch(`http://10.0.5.181:5000/api/poblacion?distrito=${distrito}`);
+    const res = await fetch(`http://10.0.5.237:5001/api/poblacion?distrito=${distrito}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Error desconocido");
     return data;
   } catch (error: any) {
     console.error("Error al obtener población:", error.message);
     return null;
+  }
+};
+
+// Función para obtener población de establecimientos
+const obtenerPoblacionEstablecimiento = async (establecimiento: string) => {
+  try {
+    const res = await fetch(`http://10.0.5.237:5001/api/poblacion_establecimiento?establecimiento=${encodeURIComponent(establecimiento)}`);
+    if (!res.ok) throw new Error("Error al obtener población");
+    const data = await res.json();
+    return data;
+  } catch (error: any) {
+    console.error("Error al obtener población del establecimiento:", error.message);
+    return null;
+  }
+};
+
+// Función para obtener casos totales de establecimientos
+const obtenerCasosTotalesEstablecimiento = async (establecimiento: string) => {
+  try {
+    const res = await fetch(`http://10.0.5.237:5001/api/casos_totales_establecimiento?establecimiento=${encodeURIComponent(establecimiento)}`);
+    const data = await res.json();
+    return data.total ?? 0;
+  } catch (error: any) {
+    console.error("Error al obtener casos del establecimiento:", error.message);
+    return 0;
+  }
+};
+
+// Función para obtener casos de enfermedad en establecimiento
+const obtenerCasosEnfermedadEstablecimiento = async (establecimiento: string, enfermedad: string) => {
+  try {
+    // Extraer el nombre del diagnóstico sin el prefijo
+    let diagNombre = enfermedad.replace('diagnostico-', '');
+    
+    // Mapear nombres específicos si es necesario
+    if (diagNombre.toUpperCase().includes("TBC") && diagNombre.toUpperCase().includes("TIA")) {
+      diagNombre = "TBC TIA";
+    } else if (diagNombre.toUpperCase() === "TBCTIAEESS") {
+      diagNombre = "TBC TIA EESS";
+    } else if (diagNombre.toUpperCase() === "TBCPULMONAR") {
+      diagNombre = "TBC Pulmonar";
+    }
+    
+    console.log(`🔍 Consultando casos para establecimiento: ${establecimiento}, diagnóstico: ${diagNombre}`);
+    
+    const res = await fetch(
+      `http://10.0.5.237:5001/api/casos_enfermedad_establecimiento?establecimiento=${encodeURIComponent(establecimiento)}&enfermedad=${encodeURIComponent(diagNombre)}`
+    );
+    
+    if (!res.ok) {
+      console.error(`❌ Error HTTP ${res.status} para ${establecimiento}: ${diagNombre}`);
+      return { 
+        total: 0, 
+        detalle: [],
+        error: `Error ${res.status}: ${res.statusText}`
+      };
+    }
+    
+    const data = await res.json();
+    console.log(`✅ Datos obtenidos para ${establecimiento}:`, data);
+    return data;
+    
+  } catch (error: any) {
+    console.error(`❌ Error al obtener casos de enfermedad en establecimiento ${establecimiento}:`, error.message);
+    return { 
+      total: 0, 
+      detalle: [],
+      error: error.message
+    };
   }
 };
 
@@ -1073,6 +1181,13 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
     // setSearchedDistrictId(null); 
 
   }, [diagnosticoSeleccionado, map]);
+
+  // Función auxiliar para debug
+useEffect(() => {
+  console.log("🔄 Estado actualizado - Diagnósticos:", diagnosticoSeleccionado);
+  console.log("🔄 Estado actualizado - Capas seleccionadas:", Array.from(selectedLayers));
+  console.log("🔄 Estado actualizado - Establecimientos seleccionados:", Array.from(selectedDistrictLayerIds));
+}, [diagnosticoSeleccionado, selectedLayers, selectedDistrictLayerIds]);
 
   const getSubLayerIds = (layer: Layer): string[] => {
     let ids: string[] = [layer.id];
@@ -1749,6 +1864,142 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
           
           console.log("🏥 Establecimiento seleccionado (clic mapa):", clickedName);
           console.log("📋 Nueva selección:", Array.from(new Set([clickedName])));
+
+          // 3. Crear popup para establecimiento usando el nuevo componente
+          const container = L.DomUtil.create("div");
+          
+          // Obtener casos para este establecimiento
+          let caseCount = 0;
+          const detalleDiagnostico: Record<string, any> = {};
+          
+          // Si hay diagnósticos seleccionados, obtener datos del establecimiento
+          if (diagnosticoSeleccionado.length > 0) {
+            // Obtener casos totales del establecimiento usando la función
+            try {
+              caseCount = await obtenerCasosTotalesEstablecimiento(name);
+              console.log(`📊 Casos totales para ${name}: ${caseCount}`);
+            } catch (err) {
+              console.error(`Error obteniendo casos totales para establecimiento ${name}:`, err);
+              caseCount = 0;
+            }
+            
+            // Para cada diagnóstico seleccionado, usar la función correspondiente
+            for (const diag of diagnosticoSeleccionado) {
+              console.log(`📋 Procesando diagnóstico: ${diag} para establecimiento ${name}`);
+              try {
+                const data = await obtenerCasosEnfermedadEstablecimiento(name, diag);
+                console.log(`✅ Datos obtenidos para ${diag}:`, data);
+                
+                // Extraer el nombre del diagnóstico sin el prefijo
+                const diagNombre = diag.replace('diagnostico-', '');
+                
+                if (diagNombre.toUpperCase().includes("TBC TIA") || diagNombre.toUpperCase().includes("TBCTIA")) {
+                  detalleDiagnostico[diag] = {
+                    total: data.total || 0,
+                    TIA_100k: data.TIA_100k || 0,
+                    detalle: data.detalle || [],
+                    rawData: data // Para depuración
+                  };
+                } else if (diagNombre.toUpperCase().includes("EDAS")) {
+                  detalleDiagnostico[diag] = {
+                    total: data.total || 0,
+                    daa: data.daa || 0,
+                    dis: data.dis || 0,
+                    detalle: data.detalle || [],
+                    rawData: data // Para depuración
+                  };
+                } else if (diagNombre.toUpperCase().includes("IRAS")) {
+                  detalleDiagnostico[diag] = {
+                    total: data.total || 0,
+                    ira_no_neumonia: data.ira_no_neumonia || 0,
+                    sob_asma: data.sob_asma || 0,
+                    neumonia_grave: data.neumonia_grave || 0,
+                    neumonia: data.neumonia || 0,
+                    detalle: data.detalle || [],
+                    rawData: data // Para depuración
+                  };
+                } else {
+                  detalleDiagnostico[diag] = {
+                    total: data.total || 0,
+                    detalle: data.detalle || [],
+                    rawData: data // Para depuración
+                  };
+                }
+              } catch (err) {
+                console.error(`❌ Error obteniendo datos para ${diag} en establecimiento ${name}:`, err);
+                detalleDiagnostico[diag] = { 
+                  total: 0, 
+                  detalle: [],
+                  error: "Error al cargar datos",
+                  mensaje: "Error al cargar datos"
+                };
+              }
+            }
+          }
+          
+          // Obtener población asignada al establecimiento (si existe) usando la función
+          let dataPoblacion = null;
+          try {
+            dataPoblacion = await obtenerPoblacionEstablecimiento(name);
+            console.log(`👥 Población para ${name}:`, dataPoblacion);
+          } catch (error) {
+            console.error("Error obteniendo población del establecimiento:", error);
+            dataPoblacion = null;
+          }
+          
+          // Crear popup con un contenedor vacío inicialmente
+          districtLayer.bindPopup(container, {
+            maxWidth: 400,
+            minWidth: 350,
+            className: "establecimiento-popup-container",
+            autoPan: true,
+            autoPanPadding: [30, 30]
+          });
+
+          // Montar el componente React en el popup cuando se abre
+          districtLayer.on("popupopen", () => {
+            console.log("🎯 Popup abierto para establecimiento:", name);
+            
+            // Limpiar el contenedor primero
+            container.innerHTML = '';
+            const root = createRoot(container);
+            
+            root.render(
+              <EstablecimientoPopup
+                establecimientoName={name}
+                caseCount={caseCount}
+                poblacion={dataPoblacion}
+                diagnosticoSeleccionado={diagnosticoSeleccionado}
+                detalleDiagnostico={detalleDiagnostico}
+                propiedades={feature.properties}
+              />
+            );
+
+            // Guardar referencia para limpiar luego
+            (districtLayer as any)._reactRoot = root;
+          });
+
+          // Desmontar React cuando se cierra el popup
+          districtLayer.on("popupclose", () => {
+            console.log("❌ Popup cerrado para establecimiento:", name);
+            const root = (districtLayer as any)._reactRoot;
+            if (root) {
+              root.unmount();
+              delete (districtLayer as any)._reactRoot;
+            }
+          });
+
+          // Abrir el popup inmediatamente
+          districtLayer.openPopup();
+          console.log("✅ Popup abierto para:", name);
+
+          // 4. Ajuste de zoom
+          if (map) {
+            const bounds = districtLayer.getBounds();
+            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+          }
+          
+          return;
         } else {
           // Para distritos: mismo comportamiento
           setClickedDistrictId(clickedName);
@@ -1776,19 +2027,6 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
         if (map) {
           const bounds = districtLayer.getBounds();
           map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
-        }
-
-        // Si es establecimiento, mostrar popup simple
-        if (geoJSONType === 'establecimientos') {
-          layer.bindPopup(`
-            <div class="district-popup">
-              <h4>${name}</h4>
-              <p><strong>Tipo:</strong> Establecimiento de Salud</p>
-              <p><strong>Jurisdicción:</strong> ${feature.properties.jurisdiccion || 'No disponible'}</p>
-              <p><strong>Selección:</strong> Único (clic en mapa)</p>
-            </div>
-          `).openPopup();
-          return;
         }
 
         // ⭐ Solo para distritos: Llamadas a la BD
@@ -1883,33 +2121,33 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
     });
   };
 
-const filteredLayers = useMemo(() => {
-    const searchTerm = layerSearchTerm.trim().toLowerCase();
-    if (!searchTerm) {
-      return layers;
-    }
-
-    const filterAndReconstruct = (layersToFilter: Layer[]): Layer[] => {
-      const result: Layer[] = [];
-
-      for (const layer of layersToFilter) {
-        let filteredSubLayers: Layer[] | undefined = undefined;
-        if (layer.subLayers && layer.subLayers.length > 0) {
-          filteredSubLayers = filterAndReconstruct(layer.subLayers);
-        }
-
-        const selfMatch = layer.name.toLowerCase().includes(searchTerm);
-        const hasMatchingChildren = filteredSubLayers && filteredSubLayers.length > 0;
-
-        if (selfMatch || hasMatchingChildren) {
-          result.push({ ...layer, subLayers: filteredSubLayers });
-        }
+  const filteredLayers = useMemo(() => {
+      const searchTerm = layerSearchTerm.trim().toLowerCase();
+      if (!searchTerm) {
+        return layers;
       }
-      return result;
-    };
 
-    return filterAndReconstruct(layers);
-  }, [layers, layerSearchTerm]);
+      const filterAndReconstruct = (layersToFilter: Layer[]): Layer[] => {
+        const result: Layer[] = [];
+
+        for (const layer of layersToFilter) {
+          let filteredSubLayers: Layer[] | undefined = undefined;
+          if (layer.subLayers && layer.subLayers.length > 0) {
+            filteredSubLayers = filterAndReconstruct(layer.subLayers);
+          }
+
+          const selfMatch = layer.name.toLowerCase().includes(searchTerm);
+          const hasMatchingChildren = filteredSubLayers && filteredSubLayers.length > 0;
+
+          if (selfMatch || hasMatchingChildren) {
+            result.push({ ...layer, subLayers: filteredSubLayers });
+          }
+        }
+        return result;
+      };
+
+      return filterAndReconstruct(layers);
+    }, [layers, layerSearchTerm]);
 
   const isSearchActive = layerSearchTerm.trim() !== '';
 
@@ -2227,6 +2465,8 @@ const filteredLayers = useMemo(() => {
     );
   };
 
+  
+
    return (
     <div className="map-container">
       <MapContainer
@@ -2435,16 +2675,18 @@ const filteredLayers = useMemo(() => {
 
         <MouseCoordinates />
 
-        <Legend 
-          selectedLayerNames={diagnosticoSeleccionado.map(getDisplayNameForDiagnostico)}
-          selectedDistrictNames={
-            [...new Set([
-              clickedDistrictId, 
-              ...Array.from(selectedDistrictLayerIds),
-              searchedDistrictId
-            ].filter(Boolean) as string[])]
-          }
-        />
+        <div className="legend-container">
+          <Legend 
+            selectedLayerNames={diagnosticoSeleccionado.map(getDisplayNameForDiagnostico)}
+            selectedDistrictNames={
+              [...new Set([
+                clickedDistrictId, 
+                ...Array.from(selectedDistrictLayerIds),
+                searchedDistrictId
+              ].filter(Boolean) as string[])]
+            }
+          />
+        </div>
 
       </MapContainer>
 

@@ -1632,7 +1632,6 @@ def tb_sigtb_distritos(distrito):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 # ============================================================
 # ENDPOINTS PARA ESTABLECIMIENTOS
 # ============================================================
@@ -1682,47 +1681,12 @@ def api_poblacion_establecimiento():
     if not establecimiento:
         return jsonify({"error": "Falta parámetro 'establecimiento'"}), 400
     
-    # Intenta obtener población del establecimiento desde alguna tabla
-    try:
-        conn = connect("EPI_TABLAS_MAESTRO_2025")
-        cursor = conn.cursor()
-        
-        # Esto es un ejemplo - ajusta según tu estructura de datos
-        query = """
-            SELECT 
-                SUM([MASCULINO] + [FEMENINO]) AS POBLACION_TOTAL,
-                SUM([MASCULINO]) AS MASCULINO,
-                SUM([FEMENINO]) AS FEMENINO
-            FROM POBLACION_2026_DIRIS_LIMA_CENTRO
-            WHERE UPPER(DISTRITO) IN (
-                SELECT DISTINCT UPPER(DISTRITO) 
-                FROM NOTIWEB_2025 
-                WHERE UPPER(ESTABLECIMIENTO) = UPPER(?)
-                   OR UPPER([NOMBRE EESS]) = UPPER(?)
-            )
-        """
-        
-        cursor.execute(query, (establecimiento, establecimiento))
-        row = cursor.fetchone()
-        
-        if row and row[0]:
-            return jsonify({
-                "establecimiento": establecimiento,
-                "POBLACION_TOTAL": row[0],
-                "MASCULINO": row[1] or 0,
-                "FEMENINO": row[2] or 0
-            })
-        
-        return jsonify({
-            "establecimiento": establecimiento,
-            "mensaje": "No hay datos de población específicos para este establecimiento"
-        })
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if 'conn' in locals():
-            conn.close()
+    # En tu base de datos actual, probablemente no haya población por establecimiento
+    # Por ahora devolvemos null
+    return jsonify({
+        "establecimiento": establecimiento,
+        "mensaje": "No hay datos de población por establecimiento en la base de datos actual"
+    })
 
 @app.route("/api/casos_enfermedad_establecimiento", methods=["GET"])
 def api_casos_enfermedad_establecimiento():

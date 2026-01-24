@@ -1,5 +1,9 @@
 import pyodbc
-import os  # Necesario para leer variables de entorno
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 SERVER = os.getenv('DB_SERVER', '10.0.0.10')
 DRIVER = '{ODBC Driver 18 for SQL Server}'
