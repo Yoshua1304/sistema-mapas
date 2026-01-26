@@ -369,6 +369,8 @@ function App() {
   const [showCopyNotification, setShowCopyNotification] = useState(false);
 
   const [isLoadingEstablecimiento, setIsLoadingEstablecimiento] = useState(false);
+  // En los estados, agrega:
+  const [casosPorEstablecimiento, setCasosPorEstablecimiento] = useState<Record<string, number>>({});
 
 //console.log("🟦 diagnosticoSeleccionado TYPE:", typeof diagnosticoSeleccionado);
 //console.log("🟦 diagnosticoSeleccionado VALUE:", diagnosticoSeleccionado);
@@ -702,6 +704,7 @@ const resetMapToDefault = () => {
   // 1. Limpiar filtros
   setDiagnosticoSeleccionado([]);
   setCasosPorDistrito({});
+  setCasosPorEstablecimiento({});
 
   // 2. Limpiar subcapas
   const cleanedLayers = new Set(selectedLayers);
@@ -742,86 +745,68 @@ const handleShowLegend = () => {
 };
 
 useEffect(() => {
-  if (!allDistricts) return;
-  if (!diagnosticoSeleccionado || diagnosticoSeleccionado.length === 0) return;
-
-  // Si estamos en modo establecimientos, no cargamos datos de diagnósticos
-  if (geoJSONType === 'establecimientos') return;
+  if (!diagnosticoSeleccionado || diagnosticoSeleccionado.length === 0) {
+    // Limpiar datos si no hay diagnósticos seleccionados
+    if (geoJSONType === 'distritos') {
+      setCasosPorDistrito({});
+    } else {
+      setCasosPorEstablecimiento({});
+    }
+    return;
+  }
 
   const diagnostico = diagnosticoSeleccionado[diagnosticoSeleccionado.length - 1];
+  const diagnosticoNombre = diagnostico.replace('diagnostico-', '').toUpperCase();
 
-  console.log("🟢 diagnosticoSeleccionado →", diagnosticoSeleccionado);
-  console.log("🟢 diagnostico final →", diagnostico);
+  console.log("🟢 Diagnóstico para pintar:", diagnosticoNombre);
+  console.log("🗺️ Tipo de GeoJSON:", geoJSONType);
 
-  // 🔴 EDAS
-  if (diagnostico === "diagnostico-edas") {
-    console.log("🔥 Cargando EDAS...");
-    cargarEdasPorDistrito();
-    return;
+  if (geoJSONType === 'distritos') {
+    // Lógica existente para distritos
+    setIsLoading(true);
+    
+    if (diagnostico === "diagnostico-edas") {
+      console.log("🔥 Cargando EDAS...");
+      cargarEdasPorDistrito();
+    } else if (diagnostico === "diagnostico-febriles") {
+      console.log("🟦 Cargando FEBRILES...");
+      cargarFebrilesPorDistrito();
+    } else if (diagnostico === "diagnostico-iras") {
+      console.log("🟦 Cargando IRAS...");
+      cargarIRASPorDistrito();
+    } else if (diagnostico.trim().toLowerCase() === "diagnostico-tbctia") {
+      console.log("🟦 Cargando TBC TIA...");
+      cargarTIATotal();
+    } else if (diagnostico.trim().toLowerCase() === "diagnostico-tbctiaeess") {
+      console.log("🟦 Cargando TBC TIA EESS...");
+      cargarTIATotalEESS();
+    } else if (diagnostico.trim().toLowerCase() === "diagnostico-tbcpulmonar") {
+      console.log("🟦 Cargando TBC PULMONAR...");
+      cargarSigtbDistritos();
+    } else if (diagnostico.trim().toLowerCase() === "diagnostico-depresion") {
+      console.log("🟣 Cargando DEPRESIÓN...");
+      cargarDepresionPorDistrito();
+    } else if (diagnostico.trim().toLowerCase() === "diagnostico-violencia") {
+      console.log("🟣 Cargando VIOLENCIA...");
+      cargarViolenciaPorDistrito();
+    } else if (diagnostico.trim().toLowerCase() === "diagnostico-diabetes") {
+      console.log("🟣 Cargando DIABETES...");
+      cargarDiabetesPorDistrito();
+    } else {
+      console.log("🟢 Cargando diagnóstico NOTIWEB:", diagnostico);
+      cargarCasosPorDiagnostico(diagnostico);
+    }
+    
+    setIsLoading(false);
+    
+  } else if (geoJSONType === 'establecimientos') {
+    // Nueva lógica para establecimientos
+    console.log("🏥 Cargando datos para establecimientos...");
+    setIsLoading(true);
+    cargarCasosPorDiagnosticoEstablecimiento(diagnosticoNombre);
+    setIsLoading(false);
   }
-
-  // 🔵 FEBRILES
-  if (diagnostico === "diagnostico-febriles") {
-    console.log("🟦 Cargando FEBRILES...");
-    cargarFebrilesPorDistrito();
-    return;
-  }
-
-  // 🔵 IRAS
-  if (diagnostico === "diagnostico-iras") {
-    console.log("🟦 Cargando IRAS...");
-    cargarIRASPorDistrito();
-    return;
-  }
-
-  // 🔵 TBC TIA
-  if (diagnostico.trim().toLowerCase() === "diagnostico-tbctia") {
-    console.log("🟦 Cargando TBC TIA...");
-    cargarTIATotal();
-    return;
-  }
-
-  // 🔵 TBC TIA EESS
-  if (diagnostico.trim().toLowerCase() === "diagnostico-tbctiaeess") {
-    console.log("🟦 Cargando TBC TIA EESS...");
-    cargarTIATotalEESS();
-    return;
-  }
-
-  // 🔵 TBC PULMONAR
-  if (diagnostico.trim().toLowerCase() === "diagnostico-tbcpulmonar") {
-    console.log("🟦 Cargando TBC PULMONAR...");
-    cargarSigtbDistritos();
-    return;
-  }
-
-  // 🟣 DEPRESIÓN (BASE SALUD MENTAL)
-  if (diagnostico.trim().toLowerCase() === "diagnostico-depresion") {
-    console.log("🟣 Cargando DEPRESIÓN...");
-    cargarDepresionPorDistrito();
-    return;
-  }
-
-  // 🟣 VIOLENCIA (BASE SALUD MENTAL)
-  if (diagnostico.trim().toLowerCase() === "diagnostico-violencia") {
-    console.log("🟣 Cargando VIOLENCIA...");
-    cargarViolenciaPorDistrito();
-    return;
-  }
-
-    // 🟣 VIOLENCIA (BASE SALUD MENTAL)
-  if (diagnostico.trim().toLowerCase() === "diagnostico-diabetes") {
-    console.log("🟣 Cargando DIABETES...");
-    cargarDiabetesPorDistrito();
-    return;
-  }
-
-
-  // 🟢 NOTIWEB (genéricos)
-  console.log("🟢 Cargando diagnóstico NOTIWEB:", diagnostico);
-  cargarCasosPorDiagnostico(diagnostico);
-
-}, [diagnosticoSeleccionado, allDistricts, geoJSONType]);
+}, [diagnosticoSeleccionado, geoJSONType]);
 
 
 const cargarCasosPorDiagnostico = async (diagnostico: string) => {
@@ -973,96 +958,92 @@ const obtenerCasosTotalesEstablecimiento = async (establecimiento: string) => {
   }
 };
 
-// Función para obtener casos de enfermedad en establecimiento
-const obtenerCasosEnfermedadEstablecimiento = async (establecimiento: string, enfermedad: string) => {
-  try {
-    // Extraer el nombre del diagnóstico sin el prefijo
-    let diagNombre = enfermedad.replace('diagnostico-', '');
-    
-    // Mapear nombres específicos si es necesario
-    const nombreMapeo: Record<string, string> = {
-      'diagnostico-edas': 'EDAS',
-      'diagnostico-febriles': 'FEBRILES',
-      'diagnostico-iras': 'IRAS',
-      'diagnostico-tbcTIA': 'TBC TIA',
-      'diagnostico-tbctiaeess': 'TBC TIA EESS',
-      'diagnostico-tbcpulmonar': 'TBC PULMONAR',
-      'diagnostico-depresion': 'DEPRESION',
-      'diagnostico-violencia': 'VIOLENCIA',
-      'diagnostico-diabetes': 'DIABETES',
-      'diagnostico-cancer': 'CANCER',
-      'diagnostico-renal': 'RENAL',
-      'diagnostico-muerte-materna': 'MUERTE MATERNA',
-      'diagnostico-muerte-materna-extrema': 'MUERTE MATERNA EXTREMA',
-      'diagnostico-muerte-fetal-neonatal': 'MUERTE FETAL NEONATAL',
-      'diagnostico-tos-ferina': 'TOS FERINA',
-      'diagnostico-parotiditis': 'PAROTIDITIS',
-      'diagnostico-varicela-sin-complicaciones': 'VARICELA',
-      'diagnostico-rubeola': 'RUBEOLA',
-      'diagnostico-sifilis-congenita': 'SIFILIS CONGENITA',
-      'diagnostico-sifilis-materna': 'SIFILIS MATERNA',
-      'diagnostico-sifilis-no-especificada': 'SIFILIS',
-      'diagnostico-hepatitis-b': 'HEPATITIS B',
-      'diagnostico-esavi': 'ESAVI',
-      'diagnostico-difteria': 'DIFTERIA',
-      'diagnostico-leptospirosis': 'LEPTOSPIROSIS',
-      'diagnostico-loxcelismo': 'LOXCELISMO',
-      'diagnostico-ofidismo': 'OFIDISMO',
-      'diagnostico-chikungunya': 'CHIKUNGUNYA',
-      'diagnostico-zika': 'ZIKA',
-      'diagnostico-dengue-sin-signos': 'DENGUE SIN SIGNOS',
-      'diagnostico-dengue-con-signos': 'DENGUE CON SIGNOS',
-      'diagnostico-dengue-grave': 'DENGUE GRAVE',
-      'diagnostico-chagas': 'CHAGAS',
-      'diagnostico-efecto-plaguicidas': 'EFECTO TOXICO PLAGUICIDAS',
-      'diagnostico-Metal,-no-Especificado': 'METAL NO ESPECIFICADO',
-    };
-    
-    // Usar el mapeo o el nombre original
-    const enfermedadParaBackend = nombreMapeo[enfermedad] || diagNombre;
-    
-    console.log(`🔍 Consultando casos para establecimiento: ${establecimiento}, diagnóstico: ${enfermedadParaBackend}`);
-    
-    const res = await fetch(
-      `http://10.0.5.237:5001/api/casos_enfermedad_establecimiento?establecimiento=${encodeURIComponent(establecimiento)}&enfermedad=${encodeURIComponent(enfermedadParaBackend)}`
-    );
-    
-    if (!res.ok) {
-      console.error(`❌ Error HTTP ${res.status} para ${establecimiento}: ${enfermedadParaBackend}`);
+  // Función para obtener casos de enfermedad en establecimiento
+  const obtenerCasosEnfermedadEstablecimiento = async (establecimiento: string, enfermedad: string) => {
+    try {
+      // Mapear nombres específicos si es necesario
+      const nombreMapeo: Record<string, string> = {
+        'diagnostico-edas': 'EDAS',
+        'diagnostico-febriles': 'FEBRILES',
+        'diagnostico-iras': 'IRAS',
+        'diagnostico-tbcTIA': 'TBC TIA',
+        'diagnostico-tbctiaeess': 'TBC TIA EESS',
+        'diagnostico-tbcpulmonar': 'TBC PULMONAR',
+        'diagnostico-depresion': 'DEPRESION',
+        'diagnostico-violencia': 'VIOLENCIA',
+        'diagnostico-diabetes': 'DIABETES',
+        'diagnostico-cancer': 'CANCER',
+        'diagnostico-renal': 'RENAL',
+        'diagnostico-muerte-materna': 'MUERTE MATERNA',
+        'diagnostico-muerte-materna-extrema': 'MUERTE MATERNA EXTREMA',
+        'diagnostico-muerte-fetal-neonatal': 'MUERTE FETAL NEONATAL',
+        'diagnostico-tos-ferina': 'TOS FERINA',
+        'diagnostico-parotiditis': 'PAROTIDITIS',
+        'diagnostico-varicela-sin-complicaciones': 'VARICELA',
+        'diagnostico-rubeola': 'RUBEOLA',
+        'diagnostico-sifilis-congenita': 'SIFILIS CONGENITA',
+        'diagnostico-sifilis-materna': 'SIFILIS MATERNA',
+        'diagnostico-sifilis-no-especificada': 'SIFILIS',
+        'diagnostico-hepatitis-b': 'HEPATITIS B',
+        'diagnostico-esavi': 'ESAVI',
+        'diagnostico-difteria': 'DIFTERIA',
+        'diagnostico-leptospirosis': 'LEPTOSPIROSIS',
+        'diagnostico-loxcelismo': 'LOXCELISMO',
+        'diagnostico-ofidismo': 'OFIDISMO',
+        'diagnostico-chikungunya': 'CHIKUNGUNYA',
+        'diagnostico-zika': 'ZIKA',
+        'diagnostico-dengue-sin-signos': 'DENGUE SIN SIGNOS',
+        'diagnostico-dengue-con-signos': 'DENGUE CON SIGNOS',
+        'diagnostico-dengue-grave': 'DENGUE GRAVE',
+        'diagnostico-chagas': 'CHAGAS',
+        'diagnostico-efecto-plaguicidas': 'EFECTO TOXICO PLAGUICIDAS',
+        'diagnostico-Metal,-no-Especificado': 'METAL NO ESPECIFICADO',
+      };
+      
+      // ✅ Usar el mapeo o extraer el nombre del diagnóstico
+      const enfermedadParaBackend = nombreMapeo[enfermedad] || enfermedad.replace('diagnostico-', '');
+      
+      console.log(`🔍 Consultando casos para establecimiento: ${establecimiento}, diagnóstico: ${enfermedadParaBackend}`);
+      
+      const res = await fetch(
+        `http://10.0.5.237:5001/api/casos_enfermedad_establecimiento?establecimiento=${encodeURIComponent(establecimiento)}&enfermedad=${encodeURIComponent(enfermedadParaBackend)}`
+      );
+      
+      if (!res.ok) {
+        console.error(`❌ Error HTTP ${res.status} para ${establecimiento}: ${enfermedadParaBackend}`);
+        return { 
+          total: 0, 
+          detalle: [],
+          error: `Error ${res.status}: ${res.statusText}`
+        };
+      }
+      
+      const data = await res.json();
+      console.log(`✅ Datos obtenidos para ${establecimiento}:`, data);
+      
+      return {
+        total: data.total || 0,
+        daa: data.daa || 0,
+        dis: data.dis || 0,
+        ira_no_neumonia: data.ira_no_neumonia || 0,
+        sob_asma: data.sob_asma || 0,
+        neumonia_grave: data.neumonia_grave || 0,
+        neumonia: data.neumonia || 0,
+        TIA_100k: data.TIA_100k || 0,
+        detalle: data.detalle || [],
+        rawData: data
+      };
+      
+    } catch (error: any) {
+      console.error(`❌ Error al obtener casos de enfermedad en establecimiento ${establecimiento}:`, error.message);
       return { 
         total: 0, 
         detalle: [],
-        error: `Error ${res.status}: ${res.statusText}`
+        error: error.message,
+        rawData: null
       };
     }
-    
-    const data = await res.json();
-    console.log(`✅ Datos obtenidos para ${establecimiento}:`, data);
-    
-    // Asegurarnos de que la respuesta tenga la estructura esperada
-    return {
-      total: data.total || 0,
-      daa: data.daa || 0,
-      dis: data.dis || 0,
-      ira_no_neumonia: data.ira_no_neumonia || 0,
-      sob_asma: data.sob_asma || 0,
-      neumonia_grave: data.neumonia_grave || 0,
-      neumonia: data.neumonia || 0,
-      TIA_100k: data.TIA_100k || 0,
-      detalle: data.detalle || [],
-      rawData: data
-    };
-    
-  } catch (error: any) {
-    console.error(`❌ Error al obtener casos de enfermedad en establecimiento ${establecimiento}:`, error.message);
-    return { 
-      total: 0, 
-      detalle: [],
-      error: error.message,
-      rawData: null
-    };
-  }
-};
+  };
 
 const handleShare = async () => {
   try {
@@ -1104,6 +1085,9 @@ const [, setCasosDetallePorDistrito] = useState<
 
 const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) => {
     
+    console.log(`🎯 handleDiagnosticoSelect: ${diagnostico}, checked: ${checked}`);
+    console.log(`🗺️ Tipo actual: ${geoJSONType}`);
+
     // 1. Calcular el NUEVO ARRAY DE DIAGNÓSTICOS inmediatamente (sin usar el setter).
     let nuevoDiagnosticoSeleccionado: string[];
 
@@ -1153,6 +1137,46 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
     if (instance) {
       DomEvent.disableClickPropagation(instance);
       DomEvent.disableScrollPropagation(instance);
+    }
+  };
+
+  const cargarCasosPorDiagnosticoEstablecimiento = async (diagnostico: string) => {
+    diagnostico = diagnostico.trim();
+    
+    if (!allEstablecimientos) return;
+
+    console.log("🔍 Cargando datos de establecimientos para diagnóstico:", diagnostico);
+
+    try {
+      const response = await fetch(
+        `http://10.0.5.237:5001/api/casos_establecimiento_json?diagnostico=${encodeURIComponent(diagnostico)}`
+      );
+      
+      if (!response.ok) {
+        console.error(`❌ Error HTTP ${response.status} para diagnóstico: ${diagnostico}`);
+        setCasosPorEstablecimiento({});
+        return;
+      }
+
+      const data = await response.json();
+      
+      // Asegurarnos de que todos los nombres estén en mayúsculas para consistencia
+      const casosNormalizados: Record<string, number> = {};
+      
+      Object.keys(data).forEach(key => {
+        if (key && key.trim() !== '') {
+          const nombreNormalizado = key.toUpperCase();
+          casosNormalizados[nombreNormalizado] = data[key] || 0;
+        }
+      });
+
+      setCasosPorEstablecimiento(casosNormalizados);
+      
+      console.log("✅ Datos de establecimientos cargados:", Object.keys(casosNormalizados).length, "establecimientos");
+      
+    } catch (error) {
+      console.error("❌ Error cargando datos de establecimientos:", error);
+      setCasosPorEstablecimiento({});
     }
   };
 
@@ -1623,25 +1647,58 @@ useEffect(() => {
       cleanedLayers.add('distritos-layer');
       cleanedLayers.delete('establecimientos-layer');
       
+      // ✅ SOLO limpiar casosPorEstablecimiento, no casosDetallePorEstablecimiento
+      setCasosPorEstablecimiento({});
+      
       // Si hay diagnóstico seleccionado, recargar datos para distritos
       if (diagnosticoSeleccionado.length > 0) {
         setIsLoading(true);
-        cargarCasosPorDiagnostico(diagnosticoSeleccionado[diagnosticoSeleccionado.length - 1])
-          .finally(() => setIsLoading(false));
+        const diag = diagnosticoSeleccionado[diagnosticoSeleccionado.length - 1];
+        
+        // Llamar a la función correspondiente basada en el diagnóstico
+        if (diag === "diagnostico-edas") {
+          cargarEdasPorDistrito().finally(() => setIsLoading(false));
+        } else if (diag === "diagnostico-febriles") {
+          cargarFebrilesPorDistrito().finally(() => setIsLoading(false));
+        } else if (diag === "diagnostico-iras") {
+          cargarIRASPorDistrito().finally(() => setIsLoading(false));
+        } else if (diag.trim().toLowerCase() === "diagnostico-tbctia") {
+          cargarTIATotal().finally(() => setIsLoading(false));
+        } else if (diag.trim().toLowerCase() === "diagnostico-tbctiaeess") {
+          cargarTIATotalEESS().finally(() => setIsLoading(false));
+        } else if (diag.trim().toLowerCase() === "diagnostico-tbcpulmonar") {
+          cargarSigtbDistritos().finally(() => setIsLoading(false));
+        } else if (diag.trim().toLowerCase() === "diagnostico-depresion") {
+          cargarDepresionPorDistrito().finally(() => setIsLoading(false));
+        } else if (diag.trim().toLowerCase() === "diagnostico-violencia") {
+          cargarViolenciaPorDistrito().finally(() => setIsLoading(false));
+        } else if (diag.trim().toLowerCase() === "diagnostico-diabetes") {
+          cargarDiabetesPorDistrito().finally(() => setIsLoading(false));
+        } else {
+          cargarCasosPorDiagnostico(diag).finally(() => setIsLoading(false));
+        }
       }
     } else if (type === 'establecimientos' && allEstablecimientos) {
       setActiveGeoJSON(allEstablecimientos);
       cleanedLayers.add('establecimientos-layer');
       cleanedLayers.delete('distritos-layer');
       
-      // Limpiar datos de diagnóstico cuando se muestran establecimientos
+      // ✅ SOLO limpiar casosPorDistrito, no casosDetallePorDistrito
       setCasosPorDistrito({});
+      
+      // Si hay diagnóstico seleccionado, cargar datos para establecimientos
+      if (diagnosticoSeleccionado.length > 0) {
+        setIsLoading(true);
+        const diag = diagnosticoSeleccionado[diagnosticoSeleccionado.length - 1];
+        const diagNombre = diag.replace('diagnostico-', '').toUpperCase();
+        cargarCasosPorDiagnosticoEstablecimiento(diagNombre).finally(() => setIsLoading(false));
+      }
     }
     
     setSelectedLayers(cleanedLayers);
     setClickedDistrictId(null);
     setSearchedDistrictId(null);
-    setMapSearchTerm(''); // Limpiar búsqueda
+    setMapSearchTerm('');
     
     // Centrar el mapa según el tipo
     if (map) {
@@ -1649,14 +1706,11 @@ useEffect(() => {
         map.setView(position, zoomLevel);
       } else {
         map.setView(position, 12);
-
-        // 🔽 Mueve la vista hacia abajo (valores positivos bajan)
         map.panBy([0, 70], { animate: true });
       }
     }
 
     console.log(`✅ Cambiado a: ${type}`);
-    console.log(`📌 Capas seleccionadas:`, Array.from(cleanedLayers));
   };
 
   const handleSuggestionSelect = (item: {name: string; type: 'distrito' | 'establecimiento'}) => {
@@ -1727,42 +1781,90 @@ useEffect(() => {
     // Si estamos mostrando establecimientos
     if (geoJSONType === 'establecimientos') {
       const establecimientoName = feature.properties.layer?.toUpperCase();
+      
+      // Verificar si hay datos para este establecimiento
+      const establecimientoData = casosPorEstablecimiento[establecimientoName] || 0;
+      
       const isSearched = searchedDistrictId === establecimientoName;
       const isClicked = clickedDistrictId === establecimientoName;
       const isLayerSelected = selectedDistrictLayerIds.has(establecimientoName);
       
       console.log("🔍 Establecimiento:", establecimientoName);
+      console.log("  - Casos:", establecimientoData);
       console.log("  - isSearched:", isSearched);
       console.log("  - isClicked:", isClicked);
       console.log("  - isLayerSelected:", isLayerSelected);
-      console.log("  - selectedDistrictLayerIds:", Array.from(selectedDistrictLayerIds));
       
-      // Estilo base para establecimientos NO seleccionados
-      const baseStyle = {
-        weight: 1,
-        color: "#000000",
-        fillOpacity: 0.2,
-        fillColor: "#E0E0E0",
-      }; 
-      
-      // Estilo para establecimientos SELECCIONADOS o CLICKEADOS
-      const highlightStyle = {
-        weight: 4,
-        color: "#FF0000", // Rojo brillante para destacar
-        fillOpacity: 0.8,
-        fillColor: "#FF4444", // Rojo claro para relleno
-      };
-      
-      // Si está seleccionado por cualquier método (búsqueda, clic o panel)
-      if (isSearched || isClicked || isLayerSelected) {
-        console.log("🎨 Aplicando estilo HIGHLIGHT a:", establecimientoName);
-        return highlightStyle;
+      // Si hay diagnóstico seleccionado, aplicar colores según cantidad de casos
+      if (diagnosticoSeleccionado.length > 0) {
+        // Calcular escalas basadas en los datos disponibles
+        const valores = Object.values(casosPorEstablecimiento);
+        const minValor = Math.min(...valores);
+        const maxValor = Math.max(...valores);
+        
+        const escalaDinamica = (valor: number) => {
+          if (maxValor === minValor) return "#9a9a9aff";
+          
+          const rango = maxValor - minValor;
+          const porcentaje = (valor - minValor) / rango;
+          
+          if (porcentaje > 0.75) return "#f21a0aff";     // rojo
+          if (porcentaje > 0.50) return "#fa9b15ff";     // naranja
+          if (porcentaje > 0.25) return "#fff134ff";     // amarillo
+          return "#2eff1bff";                            // verde
+        };
+        
+        const fillColor = escalaDinamica(establecimientoData);
+        const fillOpacity = establecimientoData > 0 ? 0.8 : 0.2;
+        
+        const baseStyle = {
+          weight: 1,
+          color: "#000000",
+          fillOpacity,
+          fillColor,
+        };
+        
+        const highlightStyle = {
+          weight: 3,
+          color: "#000000",
+          fillOpacity,
+          fillColor,
+        };
+        
+        if (isSearched || isClicked || isLayerSelected) {
+          console.log("🎨 Aplicando estilo HIGHLIGHT a:", establecimientoName);
+          return highlightStyle;
+        }
+        
+        console.log("🎨 Aplicando estilo BASE a:", establecimientoName);
+        return baseStyle;
+      } else {
+        // Si no hay diagnóstico seleccionado, estilo base
+        const baseStyle = {
+          weight: 1,
+          color: "#000000",
+          fillOpacity: 0.2,
+          fillColor: "#E0E0E0",
+        }; 
+        
+        const highlightStyle = {
+          weight: 4,
+          color: "#FF0000",
+          fillOpacity: 0.8,
+          fillColor: "#FF4444",
+        };
+        
+        if (isSearched || isClicked || isLayerSelected) {
+          console.log("🎨 Aplicando estilo HIGHLIGHT (sin diagnóstico) a:", establecimientoName);
+          return highlightStyle;
+        }
+        
+        console.log("🎨 Aplicando estilo BASE (sin diagnóstico) a:", establecimientoName);
+        return baseStyle;
       }
-      
-      console.log("🎨 Aplicando estilo BASE a:", establecimientoName);
-      return baseStyle;
     }
     
+    // Código existente para distritos (mantén tu código actual aquí)
     const distrito = feature.properties.NM_DIST?.toUpperCase();
     const distritoData = casosPorDistrito[distrito] || { total: 0, TIA_100k: 0 };
 
@@ -1869,9 +1971,29 @@ useEffect(() => {
       ? feature.properties.NM_DIST 
       : feature.properties.layer;
 
-    // ⭐ Tooltip
+    // ⭐ Tooltip mejorado
     if (name) {
-      layer.bindTooltip(name, {
+      let tooltipContent = name;
+      
+      // Si hay diagnóstico seleccionado, mostrar información adicional en el tooltip
+      if (diagnosticoSeleccionado.length > 0) {
+        const diag = diagnosticoSeleccionado[diagnosticoSeleccionado.length - 1];
+        const diagNombre = diag.replace('diagnostico-', '').toUpperCase();
+        
+        if (geoJSONType === 'distritos') {
+          const casos = casosPorDistrito[name.toUpperCase()]?.total || 0;
+          if (casos > 0) {
+            tooltipContent = `${name}<br/><small>${diagNombre}: ${casos} casos</small>`;
+          }
+        } else if (geoJSONType === 'establecimientos') {
+          const casos = casosPorEstablecimiento[name.toUpperCase()] || 0;
+          if (casos > 0) {
+            tooltipContent = `${name}<br/><small>${diagNombre}: ${casos} casos</small>`;
+          }
+        }
+      }
+      
+      layer.bindTooltip(tooltipContent, {
         permanent: false,
         direction: 'auto',
         sticky: true,
