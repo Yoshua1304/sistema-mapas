@@ -1,7 +1,7 @@
 # Configuración Geodata App
 $IMAGE_NAME = "fabrizioromano22/geodata-app:latest"
 $CONTAINER_NAME = "geodata-app-container"
-$PORT_MAP = "5001:5001"
+$PORT_MAP = "5004:5004"
 $ENV_FILE = ".env"
 $CHECK_INTERVAL = 60 # Bajamos a 1 minuto para que lo veas rápido
 

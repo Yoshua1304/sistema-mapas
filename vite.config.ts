@@ -7,7 +7,7 @@ export default defineConfig({
   
   server: {
     host: '0.0.0.0', // Opcional: para ver en red local si lo necesitas
-    port: 5003,
+    port: 5004,  // Puerto personalizado
   }
 
 })
