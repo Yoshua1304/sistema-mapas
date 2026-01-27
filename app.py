@@ -1,4 +1,4 @@
-#pip install flask pyodbc pandas flask-cors openpyxl
+#pip install flask pyodbc pandas flask-cors openpyxl python-dotenv
 from flask import Flask, request, jsonify, send_file, make_response, send_from_directory
 import pandas as pd
 import os

@@ -1,0 +1,9 @@
+<service>
+  <id>mapas-backend</id>
+  <name>Servicio Mapas Backend (Python)</name>
+  <description>Ejecuta la API y base de datos de Mapas</description>
+  <executable>python.exe</executable>
+  <arguments>app.py</arguments>
+  <workingdirectory>C:\Sistemas_Centralizados\sistema-mapas</workingdirectory>
+  <log mode="roll"></log>
+</service>

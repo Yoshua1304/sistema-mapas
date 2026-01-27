@@ -1,0 +1,12 @@
+<service>
+  <id>mapas-frontend</id>
+  <name>Servicio Mapas Frontend (Node)</name>
+  <description>Ejecuta el servidor de desarrollo de Mapas en el puerto 5004</description>
+  
+  <executable>cmd.exe</executable>
+  <arguments>/c npm run dev</arguments>
+  
+  <workingdirectory>C:\Sistemas_Centralizados\sistema-mapas</workingdirectory>
+  
+  <log mode="roll"></log>
+</service>

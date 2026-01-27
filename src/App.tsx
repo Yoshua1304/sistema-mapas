@@ -12,6 +12,9 @@ import BaseMapSelector, { BaseMap } from './BaseMapSelector';
 import Legend from './Legend';
 import { createRoot } from "react-dom/client";
 
+// Detecta automáticamente la IP de tu MV (donde reside el frontend y backend)
+const baseUrl = window.location.hostname;
+
 // --- CONFIGURACIÓN DE MAPAS BASE ---
 const BASE_MAPS: BaseMap[] = [
   {
@@ -391,7 +394,7 @@ const cargarFebrilesPorDistrito = async () => {
     const distrito = feature.properties.NM_DIST;
 
     try {
-      const resp = await fetch(`http://10.0.5.237:5001/api/febriles_distrito?distrito=${distrito}`);
+      const resp = await fetch(`http://${baseUrl}:5001/api/febriles_distrito?distrito=${distrito}`);
       const data = await resp.json();
 
       resultados[distrito] = {
@@ -617,7 +620,7 @@ const cargarDiabetesPorDistrito = async () => {
 
 const cargarTIATotal = async () => {
   try {
-    const resp = await fetch("http://10.0.5.237:5001/tb_tia_total");
+    const resp = await fetch("http://${baseUrl}:5001/tb_tia_total");
     const data = await resp.json();
 
     // Transformamos a un diccionario: { "LIMA": { TIA_100k: 222.09 }, ... }
@@ -646,7 +649,7 @@ const cargarTIATotal = async () => {
 
 const cargarTIATotalEESS = async () => {
   try {
-    const resp = await fetch("http://10.0.5.237:5001/tb_tia_total_EESS");
+    const resp = await fetch("http://${baseUrl}:5001/tb_tia_total_EESS");
     const data = await resp.json();
 
     // Transformamos a un diccionario: { "LIMA": { TIA_100k: 222.09 }, ... }
@@ -675,7 +678,7 @@ const cargarTIATotalEESS = async () => {
 
 const cargarSigtbDistritos = async () => {
   try {
-    const resp = await fetch("http://10.0.5.237:5001/tb_sigtb_distritos");
+    const resp = await fetch("http://${baseUrl}:5001/tb_sigtb_distritos");
     const data = await resp.json();
 
     const resultados: Record<string, { total: number }> = {};
@@ -834,7 +837,7 @@ const detalles: Record<
 
   for (const feature of allDistricts.features) {
     const distrito = feature.properties.NM_DIST;
-    const url = `http://10.0.5.237:5001/api/casos_enfermedad?distrito=${distrito}&enfermedad=${diagnostico}`;
+    const url = `http://${baseUrl}:5001/api/casos_enfermedad?distrito=${distrito}&enfermedad=${diagnostico}`;
 
     console.log(`🌐 Consultando backend para distrito: ${distrito}`);
     console.log(`URL → ${url}`);
@@ -906,13 +909,13 @@ const detalles: Record<
 };
 
 const obtenerCasosEnfermedad = async (distrito: string, enfermedad: string) => {
-  const res = await fetch(`http://10.0.5.237:5001/api/casos_enfermedad?distrito=${distrito}&enfermedad=${enfermedad}`);
+  const res = await fetch(`http://${baseUrl}:5001/api/casos_enfermedad?distrito=${distrito}&enfermedad=${enfermedad}`);
   return await res.json();
 };
 
 const obtenerCasosTotales = async (distrito: string) => {
   try {
-    const res = await fetch(`http://10.0.5.237:5001/api/casos_totales?distrito=${distrito}`);
+    const res = await fetch(`http://${baseUrl}:5001/api/casos_totales?distrito=${distrito}`);
     const data = await res.json();
     return data.total ?? 0;
   } catch (e) {
@@ -923,7 +926,7 @@ const obtenerCasosTotales = async (distrito: string) => {
 
 const obtenerPoblacion = async (distrito: string) => {
   try {
-    const res = await fetch(`http://10.0.5.237:5001/api/poblacion?distrito=${distrito}`);
+    const res = await fetch(`http://${baseUrl}:5001/api/poblacion?distrito=${distrito}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Error desconocido");
     return data;
@@ -936,7 +939,7 @@ const obtenerPoblacion = async (distrito: string) => {
 // Función para obtener población de establecimientos
 const obtenerPoblacionEstablecimiento = async (establecimiento: string) => {
   try {
-    const res = await fetch(`http://10.0.5.237:5001/api/poblacion_establecimiento?establecimiento=${encodeURIComponent(establecimiento)}`);
+    const res = await fetch(`http://${baseUrl}:5001/api/poblacion_establecimiento?establecimiento=${encodeURIComponent(establecimiento)}`);
     if (!res.ok) throw new Error("Error al obtener población");
     const data = await res.json();
     return data;
@@ -949,7 +952,7 @@ const obtenerPoblacionEstablecimiento = async (establecimiento: string) => {
 // Función para obtener casos totales de establecimientos
 const obtenerCasosTotalesEstablecimiento = async (establecimiento: string) => {
   try {
-    const res = await fetch(`http://10.0.5.237:5001/api/casos_totales_establecimiento?establecimiento=${encodeURIComponent(establecimiento)}`);
+    const res = await fetch(`http://${baseUrl}:5001/api/casos_totales_establecimiento?establecimiento=${encodeURIComponent(establecimiento)}`);
     const data = await res.json();
     return data.total ?? 0;
   } catch (error: any) {
@@ -1006,7 +1009,7 @@ const obtenerCasosTotalesEstablecimiento = async (establecimiento: string) => {
       console.log(`🔍 Consultando casos para establecimiento: ${establecimiento}, diagnóstico: ${enfermedadParaBackend}`);
       
       const res = await fetch(
-        `http://10.0.5.237:5001/api/casos_enfermedad_establecimiento?establecimiento=${encodeURIComponent(establecimiento)}&enfermedad=${encodeURIComponent(enfermedadParaBackend)}`
+        `http://${baseUrl}:5001/api/casos_enfermedad_establecimiento?establecimiento=${encodeURIComponent(establecimiento)}&enfermedad=${encodeURIComponent(enfermedadParaBackend)}`
       );
       
       if (!res.ok) {
@@ -1149,7 +1152,7 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
 
     try {
       const response = await fetch(
-        `http://10.0.5.237:5001/api/casos_establecimiento_json?diagnostico=${encodeURIComponent(diagnostico)}`
+        `http://${baseUrl}:5001/api/casos_establecimiento_json?diagnostico=${encodeURIComponent(diagnostico)}`
       );
       
       if (!response.ok) {
@@ -2831,7 +2834,7 @@ useEffect(() => {
           <button title="Mapa Base" onClick={() => setBaseMapSelectorOpen(true)}>
             🗺️
           </button>
-          <button title="Principal" onClick={() => window.location.href = 'http://10.0.5.237:8000'}>🖥️</button>
+          <button title="Principal" onClick={() => window.location.href = 'http://${baseUrl}:5000'}>🖥️</button>
           <button title="Estadística" onClick={() => window.location.href = 'http://10.0.2.22/geoestadistica/'}>📊</button>
           <button title="Docencia" onClick={() => window.location.href = 'http://10.0.20.235:2005/mapa_ris/'}>🎓</button>
           <button title="Captura">🖼️</button>
