@@ -2457,10 +2457,15 @@ def exportar_datos_establecimiento():
         conn_pob.close()
 
         if df_poblacion.empty:
-            return jsonify({"error": "No se encontró población para este establecimiento"}), 404
+            df_poblacion = pd.DataFrame({
+                "Mensaje": [f"No se encontró población para el establecimiento {establecimiento}"]
+            })
 
     except Exception as e:
-        return jsonify({"error": f"Error población establecimiento: {str(e)}"}), 500
+        print(f"❌ Error en población establecimiento: {str(e)}")
+        df_poblacion = pd.DataFrame({
+            "Error": [f"Error al obtener población: {str(e)}"]
+        })
 
     # ======================================================
     #   2️⃣ CONFIGURACIÓN DE DIAGNÓSTICOS PARA ESTABLECIMIENTOS
@@ -2514,26 +2519,79 @@ def exportar_datos_establecimiento():
         "sexoagre", "vinculo",
         "queotrovin", "gradoins", "ocupacion","usuario", "ubigeo2","local"
     ]
+    COLUMNAS_PROHIBIDAS_ACCIDENTES_TRANSITO = [
+        "DNI","AP_NM1","AP_NM2","NOM_LES",
+        "EDAD","TIPO_EDAD","SEXO",
+        "UBIGEO",
+        "HORA","HOR_ACCID",
+        "FECH_EGRE","FEC_ACCD","DIA_ACCD","MES_ACCD","ANO_ACCD",
+        "ED_COND","SEX_COND","LIC_CONDUC",
+        "FECHAREGW",
+        "UBICA_LESIONADO",
+        "MOVIL","NOMOVIL",
+        "VEHICULO","VEHICULO_OCASIONA"
+    ]
+    COLUMNAS_PROHIBIDAS_MUERTE_FETAL_NEONATAL = [
+        "APE_NOM","APEPAT","APEMAT","NOMBRES",
+        "DNI_MADRE",
+        "SEXO","EDADGES","FECHA_NAC","HORA_NAC",
+        "UBIGEO","UBIGEO_RES",
+        "LATITUD","LONGITUD",
+        "USUARIO","RESPONSABLE",
+        "FECHA_MTE","HORA_MTE",
+        "FECHA_REG"
+    ]
+    COLUMNAS_PROHIBIDAS_MUERTE_MATERNA_EXTREMA = [
+        "PATERNO","MATERNO","NOMBRES",
+        "TIPO_DOCUMENTO","NUMERO_DOCUMENTO","HISTORIA_CLI",
+        "EDAD","FECHA_EVENTO","FECHA_NOTIFICACION",
+        "UBIGEO","LATITUD","LONGITUD","LOCALIDAD",
+        "GRUPO_ETNICO","ETNIA","ESTADO_CIVIL","NIVEL_EDUCATIVO","NACIONALIDAD",
+        "MEDICO_TRATANTE","MEDICO_COLEGIATURA",
+        "USUARIO_REG_ME","USUARIO_MOD_ME","USUARIO_REG_INV","USUARIO_MOD_INV",
+        "FECHA_INGRESO_EESS","HORA_INGRESO_EESS",
+        "FECHA_INGRESO_UCI","HORA_INGRESO_UCI",
+        "EGRESO_UCI_FECHA","EGRESO_UCI_HORA",
+        "EGRESO_EESS_FECHA","EGRESO_EESS_HORA",
+        "FECHA_REG_ME","FECHA_MOD_ME",
+        "FECHA_REG_INV","FECHA_MOD_INV",
+        "OBSERVACIONES"
+    ]
+    COLUMNAS_PROHIBIDAS_MUERTE_MATERNA = [
+        "APEPAT","APEMAT","NOMBRES",
+        "DNI","HCLINICA","ID_INDIVID",
+        "EDAD","NACIONALIDAD",
+        "DIRECCION","UBIGEO","LOCALIHAB",
+        "LATITUD","LONGITUD",
+        "NOMBRE_NOTIFICANTE","USUARIO",
+        "FECHA_NOT","HORA_NOT",
+        "FECHA_DEF","HORA_DEF",
+        "FECHAREGW","FECHAMOD",
+        "ELIMINADO", "FICHA"
+    ]
 
-    # MAPEO ESPECÍFICO PARA ESTABLECIMIENTOS
+     # MAPEO ESPECÍFICO PARA ESTABLECIMIENTOS - CORREGIDO
     MAPEOS_ESTABLECIMIENTO = {
         "Infecciones respiratorias agudas": {
             "conexion": get_iras_connection,
             "tabla": "REPORTE_IRA_2025",
             "campo_establecimiento": "[EESS.ESTABLECIMIENTO]",
             "campo_anio": "ano",
+            "columnas_prohibidas": []  # Agregar si es necesario
         },
         "Enfermedades diarreicas agudas": {
             "conexion": get_edas_connection,
             "tabla": "REPORTE_EDA_2025",
             "campo_establecimiento": "[EESS.ESTABLECIMIENTO]",
             "campo_anio": "ano",
+            "columnas_prohibidas": []
         },
         "Febriles": {
             "conexion": get_febriles_connection,
             "tabla": "REPORTE_FEBRILES_2025",
             "campo_establecimiento": "[EESS.ESTABLECIMIENTO]",
             "campo_anio": "ano",
+            "columnas_prohibidas": []
         },
         "TBC pulmonar": {
             "conexion": get_TB_connection,
@@ -2545,40 +2603,42 @@ def exportar_datos_establecimiento():
         "TBC TIA": {
             "conexion": get_TB_connection,
             "tabla": "TIA_TOTAL",
-            "campo_establecimiento": "[Distrito_EESS]",
-            "campo_anio": None
+            "campo_establecimiento": "Distrito_EESS",
+            "campo_anio": None,
+            "columnas_prohibidas": []
         },
         "TBC TIA EESS": {
             "conexion": get_TB_connection,
             "tabla": "TB_TIA_EESS_MINSA",
-            "campo_establecimiento": "[Distrito_EESS]",
-            "campo_anio": None
+            "campo_establecimiento": "Distrito_EESS",
+            "campo_anio": None,
+            "columnas_prohibidas": []
         },
         "Depresion": {
             "conexion": get_depresion_connection,
             "tabla": "Depresion",
-            "campo_establecimiento": "[nom_eess]",
+            "campo_establecimiento": "nom_eess",
             "campo_anio": "Año",
             "columnas_prohibidas": COLUMNAS_PROHIBIDAS_DEPRESION
         },
         "Violencia familiar": {
             "conexion": get_violencia_connection,
             "tabla": "VF_COMPLETO",
-            "campo_establecimiento": "[estab_s]",
+            "campo_establecimiento": "estab_s",
             "campo_anio": "ano",
             "columnas_prohibidas": COLUMNAS_PROHIBIDAS_VIOLENCIA
         },
         "Diabetes": {
             "conexion": get_diabetes_connection,
             "tabla": "REPORTE_DIABETES",
-            "campo_establecimiento": "[ESTABLECIMIENTO]",
+            "campo_establecimiento": "ESTABLECIMIENTO",
             "campo_anio": "ano",
             "columnas_prohibidas": COLUMNAS_PROHIBIDAS_DIABETES
         },
         "Renal": {
             "conexion": get_renal_connection,
             "tabla": "BD_RENAL",
-            "campo_establecimiento": "[establecimiento]",
+            "campo_establecimiento": "establecimiento",
             "campo_anio": "año",
             "columnas_prohibidas": COLUMNAS_PROHIBIDAS_RENAL
         },
@@ -2588,40 +2648,45 @@ def exportar_datos_establecimiento():
                 {
                     "nombre": "CANCER_INFANTIL",
                     "tabla": "REPORTE_CANCER_INFANTIL",
-                    "campo_establecimiento": "[Establecimiento]",
+                    "campo_establecimiento": "Establecimiento",
                     "campo_anio": "AÑO"
                 },
                 {
                     "nombre": "CANCER_ADULTO",
                     "tabla": "REPORTE_CANCER_ADULTO",
-                    "campo_establecimiento": "[Establecimiento]",
+                    "campo_establecimiento": "Establecimiento",
                     "campo_anio": "AÑO"
                 }
-            ]
+            ],
+            "columnas_prohibidas": []
         },
         "Accidente transito": {
             "conexion": get_transito_connection,
             "tabla": "REPORTE_ACCIDENTES_TRANSITO",
-            "campo_establecimiento": "[ESTABLECIMIENTO]",
-            "campo_anio": "ANO"
+            "campo_establecimiento": "ESTABLECIMIENTO",
+            "campo_anio": "ANO",
+            "columnas_prohibidas": COLUMNAS_PROHIBIDAS_ACCIDENTES_TRANSITO
         },
         "Muerte materna": {
             "conexion": get_mortalidad_connection,
             "tabla": "MM_REPORTE_2024",
-            "campo_establecimiento": "[establecimiento]",
-            "campo_anio": "ano"
+            "campo_establecimiento": "establecimiento",
+            "campo_anio": "ano",
+            "columnas_prohibidas": COLUMNAS_PROHIBIDAS_MUERTE_MATERNA
         },
         "Muerte materna extrema": {
             "conexion": get_mortalidad_connection,
             "tabla": "MME_REPORTE_2024",
-            "campo_establecimiento": "[nom_eess]",
-            "campo_anio": "anio_not"
+            "campo_establecimiento": "nom_eess",
+            "campo_anio": "anio_not",
+            "columnas_prohibidas": COLUMNAS_PROHIBIDAS_MUERTE_MATERNA_EXTREMA
         },
         "Muerte fetal neonatal": {
             "conexion": get_mortalidad_connection,
             "tabla": "MNP_REPORTE_2024",
             "campo_establecimiento": "[establecimiento.x]",
-            "campo_anio": "anio"
+            "campo_anio": "anio",
+            "columnas_prohibidas": COLUMNAS_PROHIBIDAS_MUERTE_FETAL_NEONATAL
         }
     }
 
@@ -2629,144 +2694,192 @@ def exportar_datos_establecimiento():
     #   3️⃣ CREAR EXCEL EN MEMORIA
     # ======================================================
     output = io.BytesIO()
-    writer = pd.ExcelWriter(output, engine="openpyxl")
+    
+    # Usar with statement para manejar el writer
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        try:
+            df_poblacion.to_excel(writer, index=False, sheet_name="POBLACION")
+        except Exception as e:
+            print(f"❌ Error al escribir hoja POBLACION: {str(e)}")
+            # Crear hoja de error si falla
+            pd.DataFrame({"Error": [f"Error al generar hoja POBLACION: {str(e)}"]}).to_excel(
+                writer, index=False, sheet_name="POBLACION"
+            )
 
-    df_poblacion.to_excel(writer, index=False, sheet_name="POBLACION")
-
-    # ======================================================
-    #   4️⃣ GENERAR HOJAS POR DIAGNÓSTICO
-    # ======================================================
-    for dx in diagnosticos:
-        # =====================================
-        # 🟣 CÁNCER (DOS TABLAS)
-        # =====================================
-        if dx == "Cáncer":
-            info = MAPEOS_ESTABLECIMIENTO["Cáncer"]
-
-            for t in info["tablas"]:
-                try:
-                    print(f"📄 Hoja cáncer: {dx} - {t['nombre']}")
-                    conn = info["conexion"]()
-
-                    query = f"""
-                        SELECT *
-                        FROM {t['tabla']}
-                        WHERE UPPER({t['campo_establecimiento']}) = UPPER(?)
-                        AND {t['campo_anio']} = 2025
-                    """
-
-                    df_diag = pd.read_sql(query, conn, params=[establecimiento])
-                    conn.close()
-
-                    if df_diag.empty:
+        # ======================================================
+        #   4️⃣ GENERAR HOJAS POR DIAGNÓSTICO
+        # ======================================================
+        for dx in diagnosticos:
+            nombre_hoja = dx[:31].replace("/", "_").replace("\\", "_")
+            
+            try:
+                # =====================================
+                # 🟣 CÁNCER (DOS TABLAS ESPECIAL)
+                # =====================================
+                if dx == "Cáncer":
+                    info = MAPEOS_ESTABLECIMIENTO["Cáncer"]
+                    
+                    for t in info["tablas"]:
+                        try:
+                            print(f"📄 Hoja cáncer: {dx} - {t['nombre']}")
+                            conn = info["conexion"]()
+                            
+                            query = f"""
+                                SELECT *
+                                FROM {t['tabla']}
+                                WHERE UPPER({t['campo_establecimiento']}) = UPPER(?)
+                                AND {t['campo_anio']} = 2025
+                            """
+                            
+                            df_diag = pd.read_sql(query, conn, params=[establecimiento])
+                            conn.close()
+                            
+                            if df_diag.empty:
+                                df_diag = pd.DataFrame({
+                                    "Mensaje": [f"No hay registros de {t['nombre']} en {establecimiento} para 2025"]
+                                })
+                            
+                        except Exception as e:
+                            print(f"❌ Error en cáncer {t['nombre']}: {str(e)}")
+                            df_diag = pd.DataFrame({
+                                "Error": [f"Error al obtener datos: {str(e)}"]
+                            })
+                        
+                        # Nombre de hoja para cáncer
+                        hoja_nombre = f"CÁNCER_{t['nombre']}"[:31]
+                        df_diag.to_excel(writer, index=False, sheet_name=hoja_nombre)
+                    
+                    continue
+                
+                # =====================================
+                # 🟢 DIAGNÓSTICOS ESPECIALES
+                # =====================================
+                if dx in MAPEOS_ESTABLECIMIENTO:
+                    info = MAPEOS_ESTABLECIMIENTO[dx]
+                    
+                    try:
+                        print(f"📄 Hoja especial: {dx}")
+                        conn = info["conexion"]()
+                        
+                        if info["campo_anio"]:
+                            query = f"""
+                                SELECT *
+                                FROM {info['tabla']}
+                                WHERE UPPER({info['campo_establecimiento']}) = UPPER(?)
+                                  AND {info['campo_anio']} = 2025
+                            """
+                        else:
+                            query = f"""
+                                SELECT *
+                                FROM {info['tabla']}
+                                WHERE UPPER({info['campo_establecimiento']}) = UPPER(?)
+                            """
+                        
+                        df_diag = pd.read_sql(query, conn, params=[establecimiento])
+                        conn.close()
+                        
+                        # Eliminar columnas prohibidas si existen
+                        columnas_prohibidas = info.get("columnas_prohibidas", [])
+                        if columnas_prohibidas:
+                            columnas_a_eliminar = [c for c in columnas_prohibidas if c in df_diag.columns]
+                            if columnas_a_eliminar:
+                                df_diag = df_diag.drop(columns=columnas_a_eliminar, errors="ignore")
+                        
+                        if df_diag.empty:
+                            df_diag = pd.DataFrame({
+                                "Mensaje": [f"No hay registros de {dx} en {establecimiento} para 2025"]
+                            })
+                        
+                    except Exception as e:
+                        print(f"❌ Error en diagnóstico especial {dx}: {str(e)}")
                         df_diag = pd.DataFrame({
-                            "Mensaje": [f"Sin registros de {t['nombre']} en {establecimiento}"]
+                            "Error": [f"Error al obtener datos de {dx}: {str(e)}"]
                         })
-
-                except Exception as e:
-                    df_diag = pd.DataFrame({"Error": [str(e)]})
-
-                hoja = f"{dx}_{t['nombre']}"[:31]
-                df_diag.to_excel(writer, index=False, sheet_name=hoja)
-
-            continue  # 🔥 FUNDAMENTAL
-
-        nombre_hoja = dx[:31]
-
-        # ------------------ ESPECIALES ------------------
-        if dx in MAPEOS_ESTABLECIMIENTO:
-            info = MAPEOS_ESTABLECIMIENTO[dx]
-
-            try:
-                print(f"📄 Hoja especial: {dx}")
-                conn = info["conexion"]()
-
-                if info["campo_anio"]:
-                    query = f"""
-                        SELECT *
-                        FROM {info['tabla']}
-                        WHERE UPPER({info['campo_establecimiento']}) = UPPER(?)
-                          AND {info['campo_anio']} = 2025
-                    """
+                
+                # =====================================
+                # 🔵 NOTIWEB (diagnósticos generales)
+                # =====================================
                 else:
-                    query = f"""
-                        SELECT *
-                        FROM {info['tabla']}
-                        WHERE UPPER({info['campo_establecimiento']}) = UPPER(?)
-                    """
-
-                df_diag = pd.read_sql(query, conn, params=[establecimiento])
-                conn.close()
-
-                columnas_prohibidas = info.get("columnas_prohibidas", [])
-                df_diag = df_diag.drop(
-                    columns=[c for c in columnas_prohibidas if c in df_diag.columns],
-                    errors="ignore"
-                )
-
+                    try:
+                        print(f"📄 Hoja NOTIWEB: {dx}")
+                        conn = connect("EPI_TABLAS_MAESTRO_2025")
+                        
+                        query = """
+                            SELECT *
+                            FROM NOTIWEB_2025
+                            WHERE
+                                UPPER(DIAGNOSTICO) = UPPER(?)
+                                AND (UPPER(ESTABLECIMIENTO) = UPPER(?)
+                        """
+                        
+                        df_diag = pd.read_sql(query, conn, params=[dx, establecimiento, establecimiento, establecimiento])
+                        conn.close()
+                        
+                        # Eliminar columnas sensibles
+                        columnas_a_eliminar = [c for c in COLUMNAS_PROHIBIDAS_NOTIWEB_2025 if c in df_diag.columns]
+                        if columnas_a_eliminar:
+                            df_diag = df_diag.drop(columns=columnas_a_eliminar, errors="ignore")
+                        
+                        if df_diag.empty:
+                            df_diag = pd.DataFrame({
+                                "Mensaje": [f"No hay registros de {dx} en {establecimiento}"]
+                            })
+                        
+                    except Exception as e:
+                        print(f"❌ Error en NOTIWEB para {dx}: {str(e)}")
+                        df_diag = pd.DataFrame({
+                            "Error": [f"Error al obtener datos de {dx}: {str(e)}"]
+                        })
+                
+                # =====================================
+                # 🟠 CONTROL DE NOMBRES DUPLICADOS
+                # =====================================
+                hojas_existentes = writer.book.sheetnames
+                nombre_original = nombre_hoja
+                contador = 1
+                
+                while nombre_hoja in hojas_existentes:
+                    nombre_hoja = f"{nombre_original}_{contador}"[:31]
+                    contador += 1
+                
+                # Asegurar que el DataFrame tenga al menos una columna
+                if df_diag.empty:
+                    df_diag = pd.DataFrame({"Mensaje": ["No hay datos disponibles"]})
+                
+                # Escribir la hoja
+                df_diag.to_excel(writer, index=False, sheet_name=nombre_hoja)
+                print(f"✅ Hoja creada: {nombre_hoja} con {len(df_diag)} registros")
+                
             except Exception as e:
-                df_diag = pd.DataFrame({"Error": [str(e)]})
-
-        # ------------------ NOTIWEB ------------------
-        else:
-            try:
-                print(f"📄 Hoja NOTIWEB: {dx}")
-                conn = connect("EPI_TABLAS_MAESTRO_2025")
-
-                query = """
-                    SELECT *
-                    FROM NOTIWEB_2025
-                    WHERE
-                        UPPER(DIAGNOSTICO) = UPPER(?)
-                        AND (UPPER(ESTABLECIMIENTO) = UPPER(?)
-                           OR UPPER([NOMBRE EESS]) = UPPER(?)
-                           OR UPPER([EESS]) = UPPER(?))
-                """
-
-                # ✅ EJECUTAR CONSULTA
-                df_diag = pd.read_sql(query, conn, params=[dx, establecimiento, establecimiento, establecimiento])
-                conn.close()
-
-                # 🔒 ELIMINAR COLUMNAS SENSIBLES
-                df_diag = df_diag.drop(
-                    columns=[c for c in COLUMNAS_PROHIBIDAS_NOTIWEB_2025 if c in df_diag.columns],
-                    errors="ignore"
-                )
-
-            except Exception as e:
-                df_diag = pd.DataFrame({"Error": [str(e)]})
-
-        # ------------------ CONTROL FINAL ------------------
-        if df_diag.empty:
-            df_diag = pd.DataFrame({
-                "Mensaje": [f"Sin registros de {dx} en {establecimiento}"]
-            })
-
-        hojas_existentes = writer.book.sheetnames
-        original = nombre_hoja
-        contador = 1
-
-        while nombre_hoja in hojas_existentes:
-            nombre_hoja = f"{original}_{contador}"[:31]
-            contador += 1
-
-        df_diag.to_excel(writer, index=False, sheet_name=nombre_hoja)
-
-    writer.close()
+                print(f"❌ Error general procesando {dx}: {str(e)}")
+                # Crear hoja de error
+                error_df = pd.DataFrame({
+                    "Error": [f"Error al procesar {dx}: {str(e)}"]
+                })
+                error_df.to_excel(writer, index=False, sheet_name=f"ERROR_{nombre_hoja}"[:31])
+    
     output.seek(0)
-
+    
     # ======================================================
     #   5️⃣ RESPUESTA
     # ======================================================
-    response = send_file(
-        output,
-        as_attachment=True,
-        download_name=f"Datos_{establecimiento.replace(' ', '_')}.xlsx",
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+    try:
+        # Verificar que el archivo se generó correctamente
+        if output.getbuffer().nbytes == 0:
+            raise ValueError("El archivo Excel está vacío")
+        
+        response = make_response(output.getvalue())
+        response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        response.headers["Content-Disposition"] = f"attachment; filename=Datos_{establecimiento.replace(' ', '_')}.xlsx"
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        
+        print(f"✅ Archivo Excel generado exitosamente para {establecimiento}")
+        return response
+        
+    except Exception as e:
+        print(f"❌ Error al generar respuesta: {str(e)}")
+        return jsonify({"error": f"Error al generar archivo Excel: {str(e)}"}), 500
 
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    return response
 
 # ============================================================
 # FUNCIONES PARA OBTENER DATOS AGRUPADOS POR ESTABLECIMIENTO

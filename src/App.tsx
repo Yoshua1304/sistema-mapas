@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet';
 import { DomEvent, Layer as LeafletLayer } from 'leaflet';
 import * as L from 'leaflet';
@@ -61,26 +61,31 @@ interface MapResetHandlerProps {
   setClickedDistrictId: React.Dispatch<React.SetStateAction<string | null>>;
   setSearchedDistrictId: React.Dispatch<React.SetStateAction<string | null>>;
   setSelectedDistrictLayerIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+  setClickedEstablecimientoId: React.Dispatch<React.SetStateAction<string | null>>;
+  setSelectedEstablecimientoLayerIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+  geoJSONType: 'distritos' | 'establecimientos';
+  map: any;
 }
 
 const MapResetClickHandler: React.FC<MapResetHandlerProps> = ({
   setClickedDistrictId,
   setSearchedDistrictId,
   setSelectedDistrictLayerIds,
+  setClickedEstablecimientoId,
+  setSelectedEstablecimientoLayerIds,
+  geoJSONType,
+  map
 }) => {
   useMapEvents({
     click: (e) => {
-      // ⭐ VERIFICACIÓN CRÍTICA: Comprobar si el clic fue en un elemento interactivo
       const target = e.originalEvent.target as HTMLElement;
       
-      // Si el clic fue en un popup o sus contenidos, NO limpiar selecciones
+      // Elementos que NO deben disparar el reset
       const isClickOnPopup = target.closest('.leaflet-popup') !== null;
       const isClickOnTooltip = target.closest('.leaflet-tooltip') !== null;
       const isClickOnSidebar = target.closest('.sidebar-floating') !== null;
       const isClickOnMapSearch = target.closest('.map-search-bar-container') !== null;
       const isClickOnMapTools = target.closest('.map-tools') !== null;
-      
-      // ⭐ Elementos específicos de tu aplicación que NO deben disparar el reset
       const isClickOnDistrictPopup = target.closest('.district-popup-container') !== null;
       const isClickOnEstablecimientoPopup = target.closest('.establecimiento-popup-container') !== null;
       const isClickOnLegend = target.closest('.legend-container') !== null;
@@ -99,29 +104,25 @@ const MapResetClickHandler: React.FC<MapResetHandlerProps> = ({
         isClickOnCompass ||
         isClickOnCoordinates
       ) {
-        console.log("🛑 Clic en elemento interactivo - NO limpiar selecciones");
         return;
       }
       
-      // Si el evento llega aquí, significa que se hizo clic en el mapa vacío
-      console.log("🗺️ Clic en mapa vacío - Limpiando selecciones");
+      // Cerrar popups abiertos
+      if (map && map._popup && map._popup.isOpen()) {
+        map.closePopup();
+      }
       
-      // Limpiar selecciones solo si no hay popups abiertos
-      const map = e.target;
-      if (!map._popup || !map._popup.isOpen()) {
+      // Limpiar selecciones según el tipo actual
+      if (geoJSONType === 'distritos') {
         setClickedDistrictId(null);
-        setSearchedDistrictId(null);
         setSelectedDistrictLayerIds(new Set());
       } else {
-        console.log("ℹ️ Hay un popup abierto, manteniendo selecciones");
+        setClickedEstablecimientoId(null);
+        setSelectedEstablecimientoLayerIds(new Set());
       }
+      
+      setSearchedDistrictId(null);
     },
-    
-    // ⭐ Añadir también manejo para cuando se cierra un popup manualmente
-    popupclose: () => {
-      console.log("📌 Popup cerrado - Manteniendo selección visual");
-      // No limpiar las selecciones aquí, solo mantener la visual
-    }
   });
 
   return null;
@@ -358,32 +359,39 @@ function App() {
   const [searchedDistrictId, setSearchedDistrictId] = useState<string | null>(null);
   const [clickedDistrictId, setClickedDistrictId] = useState<string | null>(null);
   const [selectedDistrictLayerIds, setSelectedDistrictLayerIds] = useState<Set<string>>(new Set());
+  const [clickedEstablecimientoId, setClickedEstablecimientoId] = useState<string | null>(null);
+  const [selectedEstablecimientoLayerIds, setSelectedEstablecimientoLayerIds] = useState<Set<string>>(new Set());
   const [map, setMap] = useState<any>(null);
-  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [isBaseMapSelectorOpen, setBaseMapSelectorOpen] = useState(false);
   const [currentBaseMap, setCurrentBaseMap] = useState<BaseMap>(BASE_MAPS[0]);
   const position: [number, number] = [-12.00, -77.02];
   const zoomLevel = 12;
 
   const [casosPorDistrito, setCasosPorDistrito] = useState<Record<string, any>>({});
+  const [casosPorEstablecimiento, setCasosPorEstablecimiento] = useState<Record<string, number>>({});
   const [diagnosticoSeleccionado, setDiagnosticoSeleccionado] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarView, setSidebarView] = useState<'capas' | 'leyenda'>('capas');
   const [showCopyNotification, setShowCopyNotification] = useState(false);
-
   const [isLoadingEstablecimiento, setIsLoadingEstablecimiento] = useState(false);
-  // En los estados, agrega:
-  const [casosPorEstablecimiento, setCasosPorEstablecimiento] = useState<Record<string, number>>({});
+
 
 //console.log("🟦 diagnosticoSeleccionado TYPE:", typeof diagnosticoSeleccionado);
 //console.log("🟦 diagnosticoSeleccionado VALUE:", diagnosticoSeleccionado);
 //console.log("🟦 diagnosticoSeleccionado IS ARRAY:", Array.isArray(diagnosticoSeleccionado));
 
+// Al inicio del componente App, después de los estados:
+console.log("🔄 Render - geoJSONType:", geoJSONType, "activeGeoJSON type:", 
+  activeGeoJSON === allDistricts ? "distritos" : 
+  activeGeoJSON === allEstablecimientos ? "establecimientos" : "null");
 
 const [suggestionResults, setSuggestionResults] = useState<Array<{
   name: string;
   type: 'distrito' | 'establecimiento';
 }>>([]);
+
+const isSwitchingType = useRef(false);
 
 const cargarFebrilesPorDistrito = async () => {
   if (!allDistricts) return;
@@ -702,39 +710,29 @@ const cargarSigtbDistritos = async () => {
 };
 
 const resetMapToDefault = () => {
-  if (!map) return;
-
-  // 1. Limpiar filtros
-  setDiagnosticoSeleccionado([]);
-  setCasosPorDistrito({});
-  setCasosPorEstablecimiento({});
-
-  // 2. Limpiar subcapas
-  const cleanedLayers = new Set(selectedLayers);
-  Array.from(selectedLayers).forEach(id => {
-    if (
-      id.startsWith('distrito-') ||
-      id.startsWith('establecimiento-')
-    ) {
-      cleanedLayers.delete(id);
-    }
-  });
-
-  setSelectedLayers(cleanedLayers);
-  setSelectedDistrictLayerIds(new Set());
-
-  // 3. Limpiar búsquedas
-  setLayerSearchTerm('');
-  setMapSearchTerm('');
-  setSearchedDistrictId(null);
-  setClickedDistrictId(null);
-
-  // 4. 🔍 Reaplicar zoom SIN perder centro
-  if (map) {
+    if (!map) return;
+    
+    // Cerrar popups
+    map.closePopup();
+    
+    // Limpiar estados de selección y datos de diagnósticos
+    setDiagnosticoSeleccionado([]);
+    setCasosPorDistrito({});
+    setCasosPorEstablecimiento({});
+    setClickedDistrictId(null);
+    setClickedEstablecimientoId(null);
+    setSearchedDistrictId(null);
+    setSelectedDistrictLayerIds(new Set());
+    setSelectedEstablecimientoLayerIds(new Set());
+    
+    // Resetear búsqueda
+    setMapSearchTerm('');
+    setLayerSearchTerm('');
+    
+    // Reaplicar zoom a la vista inicial (pero manteniendo el tipo actual)
     map.setView(position, zoomLevel);
-  }
-
-  console.log("✅ Filtros limpiados, zoom reaplicado.");
+        
+    console.log("✅ Mapa resetado completamente (manteniendo tipo:", geoJSONType, ")");
 };
 
 const handleShowLegend = () => {
@@ -750,6 +748,7 @@ const handleShowLegend = () => {
 useEffect(() => {
   if (!diagnosticoSeleccionado || diagnosticoSeleccionado.length === 0) {
     // Limpiar datos si no hay diagnósticos seleccionados
+    console.log("🧹 Limpiando datos porque no hay diagnósticos seleccionados");
     if (geoJSONType === 'distritos') {
       setCasosPorDistrito({});
     } else {
@@ -761,56 +760,90 @@ useEffect(() => {
   const diagnostico = diagnosticoSeleccionado[diagnosticoSeleccionado.length - 1];
   const diagnosticoNombre = diagnostico.replace('diagnostico-', '').toUpperCase();
 
-  console.log("🟢 Diagnóstico para pintar:", diagnosticoNombre);
-  console.log("🗺️ Tipo de GeoJSON:", geoJSONType);
+  console.log("================================");
+  console.log("🟢 useEffect - Diagnóstico para pintar:", diagnosticoNombre);
+  console.log("🗺️ Tipo de GeoJSON actual:", geoJSONType);
+  console.log("📋 Todos los diagnósticos:", diagnosticoSeleccionado);
+  console.log("================================");
 
-  if (geoJSONType === 'distritos') {
-    // Lógica existente para distritos
+  // ⭐ CAPTURAR EL TIPO ACTUAL PARA USARLO EN LAS LLAMADAS ASÍNCRONAS
+  const tipoActual = geoJSONType;
+
+  if (tipoActual === 'distritos') {
+    console.log("📍 Ejecutando lógica para DISTRITOS");
     setIsLoading(true);
     
-    if (diagnostico === "diagnostico-edas") {
-      console.log("🔥 Cargando EDAS...");
-      cargarEdasPorDistrito();
-    } else if (diagnostico === "diagnostico-febriles") {
-      console.log("🟦 Cargando FEBRILES...");
-      cargarFebrilesPorDistrito();
-    } else if (diagnostico === "diagnostico-iras") {
-      console.log("🟦 Cargando IRAS...");
-      cargarIRASPorDistrito();
-    } else if (diagnostico.trim().toLowerCase() === "diagnostico-tbctia") {
-      console.log("🟦 Cargando TBC TIA...");
-      cargarTIATotal();
-    } else if (diagnostico.trim().toLowerCase() === "diagnostico-tbctiaeess") {
-      console.log("🟦 Cargando TBC TIA EESS...");
-      cargarTIATotalEESS();
-    } else if (diagnostico.trim().toLowerCase() === "diagnostico-tbcpulmonar") {
-      console.log("🟦 Cargando TBC PULMONAR...");
-      cargarSigtbDistritos();
-    } else if (diagnostico.trim().toLowerCase() === "diagnostico-depresion") {
-      console.log("🟣 Cargando DEPRESIÓN...");
-      cargarDepresionPorDistrito();
-    } else if (diagnostico.trim().toLowerCase() === "diagnostico-violencia") {
-      console.log("🟣 Cargando VIOLENCIA...");
-      cargarViolenciaPorDistrito();
-    } else if (diagnostico.trim().toLowerCase() === "diagnostico-diabetes") {
-      console.log("🟣 Cargando DIABETES...");
-      cargarDiabetesPorDistrito();
-    } else {
-      console.log("🟢 Cargando diagnóstico NOTIWEB:", diagnostico);
-      cargarCasosPorDiagnostico(diagnostico);
-    }
+    // Usar una función async interna para manejar correctamente el estado
+    const cargarDatosDistritos = async () => {
+      try {
+        if (diagnostico === "diagnostico-edas") {
+          console.log("🔥 Cargando EDAS para distritos...");
+          await cargarEdasPorDistrito();
+        } else if (diagnostico === "diagnostico-febriles") {
+          console.log("🟦 Cargando FEBRILES para distritos...");
+          await cargarFebrilesPorDistrito();
+        } else if (diagnostico === "diagnostico-iras") {
+          console.log("🟦 Cargando IRAS para distritos...");
+          await cargarIRASPorDistrito();
+        } else if (diagnostico.trim().toLowerCase() === "diagnostico-tbctia") {
+          console.log("🟦 Cargando TBC TIA para distritos...");
+          await cargarTIATotal();
+        } else if (diagnostico.trim().toLowerCase() === "diagnostico-tbctiaeess") {
+          console.log("🟦 Cargando TBC TIA EESS para distritos...");
+          await cargarTIATotalEESS();
+        } else if (diagnostico.trim().toLowerCase() === "diagnostico-tbcpulmonar") {
+          console.log("🟦 Cargando TBC PULMONAR para distritos...");
+          await cargarSigtbDistritos();
+        } else if (diagnostico.trim().toLowerCase() === "diagnostico-depresion") {
+          console.log("🟣 Cargando DEPRESIÓN para distritos...");
+          await cargarDepresionPorDistrito();
+        } else if (diagnostico.trim().toLowerCase() === "diagnostico-violencia") {
+          console.log("🟣 Cargando VIOLENCIA para distritos...");
+          await cargarViolenciaPorDistrito();
+        } else if (diagnostico.trim().toLowerCase() === "diagnostico-diabetes") {
+          console.log("🟣 Cargando DIABETES para distritos...");
+          await cargarDiabetesPorDistrito();
+        } else {
+          console.log("🟢 Cargando diagnóstico NOTIWEB para distritos:", diagnostico);
+          await cargarCasosPorDiagnostico(diagnostico);
+        }
+      } catch (error) {
+        console.error("❌ Error cargando datos para distritos:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    setIsLoading(false);
+    cargarDatosDistritos();
     
-  } else if (geoJSONType === 'establecimientos') {
-    // Nueva lógica para establecimientos
-    console.log("🏥 Cargando datos para establecimientos...");
+  } else if (tipoActual === 'establecimientos') {
+    console.log("📍 Ejecutando lógica para ESTABLECIMIENTOS");
     setIsLoading(true);
-    cargarCasosPorDiagnosticoEstablecimiento(diagnosticoNombre);
+    
+    // Usar una función async interna para manejar correctamente el estado
+    const cargarDatosEstablecimientos = async () => {
+      try {
+        console.log("🏥 Cargando datos para establecimientos...");
+        await cargarCasosPorDiagnosticoEstablecimiento(diagnosticoNombre);
+      } catch (error) {
+        console.error("❌ Error cargando datos para establecimientos:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    cargarDatosEstablecimientos();
+  } else {
+    console.error("❌ Tipo de GeoJSON desconocido:", tipoActual);
     setIsLoading(false);
   }
 }, [diagnosticoSeleccionado, geoJSONType]);
 
+// Agrega este useEffect para ver cuándo cambia geoJSONType
+useEffect(() => {
+  console.log("🔍 DEBUG - geoJSONType cambió a:", geoJSONType);
+  console.log("🔍 DEBUG - Origen del cambio:", new Error().stack);
+}, [geoJSONType]);
 
 const cargarCasosPorDiagnostico = async (diagnostico: string) => {
   diagnostico = diagnostico.trim();
@@ -818,21 +851,20 @@ const cargarCasosPorDiagnostico = async (diagnostico: string) => {
   if (!allDistricts) return;
 
   console.log("================================");
-  console.log("🔍 Diagnóstico seleccionado:", diagnostico);
+  console.log("🔍 cargarCasosPorDiagnostico - Solo para DISTRITOS");
+  console.log("🔍 Diagnóstico:", diagnostico);
+  console.log("🔍 Tipo actual (en la función):", geoJSONType);
   console.log("================================");
 
-  // ⬅️ AHORA resultados almacena total + tia
+  // ⭐ VERIFICAR que estamos en distritos antes de proceder
+  if (geoJSONType !== 'distritos') {
+    console.error("❌ ERROR: cargarCasosPorDiagnostico llamado cuando geoJSONType es", geoJSONType);
+    console.error("❌ Se esperaba 'distritos' pero se recibió:", geoJSONType);
+    return;
+  }
+
   const resultados: Record<string, { total: number; TIA_100k: number | null }> = {};
-
-const detalles: Record<
-      string,
-      {
-        total: number;
-        detalle: { tipo_dx: string; cantidad: number }[];
-        TIA_100k?: number | null; // 💡 AGREGAR ESTO: La tasa TIA
-      }
-    > = {};
-
+  const detalles: Record<string, { total: number; detalle: { tipo_dx: string; cantidad: number }[]; TIA_100k?: number | null }> = {};
   const esTBC = diagnostico.toUpperCase().includes("TBC");
 
   for (const feature of allDistricts.features) {
@@ -840,72 +872,40 @@ const detalles: Record<
     const url = `http://${baseUrl}:5001/api/casos_enfermedad?distrito=${distrito}&enfermedad=${diagnostico}`;
 
     console.log(`🌐 Consultando backend para distrito: ${distrito}`);
-    console.log(`URL → ${url}`);
 
     try {
       const res = await fetch(url);
 
       if (!res.ok) {
         console.error(`❌ Error HTTP (${res.status}) en distrito ${distrito}`);
-
-        resultados[distrito.toUpperCase()] = {
-          total: 0,
-          TIA_100k: null
-        };
-
-        detalles[distrito.toUpperCase()] = {
-          total: 0,
-          detalle: []
-        };
-
+        resultados[distrito.toUpperCase()] = { total: 0, TIA_100k: null };
+        detalles[distrito.toUpperCase()] = { total: 0, detalle: [] };
         continue;
       }
 
       const data = await res.json();
 
-      console.log(`📁 Respuesta para ${distrito}: ${JSON.stringify(data)}`);
-
-      // ⬅️ SI ES TB usamos TIA_100k del backend
       resultados[distrito.toUpperCase()] = {
         total: data.total || 0,
         TIA_100k: esTBC ? (data.TIA_100k ?? null) : null
       };
 
       detalles[distrito.toUpperCase()] = {
-        total: data.total || 0,
-        detalle: data.detalle || [],
-        // 💡 LÍNEA CLAVE A AÑADIR/MODIFICAR
-        TIA_100k: esTBC ? (data.TIA_100k ?? null) : null, 
-      };
+        total: data.total || 0,
+        detalle: data.detalle || [],
+        TIA_100k: esTBC ? (data.TIA_100k ?? null) : null,
+      };
 
     } catch (err) {
-      console.error(`❌ Error de conexión en distrito ${distrito}`, err);
-
-      resultados[distrito.toUpperCase()] = {
-        total: 0,
-        TIA_100k: null
-      };
-
-      detalles[distrito.toUpperCase()] = {
-        total: 0,
-        detalle: [],
-        TIA_100k: null, // 💡 AGREGAR ESTO
-      };
-    }
+      console.error(`❌ Error de conexión en distrito ${distrito}`, err);
+      resultados[distrito.toUpperCase()] = { total: 0, TIA_100k: null };
+      detalles[distrito.toUpperCase()] = { total: 0, detalle: [], TIA_100k: null };
+    }
   }
 
-  console.log("================================");
-  console.log("📊 RESULTADO FINAL:", diagnostico);
-  console.log("================================");
-
-  Object.entries(resultados).forEach(([dist, obj]) => {
-    console.log(`🏙 ${dist}: total=${obj.total} | TIA_100k=${obj.TIA_100k}`);
-  });
-
+  console.log("📊 Datos cargados para distritos");
   setCasosPorDistrito(resultados);
   setCasosDetallePorDistrito(detalles);
-
-  console.log("================================");
 };
 
 const obtenerCasosEnfermedad = async (distrito: string, enfermedad: string) => {
@@ -961,92 +961,92 @@ const obtenerCasosTotalesEstablecimiento = async (establecimiento: string) => {
   }
 };
 
-  // Función para obtener casos de enfermedad en establecimiento
-  const obtenerCasosEnfermedadEstablecimiento = async (establecimiento: string, enfermedad: string) => {
-    try {
-      // Mapear nombres específicos si es necesario
-      const nombreMapeo: Record<string, string> = {
-        'diagnostico-edas': 'EDAS',
-        'diagnostico-febriles': 'FEBRILES',
-        'diagnostico-iras': 'IRAS',
-        'diagnostico-tbcTIA': 'TBC TIA',
-        'diagnostico-tbctiaeess': 'TBC TIA EESS',
-        'diagnostico-tbcpulmonar': 'TBC PULMONAR',
-        'diagnostico-depresion': 'DEPRESION',
-        'diagnostico-violencia': 'VIOLENCIA',
-        'diagnostico-diabetes': 'DIABETES',
-        'diagnostico-cancer': 'CANCER',
-        'diagnostico-renal': 'RENAL',
-        'diagnostico-muerte-materna': 'MUERTE MATERNA',
-        'diagnostico-muerte-materna-extrema': 'MUERTE MATERNA EXTREMA',
-        'diagnostico-muerte-fetal-neonatal': 'MUERTE FETAL NEONATAL',
-        'diagnostico-tos-ferina': 'TOS FERINA',
-        'diagnostico-parotiditis': 'PAROTIDITIS',
-        'diagnostico-varicela-sin-complicaciones': 'VARICELA',
-        'diagnostico-rubeola': 'RUBEOLA',
-        'diagnostico-sifilis-congenita': 'SIFILIS CONGENITA',
-        'diagnostico-sifilis-materna': 'SIFILIS MATERNA',
-        'diagnostico-sifilis-no-especificada': 'SIFILIS',
-        'diagnostico-hepatitis-b': 'HEPATITIS B',
-        'diagnostico-esavi': 'ESAVI',
-        'diagnostico-difteria': 'DIFTERIA',
-        'diagnostico-leptospirosis': 'LEPTOSPIROSIS',
-        'diagnostico-loxcelismo': 'LOXCELISMO',
-        'diagnostico-ofidismo': 'OFIDISMO',
-        'diagnostico-chikungunya': 'CHIKUNGUNYA',
-        'diagnostico-zika': 'ZIKA',
-        'diagnostico-dengue-sin-signos': 'DENGUE SIN SIGNOS',
-        'diagnostico-dengue-con-signos': 'DENGUE CON SIGNOS',
-        'diagnostico-dengue-grave': 'DENGUE GRAVE',
-        'diagnostico-chagas': 'CHAGAS',
-        'diagnostico-efecto-plaguicidas': 'EFECTO TOXICO PLAGUICIDAS',
-        'diagnostico-Metal,-no-Especificado': 'METAL NO ESPECIFICADO',
-      };
-      
-      // ✅ Usar el mapeo o extraer el nombre del diagnóstico
-      const enfermedadParaBackend = nombreMapeo[enfermedad] || enfermedad.replace('diagnostico-', '');
-      
-      console.log(`🔍 Consultando casos para establecimiento: ${establecimiento}, diagnóstico: ${enfermedadParaBackend}`);
-      
-      const res = await fetch(
-        `http://${baseUrl}:5001/api/casos_enfermedad_establecimiento?establecimiento=${encodeURIComponent(establecimiento)}&enfermedad=${encodeURIComponent(enfermedadParaBackend)}`
-      );
-      
-      if (!res.ok) {
-        console.error(`❌ Error HTTP ${res.status} para ${establecimiento}: ${enfermedadParaBackend}`);
-        return { 
-          total: 0, 
-          detalle: [],
-          error: `Error ${res.status}: ${res.statusText}`
-        };
-      }
-      
-      const data = await res.json();
-      console.log(`✅ Datos obtenidos para ${establecimiento}:`, data);
-      
-      return {
-        total: data.total || 0,
-        daa: data.daa || 0,
-        dis: data.dis || 0,
-        ira_no_neumonia: data.ira_no_neumonia || 0,
-        sob_asma: data.sob_asma || 0,
-        neumonia_grave: data.neumonia_grave || 0,
-        neumonia: data.neumonia || 0,
-        TIA_100k: data.TIA_100k || 0,
-        detalle: data.detalle || [],
-        rawData: data
-      };
-      
-    } catch (error: any) {
-      console.error(`❌ Error al obtener casos de enfermedad en establecimiento ${establecimiento}:`, error.message);
+// Función para obtener casos de enfermedad en establecimiento
+const obtenerCasosEnfermedadEstablecimiento = async (establecimiento: string, enfermedad: string) => {
+  try {
+    // Mapear nombres específicos si es necesario
+    const nombreMapeo: Record<string, string> = {
+      'diagnostico-edas': 'EDAS',
+      'diagnostico-febriles': 'FEBRILES',
+      'diagnostico-iras': 'IRAS',
+      'diagnostico-tbcTIA': 'TBC TIA',
+      'diagnostico-tbctiaeess': 'TBC TIA EESS',
+      'diagnostico-tbcpulmonar': 'TBC PULMONAR',
+      'diagnostico-depresion': 'DEPRESION',
+      'diagnostico-violencia': 'VIOLENCIA',
+      'diagnostico-diabetes': 'DIABETES',
+      'diagnostico-cancer': 'CANCER',
+      'diagnostico-renal': 'RENAL',
+      'diagnostico-muerte-materna': 'MUERTE MATERNA',
+      'diagnostico-muerte-materna-extrema': 'MUERTE MATERNA EXTREMA',
+      'diagnostico-muerte-fetal-neonatal': 'MUERTE FETAL NEONATAL',
+      'diagnostico-tos-ferina': 'TOS FERINA',
+      'diagnostico-parotiditis': 'PAROTIDITIS',
+      'diagnostico-varicela-sin-complicaciones': 'VARICELA',
+      'diagnostico-rubeola': 'RUBEOLA',
+      'diagnostico-sifilis-congenita': 'SIFILIS CONGENITA',
+      'diagnostico-sifilis-materna': 'SIFILIS MATERNA',
+      'diagnostico-sifilis-no-especificada': 'SIFILIS',
+      'diagnostico-hepatitis-b': 'HEPATITIS B',
+      'diagnostico-esavi': 'ESAVI',
+      'diagnostico-difteria': 'DIFTERIA',
+      'diagnostico-leptospirosis': 'LEPTOSPIROSIS',
+      'diagnostico-loxcelismo': 'LOXCELISMO',
+      'diagnostico-ofidismo': 'OFIDISMO',
+      'diagnostico-chikungunya': 'CHIKUNGUNYA',
+      'diagnostico-zika': 'ZIKA',
+      'diagnostico-dengue-sin-signos': 'DENGUE SIN SIGNOS',
+      'diagnostico-dengue-con-signos': 'DENGUE CON SIGNOS',
+      'diagnostico-dengue-grave': 'DENGUE GRAVE',
+      'diagnostico-chagas': 'CHAGAS',
+      'diagnostico-efecto-plaguicidas': 'EFECTO TOXICO PLAGUICIDAS',
+      'diagnostico-Metal,-no-Especificado': 'METAL NO ESPECIFICADO',
+    };
+    
+    // ✅ Usar el mapeo o extraer el nombre del diagnóstico
+    const enfermedadParaBackend = nombreMapeo[enfermedad] || enfermedad.replace('diagnostico-', '');
+    
+    console.log(`🔍 Consultando casos para establecimiento: ${establecimiento}, diagnóstico: ${enfermedadParaBackend}`);
+    
+    const res = await fetch(
+      `http://${baseUrl}:5001/api/casos_enfermedad_establecimiento?establecimiento=${encodeURIComponent(establecimiento)}&enfermedad=${encodeURIComponent(enfermedadParaBackend)}`
+    );
+    
+    if (!res.ok) {
+      console.error(`❌ Error HTTP ${res.status} para ${establecimiento}: ${enfermedadParaBackend}`);
       return { 
         total: 0, 
         detalle: [],
-        error: error.message,
-        rawData: null
+        error: `Error ${res.status}: ${res.statusText}`
       };
     }
-  };
+    
+    const data = await res.json();
+    console.log(`✅ Datos obtenidos para ${establecimiento}:`, data);
+    
+    return {
+      total: data.total || 0,
+      daa: data.daa || 0,
+      dis: data.dis || 0,
+      ira_no_neumonia: data.ira_no_neumonia || 0,
+      sob_asma: data.sob_asma || 0,
+      neumonia_grave: data.neumonia_grave || 0,
+      neumonia: data.neumonia || 0,
+      TIA_100k: data.TIA_100k || 0,
+      detalle: data.detalle || [],
+      rawData: data
+    };
+    
+  } catch (error: any) {
+    console.error(`❌ Error al obtener casos de enfermedad en establecimiento ${establecimiento}:`, error.message);
+    return { 
+      total: 0, 
+      detalle: [],
+      error: error.message,
+      rawData: null
+    };
+  }
+};
 
 const handleShare = async () => {
   try {
@@ -1075,7 +1075,7 @@ const handleShare = async () => {
   }
 };
 
-
+// En la declaración de estados, asegúrate de tener:
 const [, setCasosDetallePorDistrito] = useState<
   Record<
     string,
@@ -1089,9 +1089,9 @@ const [, setCasosDetallePorDistrito] = useState<
 const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) => {
     
     console.log(`🎯 handleDiagnosticoSelect: ${diagnostico}, checked: ${checked}`);
-    console.log(`🗺️ Tipo actual: ${geoJSONType}`);
+    console.log(`🗺️ Tipo actual (en handleDiagnosticoSelect): ${geoJSONType}`);
 
-    // 1. Calcular el NUEVO ARRAY DE DIAGNÓSTICOS inmediatamente (sin usar el setter).
+    // 1. Calcular el NUEVO ARRAY DE DIAGNÓSTICOS inmediatamente
     let nuevoDiagnosticoSeleccionado: string[];
 
     if (checked) {
@@ -1104,39 +1104,17 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
         nuevoDiagnosticoSeleccionado = diagnosticoSeleccionado.filter(d => d !== diagnostico);
     }
     
-    // 2. Determinar qué pintar basado en el array CALCULADO (prioridad: el último).
-    const diagnosticoParaPintar = nuevoDiagnosticoSeleccionado.length > 0 
-        ? nuevoDiagnosticoSeleccionado[nuevoDiagnosticoSeleccionado.length - 1] 
-        : '';
-        
-    // 3. Ejecutar la lógica de carga y consulta (INMEDIATA).
-    if (diagnosticoParaPintar) {
-        setIsLoading(true); 
-        try {
-            // ⭐ CONSULTA INMEDIATA ⭐
-            await cargarCasosPorDiagnostico(diagnosticoParaPintar); 
-        } catch (error) {
-            console.error("Error al cargar casos por diagnóstico:", error);
-        } finally {
-            setIsLoading(false); // <-- DESACTIVA EL SPINNER al finalizar la consulta
-        }
-    } else {
-        setCasosPorDistrito({}); 
-    }
+    console.log(`📋 Nuevo array de diagnósticos:`, nuevoDiagnosticoSeleccionado);
     
-    // 4. Actualizar el estado del filtro al final.
+    // 2. Actualizar el estado del filtro al final (NO cargar datos aquí)
     setDiagnosticoSeleccionado(nuevoDiagnosticoSeleccionado);
+    
+    // ⭐ IMPORTANTE: NO cargar datos aquí, dejar que el useEffect lo haga
+    // Esto evita que se llame a cargarCasosPorDiagnostico cuando estamos en establecimientos
 };
 
 
   const sidebarRef = (instance: HTMLDivElement | null) => {
-    if (instance) {
-      DomEvent.disableClickPropagation(instance);
-      DomEvent.disableScrollPropagation(instance);
-    }
-  };
-
-  const mapSearchBarRef = (instance: HTMLDivElement | null) => {
     if (instance) {
       DomEvent.disableClickPropagation(instance);
       DomEvent.disableScrollPropagation(instance);
@@ -1199,7 +1177,7 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
         const districtLayer: Layer = {
           id: 'distritos-layer',
           name: 'Distritos',
-          subLayers: districtSubLayers, // Ahora SÍ tiene subcapas
+          subLayers: districtSubLayers,
         };
 
         // Ahora cargar ESTABLECIMIENTOS
@@ -1217,7 +1195,7 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
             const estableLayer: Layer = {
               id: 'establecimientos-layer',
               name: 'Establecimientos',
-              subLayers: estableSubLayers, // Ahora SÍ tiene subcapas
+              subLayers: estableSubLayers,
             };
 
             // Agregar AMBAS capas al árbol
@@ -1227,20 +1205,31 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
               estableLayer
             ]);
 
-            // Establecer distritos como activos por defecto
-            setActiveGeoJSON(distritosData);
+            // ⭐⭐ CORRECCIÓN CRÍTICA: NO forzar distritos como activos
+            // Solo establecer distritos como activos si es el tipo por defecto
+            // y NO estamos ya en establecimientos
+            if (geoJSONType === 'distritos') {
+              setActiveGeoJSON(distritosData);
+            } else if (geoJSONType === 'establecimientos') {
+              // Si ya estamos en establecimientos, mantener ese tipo
+              setActiveGeoJSON(estableData);
+            }
+            
+            console.log("✅ GeoJSONs cargados. Tipo activo:", geoJSONType);
           })
           .catch(error => console.error("Error al cargar establecimientos:", error));
       })
       .catch(error => console.error("Error al cargar distritos:", error));
-  }, [diagnosticoSeleccionado]);
+  }, []); // ⭐⭐ IMPORTANTE: Eliminar diagnosticoSeleccionado de las dependencias
 
-  // Sincronizar la selección inicial
+  // Sincronizar la selección inicial - MODIFICADO
   useEffect(() => {
-    if (allDistricts) {
+    if (allDistricts && geoJSONType === 'distritos') {
       setSelectedLayers(new Set(['distritos-layer']));
+    } else if (allEstablecimientos && geoJSONType === 'establecimientos') {
+      setSelectedLayers(new Set(['establecimientos-layer']));
     }
-  }, [allDistricts]);
+  }, [allDistricts, allEstablecimientos, geoJSONType]); // Agregar geoJSONType
 
   useEffect(() => {
     // 1. Cierra el popup abierto de Leaflet inmediatamente
@@ -1259,11 +1248,11 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
   }, [diagnosticoSeleccionado, map]);
 
   // Función auxiliar para debug
-useEffect(() => {
-  console.log("🔄 Estado actualizado - Diagnósticos:", diagnosticoSeleccionado);
-  console.log("🔄 Estado actualizado - Capas seleccionadas:", Array.from(selectedLayers));
-  console.log("🔄 Estado actualizado - Establecimientos seleccionados:", Array.from(selectedDistrictLayerIds));
-}, [diagnosticoSeleccionado, selectedLayers, selectedDistrictLayerIds]);
+  useEffect(() => {
+    console.log("🔄 Estado actualizado - Diagnósticos:", diagnosticoSeleccionado);
+    console.log("🔄 Estado actualizado - Capas seleccionadas:", Array.from(selectedLayers));
+    console.log("🔄 Estado actualizado - Establecimientos seleccionados:", Array.from(selectedDistrictLayerIds));
+  }, [diagnosticoSeleccionado, selectedLayers, selectedDistrictLayerIds]);
 
   const getSubLayerIds = (layer: Layer): string[] => {
     let ids: string[] = [layer.id];
@@ -1345,44 +1334,52 @@ useEffect(() => {
 
     // 🆕 2. Si es una subcapa de establecimiento (empieza con 'establecimiento-')
     if (layerId.startsWith('establecimiento-')) {
-      const establecimientoName = layerId.replace('establecimiento-', '');
-      const establecimientoUpper = establecimientoName.toUpperCase();
-      
-      if (isSelected) {
-        // Cambiar a GeoJSON de establecimientos si no está activo
-        if (geoJSONType !== 'establecimientos' && allEstablecimientos) {
-          setGeoJSONType('establecimientos');
-          setActiveGeoJSON(allEstablecimientos);
-          
-          // Actualizar selección de capas principales
-          newSelectedLayers.add('establecimientos-layer');
-          newSelectedLayers.delete('distritos-layer');
+        const establecimientoName = layerId.replace('establecimiento-', '');
+        const establecimientoUpper = establecimientoName.toUpperCase();
+        
+        if (isSelected) {
+            // Cambiar a GeoJSON de establecimientos si no está activo
+            if (geoJSONType !== 'establecimientos' && allEstablecimientos) {
+                setGeoJSONType('establecimientos');
+                setActiveGeoJSON(allEstablecimientos);
+                
+                // Actualizar selección de capas principales
+                newSelectedLayers.add('establecimientos-layer');
+                newSelectedLayers.delete('distritos-layer');
+            }
+            
+            // Agregar a la selección
+            newSelectedLayers.add(layerId);
+            
+            // ACTUALIZACIÓN IMPORTANTE: Establecer el establecimiento como seleccionado
+            const newSelectedEstablecimientoIds = new Set([establecimientoUpper]);
+            setSelectedEstablecimientoLayerIds(newSelectedEstablecimientoIds);
+            
+            // Limpiar selección de distritos
+            setClickedDistrictId(null);
+            setSelectedDistrictLayerIds(new Set());
+            setSearchedDistrictId(null);
+            
+            // 🔥 ZOOM al establecimiento seleccionado
+            const feature = allEstablecimientos?.features.find(f => 
+              f.properties.layer?.toUpperCase() === establecimientoUpper
+            );
+            
+            if (feature && map) {
+              console.log("🔍 Zoom a establecimiento:", establecimientoUpper);
+              const tempLayer = L.geoJson(feature);
+              const bounds = tempLayer.getBounds();
+              map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+            }
+        } else {
+            newSelectedLayers.delete(layerId);
+            const newSelectedEstablecimientoIds = new Set(selectedEstablecimientoLayerIds);
+            newSelectedEstablecimientoIds.delete(establecimientoUpper);
+            setSelectedEstablecimientoLayerIds(newSelectedEstablecimientoIds);
         }
         
-        // Agregar a la selección
-        newSelectedLayers.add(layerId);
-        newSelectedDistrictLayerIds.add(establecimientoUpper);
-        
-        // 🔥 ZOOM al establecimiento seleccionado
-        const feature = allEstablecimientos?.features.find(f => 
-          f.properties.layer?.toUpperCase() === establecimientoUpper
-        );
-        
-        if (feature && map) {
-          console.log("🔍 Zoom a establecimiento:", establecimientoUpper);
-          const tempLayer = L.geoJson(feature);
-          const bounds = tempLayer.getBounds();
-          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
-        }
-      } else {
-        newSelectedLayers.delete(layerId);
-        newSelectedDistrictLayerIds.delete(establecimientoUpper);
-      }
-      
-      console.log("🔄 Actualizando establecimientos seleccionados:", Array.from(newSelectedDistrictLayerIds));
-      setSelectedLayers(newSelectedLayers);
-      setSelectedDistrictLayerIds(newSelectedDistrictLayerIds);
-      return;
+        setSelectedLayers(newSelectedLayers);
+        return;
     }
 
     // 3. Si es la capa principal de distritos (checkbox principal)
@@ -1524,21 +1521,18 @@ useEffect(() => {
       return;
     }
 
-    let foundFeature;
+    let foundFeature: any = null;
     let foundType: 'distrito' | 'establecimiento' | null = null;
 
-    // Buscar primero en distritos
-    if (allDistricts) {
+    // Buscar según el tipo de GeoJSON actual
+    if (geoJSONType === 'distritos' && allDistricts) {
       foundFeature = allDistricts.features.find(feature =>
         feature.properties.NM_DIST.toLowerCase().includes(searchTerm)
       );
       if (foundFeature) {
         foundType = 'distrito';
       }
-    }
-
-    // Si no se encuentra en distritos, buscar en establecimientos
-    if (!foundFeature && allEstablecimientos) {
+    } else if (geoJSONType === 'establecimientos' && allEstablecimientos) {
       foundFeature = allEstablecimientos.features.find(feature =>
         feature.properties.layer.toLowerCase().includes(searchTerm)
       );
@@ -1548,13 +1542,7 @@ useEffect(() => {
     }
 
     if (foundFeature && foundType) {
-      // Cambiar al tipo correspondiente
-      if (foundType === 'distrito' && geoJSONType !== 'distritos') {
-        handleGeoJSONChange('distritos');
-      } else if (foundType === 'establecimiento' && geoJSONType !== 'establecimientos') {
-        handleGeoJSONChange('establecimientos');
-      }
-
+      // No cambiar el tipo de GeoJSON, usar el actual
       const name = foundType === 'distrito' 
         ? foundFeature.properties.NM_DIST
         : foundFeature.properties.layer;
@@ -1563,23 +1551,42 @@ useEffect(() => {
       const bounds = tempLayer.getBounds();
       map.fitBounds(bounds, {
         padding: [50, 50],
-        maxZoom: 14
+        maxZoom: foundType === 'distrito' ? 14 : 16
       });
 
       setSearchedDistrictId(name.toUpperCase());
-      setClickedDistrictId(null);
       
-      // Actualizar selección
+      // Limpiar selecciones opuestas
+      if (foundType === 'distrito') {
+        setClickedDistrictId(null);
+        setClickedEstablecimientoId(null);
+        setSelectedDistrictLayerIds(new Set([name.toUpperCase()]));
+        setSelectedEstablecimientoLayerIds(new Set());
+      } else {
+        setClickedEstablecimientoId(null);
+        setClickedDistrictId(null);
+        setSelectedEstablecimientoLayerIds(new Set([name.toUpperCase()]));
+        setSelectedDistrictLayerIds(new Set());
+      }
+      
+      // Actualizar selección en el panel
       const newSelectedLayers = new Set(selectedLayers);
       const layerId = foundType === 'distrito' 
         ? `distrito-${name}`
         : `establecimiento-${name}`;
       
+      // Limpiar selecciones anteriores
+      Array.from(newSelectedLayers).forEach(id => {
+        if (id.startsWith('distrito-') || id.startsWith('establecimiento-')) {
+          newSelectedLayers.delete(id);
+        }
+      });
+      
       newSelectedLayers.add(layerId);
       setSelectedLayers(newSelectedLayers);
-      setSelectedDistrictLayerIds(new Set([name.toUpperCase()]));
+      
     } else {
-      alert(`No se encontró ningún distrito o establecimiento con el término: "${mapSearchTerm}".`);
+      alert(`No se encontró ningún ${geoJSONType === 'distritos' ? 'distrito' : 'establecimiento'} con el término: "${mapSearchTerm}".`);
       setSearchedDistrictId(null);
     }
   };
@@ -1596,352 +1603,384 @@ useEffect(() => {
       return;
     }
     
-    // Lógica de Autocompletado para ambos tipos
     if (value.trim() !== '') {
       const searchTermLower = value.trim().toLowerCase();
-      const suggestions: Array<{name: string; type: 'distrito' | 'establecimiento'}> = [];
-      
-      // Buscar en distritos
+      const suggestions: Array<{ name: string; type: 'distrito' | 'establecimiento' }> = [];
+
+      // 🥇 1. DISTRITOS PRIMERO
       if (allDistricts) {
         allDistricts.features
-          .map(feature => feature.properties.NM_DIST)
+          .map(f => f.properties.NM_DIST)
           .filter(name => name && name.toLowerCase().includes(searchTermLower))
           .forEach(name => {
             suggestions.push({ name, type: 'distrito' });
           });
       }
-    
-    // Buscar en establecimientos
-    if (allEstablecimientos) {
-      allEstablecimientos.features
-        .map(feature => feature.properties.layer)
-        .filter(name => name && name.toLowerCase().includes(searchTermLower))
-        .forEach(name => {
-          suggestions.push({ name, type: 'establecimiento' });
-        });
+
+      // 🥈 2. ESTABLECIMIENTOS DESPUÉS
+      if (allEstablecimientos) {
+        allEstablecimientos.features
+          .map(f => f.properties.layer)
+          .filter(name => name && name.toLowerCase().includes(searchTermLower))
+          .forEach(name => {
+            suggestions.push({ name, type: 'establecimiento' });
+          });
+      }
+
+      setSuggestionResults(suggestions.slice(0, 10));
+      setIsSuggestionsOpen(true);
+    } else {
+      setSuggestionResults([]);
+      setIsSuggestionsOpen(false);
     }
-    
-    setSuggestionResults(suggestions.slice(0, 10));
-    setIsSuggestionsOpen(true);
-  } else {
-    setSuggestionResults([]);
-    setIsSuggestionsOpen(false);
-  }
-};
+  };
 
   // Añade esta función después de tus estados:
-  const handleGeoJSONChange = (type: 'distritos' | 'establecimientos') => {
-    setGeoJSONType(type);
+  const handleGeoJSONChange = (newType: 'distritos' | 'establecimientos') => {
+    if (newType === geoJSONType) return;
     
-    // Limpiar selecciones de subcapas
-    const cleanedLayers = new Set(selectedLayers);
+    console.log(`🔄 handleGeoJSONChange: Cambiando de ${geoJSONType} a ${newType}`);
     
-    // Remover todas las subcapas individuales
+    isSwitchingType.current = true;
+    
+    // 1. Cerrar todos los popups
+    if (map) {
+      map.closePopup();
+    }
+    
+    // 2. Limpiar selecciones visuales
+    setClickedDistrictId(null);
+    setClickedEstablecimientoId(null);
+    setSearchedDistrictId(null);
+    setSelectedDistrictLayerIds(new Set());
+    setSelectedEstablecimientoLayerIds(new Set());
+    
+    // 3. Limpiar datos de casos según el tipo que se está abandonando
+    if (newType === 'distritos') {
+      setCasosPorEstablecimiento({});
+    } else {
+      setCasosPorDistrito({});
+    }
+    
+    // 4. Actualizar tipo y GeoJSON activo
+    setGeoJSONType(newType);
+    
+    if (newType === 'distritos' && allDistricts) {
+      setActiveGeoJSON(allDistricts);
+    } else if (newType === 'establecimientos' && allEstablecimientos) {
+      setActiveGeoJSON(allEstablecimientos);
+    }
+    
+    // 5. Actualizar selecciones de capas
+    const newSelectedLayers = new Set(selectedLayers);
+    
+    // Remover todas las subcapas del tipo anterior
     Array.from(selectedLayers).forEach(id => {
       if (id.startsWith('distrito-') || id.startsWith('establecimiento-')) {
-        cleanedLayers.delete(id);
+        newSelectedLayers.delete(id);
       }
     });
     
-    setSelectedDistrictLayerIds(new Set());
-    
-    if (type === 'distritos' && allDistricts) {
-      setActiveGeoJSON(allDistricts);
-      cleanedLayers.add('distritos-layer');
-      cleanedLayers.delete('establecimientos-layer');
-      
-      // ✅ SOLO limpiar casosPorEstablecimiento, no casosDetallePorEstablecimiento
-      setCasosPorEstablecimiento({});
-      
-      // Si hay diagnóstico seleccionado, recargar datos para distritos
-      if (diagnosticoSeleccionado.length > 0) {
-        setIsLoading(true);
-        const diag = diagnosticoSeleccionado[diagnosticoSeleccionado.length - 1];
-        
-        // Llamar a la función correspondiente basada en el diagnóstico
-        if (diag === "diagnostico-edas") {
-          cargarEdasPorDistrito().finally(() => setIsLoading(false));
-        } else if (diag === "diagnostico-febriles") {
-          cargarFebrilesPorDistrito().finally(() => setIsLoading(false));
-        } else if (diag === "diagnostico-iras") {
-          cargarIRASPorDistrito().finally(() => setIsLoading(false));
-        } else if (diag.trim().toLowerCase() === "diagnostico-tbctia") {
-          cargarTIATotal().finally(() => setIsLoading(false));
-        } else if (diag.trim().toLowerCase() === "diagnostico-tbctiaeess") {
-          cargarTIATotalEESS().finally(() => setIsLoading(false));
-        } else if (diag.trim().toLowerCase() === "diagnostico-tbcpulmonar") {
-          cargarSigtbDistritos().finally(() => setIsLoading(false));
-        } else if (diag.trim().toLowerCase() === "diagnostico-depresion") {
-          cargarDepresionPorDistrito().finally(() => setIsLoading(false));
-        } else if (diag.trim().toLowerCase() === "diagnostico-violencia") {
-          cargarViolenciaPorDistrito().finally(() => setIsLoading(false));
-        } else if (diag.trim().toLowerCase() === "diagnostico-diabetes") {
-          cargarDiabetesPorDistrito().finally(() => setIsLoading(false));
-        } else {
-          cargarCasosPorDiagnostico(diag).finally(() => setIsLoading(false));
-        }
-      }
-    } else if (type === 'establecimientos' && allEstablecimientos) {
-      setActiveGeoJSON(allEstablecimientos);
-      cleanedLayers.add('establecimientos-layer');
-      cleanedLayers.delete('distritos-layer');
-      
-      // ✅ SOLO limpiar casosPorDistrito, no casosDetallePorDistrito
-      setCasosPorDistrito({});
-      
-      // Si hay diagnóstico seleccionado, cargar datos para establecimientos
-      if (diagnosticoSeleccionado.length > 0) {
-        setIsLoading(true);
-        const diag = diagnosticoSeleccionado[diagnosticoSeleccionado.length - 1];
-        const diagNombre = diag.replace('diagnostico-', '').toUpperCase();
-        cargarCasosPorDiagnosticoEstablecimiento(diagNombre).finally(() => setIsLoading(false));
-      }
+    // Añadir capa principal del nuevo tipo
+    if (newType === 'distritos') {
+      newSelectedLayers.add('distritos-layer');
+      newSelectedLayers.delete('establecimientos-layer');
+    } else {
+      newSelectedLayers.add('establecimientos-layer');
+      newSelectedLayers.delete('distritos-layer');
     }
     
-    setSelectedLayers(cleanedLayers);
-    setClickedDistrictId(null);
-    setSearchedDistrictId(null);
+    setSelectedLayers(newSelectedLayers);
+    
+    // 6. Resetear búsqueda
     setMapSearchTerm('');
     
-    // Centrar el mapa según el tipo
+    // 7. Ajustar vista del mapa
     if (map) {
-      if (type === 'distritos') {
-        map.setView(position, zoomLevel);
-      } else {
-        map.setView(position, 12);
+      map.setView(position, newType === 'distritos' ? zoomLevel : 12);
+      if (newType === 'establecimientos') {
         map.panBy([0, 70], { animate: true });
       }
     }
-
-    console.log(`✅ Cambiado a: ${type}`);
-  };
-
-  const handleSuggestionSelect = (item: {name: string; type: 'distrito' | 'establecimiento'}) => {
-    setMapSearchTerm(item.name);
-    setIsSuggestionsOpen(false);
     
-    if (item.type === 'distrito') {
-      // Cambiar a distritos si no está activo
-      if (geoJSONType !== 'distritos') {
-        handleGeoJSONChange('distritos');
-      }
+    // 8. Si hay diagnóstico seleccionado, cargar datos para el nuevo tipo
+    if (diagnosticoSeleccionado.length > 0) {
+      setIsLoading(true);
+      const diag = diagnosticoSeleccionado[diagnosticoSeleccionado.length - 1];
       
-      const foundDistrict = allDistricts?.features.find(feature =>
-        feature.properties.NM_DIST.toLowerCase() === item.name.toLowerCase()
-      );
-
-      if (foundDistrict && map) {
-        const tempLayer = L.geoJson(foundDistrict);
-        setClickedDistrictId(null);
-        
-        const bounds = tempLayer.getBounds();
-        map.fitBounds(bounds, {
-          padding: [50, 50],
-          maxZoom: 14
-        });
-
-        setSearchedDistrictId(foundDistrict.properties.NM_DIST.toUpperCase());
-        
-        // Actualizar selección en el panel
-        const newSelectedLayers = new Set(selectedLayers);
-        newSelectedLayers.add(`distrito-${item.name}`);
-        setSelectedLayers(newSelectedLayers);
-        setSelectedDistrictLayerIds(new Set([item.name.toUpperCase()]));
+      if (newType === 'distritos') {
+        // Cargar datos para distritos
+        const loadDistrictData = async () => {
+          try {
+            if (diag === "diagnostico-edas") {
+              await cargarEdasPorDistrito();
+            } else if (diag === "diagnostico-febriles") {
+              await cargarFebrilesPorDistrito();
+            } else if (diag === "diagnostico-iras") {
+              await cargarIRASPorDistrito();
+            } else {
+              await cargarCasosPorDiagnostico(diag);
+            }
+          } catch (error) {
+            console.error("Error cargando datos de distritos:", error);
+          } finally {
+            setIsLoading(false);
+          }
+        };
+        loadDistrictData();
+      } else {
+        // Cargar datos para establecimientos
+        const loadEstablecimientoData = async () => {
+          try {
+            const diagNombre = diag.replace('diagnostico-', '').toUpperCase();
+            await cargarCasosPorDiagnosticoEstablecimiento(diagNombre);
+          } catch (error) {
+            console.error("Error cargando datos de establecimientos:", error);
+          } finally {
+            setIsLoading(false);
+          }
+        };
+        loadEstablecimientoData();
       }
     } else {
-      // Es un establecimiento
-      // Cambiar a establecimientos si no está activo
-      if (geoJSONType !== 'establecimientos') {
-        handleGeoJSONChange('establecimientos');
-      }
-      
-      const foundEstablecimiento = allEstablecimientos?.features.find(feature =>
-        feature.properties.layer?.toLowerCase() === item.name.toLowerCase()
-      );
-
-      if (foundEstablecimiento && map) {
-        const tempLayer = L.geoJson(foundEstablecimiento);
-        setClickedDistrictId(null);
-        
-        const bounds = tempLayer.getBounds();
-        map.fitBounds(bounds, {
-          padding: [50, 50],
-          maxZoom: 14
-        });
-
-        setSearchedDistrictId(foundEstablecimiento.properties.layer.toUpperCase());
-        
-        // Actualizar selección en el panel
-        const newSelectedLayers = new Set(selectedLayers);
-        newSelectedLayers.add(`establecimiento-${item.name}`);
-        setSelectedLayers(newSelectedLayers);
-        setSelectedDistrictLayerIds(new Set([item.name.toUpperCase()]));
-      }
+      setIsLoading(false);
     }
+    
+    // 9. Resetear flag
+    setTimeout(() => {
+      isSwitchingType.current = false;
+    }, 100);
   };
 
-  const getDistrictStyle = (feature: any) => {
-    // Si estamos mostrando establecimientos
-    if (geoJSONType === 'establecimientos') {
-      const establecimientoName = feature.properties.layer?.toUpperCase();
-      
-      // Verificar si hay datos para este establecimiento
-      const establecimientoData = casosPorEstablecimiento[establecimientoName] || 0;
-      
-      const isSearched = searchedDistrictId === establecimientoName;
-      const isClicked = clickedDistrictId === establecimientoName;
-      const isLayerSelected = selectedDistrictLayerIds.has(establecimientoName);
-      
-      console.log("🔍 Establecimiento:", establecimientoName);
-      console.log("  - Casos:", establecimientoData);
-      console.log("  - isSearched:", isSearched);
-      console.log("  - isClicked:", isClicked);
-      console.log("  - isLayerSelected:", isLayerSelected);
-      
-      // Si hay diagnóstico seleccionado, aplicar colores según cantidad de casos
-      if (diagnosticoSeleccionado.length > 0) {
-        // Calcular escalas basadas en los datos disponibles
-        const valores = Object.values(casosPorEstablecimiento);
-        const minValor = Math.min(...valores);
-        const maxValor = Math.max(...valores);
-        
-        const escalaDinamica = (valor: number) => {
-          if (maxValor === minValor) return "#9a9a9aff";
-          
-          const rango = maxValor - minValor;
-          const porcentaje = (valor - minValor) / rango;
-          
-          if (porcentaje > 0.75) return "#f21a0aff";     // rojo
-          if (porcentaje > 0.50) return "#fa9b15ff";     // naranja
-          if (porcentaje > 0.25) return "#fff134ff";     // amarillo
-          return "#2eff1bff";                            // verde
-        };
-        
-        const fillColor = escalaDinamica(establecimientoData);
-        const fillOpacity = establecimientoData > 0 ? 0.8 : 0.2;
-        
-        const baseStyle = {
-          weight: 1,
-          color: "#000000",
-          fillOpacity,
-          fillColor,
-        };
-        
-        const highlightStyle = {
-          weight: 3,
-          color: "#000000",
-          fillOpacity,
-          fillColor,
-        };
-        
-        if (isSearched || isClicked || isLayerSelected) {
-          console.log("🎨 Aplicando estilo HIGHLIGHT a:", establecimientoName);
-          return highlightStyle;
-        }
-        
-        console.log("🎨 Aplicando estilo BASE a:", establecimientoName);
-        return baseStyle;
+  const handleSuggestionSelect = async (
+    item: { name: string; type: 'distrito' | 'establecimiento' }
+  ) => {
+    console.log(`🔍 Sugerencia seleccionada: ${item.name} (${item.type})`);
+
+    const upperName = item.name.toUpperCase();
+
+    setMapSearchTerm(item.name);
+    setIsSuggestionsOpen(false);
+
+    // 🗺️ 1. CAMBIAR GEOJSON SI ES NECESARIO
+    if (item.type === 'distrito' && geoJSONType !== 'distritos') {
+      handleGeoJSONChange('distritos');
+    }
+
+    if (item.type === 'establecimiento' && geoJSONType !== 'establecimientos') {
+      handleGeoJSONChange('establecimientos');
+    }
+
+    // ⏳ esperar a que el GeoJSON esté activo
+    setTimeout(() => {
+      // 2. LIMPIAR TODO
+      setClickedDistrictId(null);
+      setClickedEstablecimientoId(null);
+
+      // 3. SELECCIÓN EXACTA
+      if (item.type === 'distrito') {
+        setSearchedDistrictId(upperName);
+        setSelectedDistrictLayerIds(new Set([upperName]));
+        setSelectedEstablecimientoLayerIds(new Set());
       } else {
-        // Si no hay diagnóstico seleccionado, estilo base
+        setSearchedDistrictId(upperName);
+        setSelectedEstablecimientoLayerIds(new Set([upperName]));
+        setSelectedDistrictLayerIds(new Set());
+      }
+
+      // 4. ZOOM + FEATURE EXACTO
+      const feature =
+        item.type === 'distrito'
+          ? allDistricts?.features.find(f =>
+              f.properties.NM_DIST?.toUpperCase() === upperName
+            )
+          : allEstablecimientos?.features.find(f =>
+              f.properties.layer?.toUpperCase() === upperName
+            );
+
+      if (feature && map) {
+        const tempLayer = L.geoJson(feature);
+        map.fitBounds(tempLayer.getBounds(), {
+          padding: [50, 50],
+          maxZoom: item.type === 'distrito' ? 14 : 16,
+        });
+      }
+
+      // 5. SINCRONIZAR PANEL DE CAPAS
+      const newSelectedLayers = new Set(selectedLayers);
+
+      Array.from(newSelectedLayers).forEach(id => {
+        if (id.startsWith('distrito-') || id.startsWith('establecimiento-')) {
+          newSelectedLayers.delete(id);
+        }
+      });
+
+      newSelectedLayers.add(
+        item.type === 'distrito'
+          ? `distrito-${item.name}`
+          : `establecimiento-${item.name}`
+      );
+
+      setSelectedLayers(newSelectedLayers);
+    }, 150);
+  };
+
+
+  const getDistrictStyle = (feature: any) => {
+    // ===============================
+    // 🗺️ DISTRITOS (SIN CAMBIOS)
+    // ===============================
+    if (geoJSONType === "distritos") {
+      const distrito = feature.properties.NM_DIST?.toUpperCase();
+      const distritoData = casosPorDistrito[distrito] || { total: 0, TIA_100k: 0 };
+
+      const isSearched = searchedDistrictId === distrito;
+      const isClicked = clickedDistrictId === distrito;
+      const isLayerSelected = selectedDistrictLayerIds.has(distrito);
+
+      // Sin diagnóstico
+      if (diagnosticoSeleccionado.length === 0) {
         const baseStyle = {
           weight: 1,
           color: "#000000",
-          fillOpacity: 0.2,
-          fillColor: "#E0E0E0",
-        }; 
-        
+          fillOpacity: 0.5,
+          fillColor: "#fffc57",
+        };
+
         const highlightStyle = {
           weight: 4,
           color: "#FF0000",
           fillOpacity: 0.8,
           fillColor: "#FF4444",
         };
-        
-        if (isSearched || isClicked || isLayerSelected) {
-          console.log("🎨 Aplicando estilo HIGHLIGHT (sin diagnóstico) a:", establecimientoName);
-          return highlightStyle;
-        }
-        
-        console.log("🎨 Aplicando estilo BASE (sin diagnóstico) a:", establecimientoName);
-        return baseStyle;
+
+        return isSearched || isClicked || isLayerSelected
+          ? highlightStyle
+          : baseStyle;
       }
+
+      // Diagnósticos
+      const diagnosticos = diagnosticoSeleccionado.map(d =>
+        d.toUpperCase().replace(/-|_| /g, "")
+      );
+
+      const esTBC_TIA =
+        diagnosticos.includes("TBCTIA") ||
+        diagnosticos.includes("TBCTIAEESS");
+
+      const valorPintado = esTBC_TIA
+        ? distritoData.TIA_100k ?? 0
+        : distritoData.total ?? 0;
+
+      const escalaTB = (valor: number) => {
+        if (valor > 75) return "#f21a0aff";
+        if (valor > 50) return "#fa9b15ff";
+        if (valor > 25) return "#fff134ff";
+        if (valor > 0) return "#2eff1bff";
+        return "#9a9a9aff";
+      };
+
+      const valores = Object.values(casosPorDistrito)
+        .map(d => d.total ?? 0)
+        .filter(v => v > 0);
+
+      const min = valores.length ? Math.min(...valores) : 0;
+      const max = valores.length ? Math.max(...valores) : 0;
+
+      const escalaDinamica = (valor: number) => {
+        if (max === min) return "#9a9a9aff";
+        const p = (valor - min) / (max - min);
+        if (p > 0.75) return "#f21a0aff";
+        if (p > 0.5) return "#fa9b15ff";
+        if (p > 0.25) return "#fff134ff";
+        return "#2eff1bff";
+      };
+
+      const fillColor = esTBC_TIA
+        ? escalaTB(valorPintado)
+        : escalaDinamica(valorPintado);
+
+      const baseStyle = {
+        weight: 1,
+        color: "#000000",
+        fillOpacity: valorPintado > 0 ? 0.8 : 0.2,
+        fillColor,
+      };
+
+      const highlightStyle = {
+        weight: 4,
+        color: "#FF0000",
+        fillOpacity: 0.8,
+        fillColor,
+      };
+
+      return isSearched || isClicked || isLayerSelected
+        ? highlightStyle
+        : baseStyle;
     }
-    
-    // Código existente para distritos (mantén tu código actual aquí)
-    const distrito = feature.properties.NM_DIST?.toUpperCase();
-    const distritoData = casosPorDistrito[distrito] || { total: 0, TIA_100k: 0 };
 
-    const isSearched = searchedDistrictId === distrito;
-    const isClicked = clickedDistrictId === distrito;
-    const isLayerSelected = selectedDistrictLayerIds.has(distrito);
+    // ===============================
+    // 🏥 ESTABLECIMIENTOS (CUANTILES)
+    // ===============================
+    const establecimiento = feature.properties.layer?.toUpperCase();
+    const valor = casosPorEstablecimiento[establecimiento] || 0;
+
+    const isSearched = searchedDistrictId === establecimiento;
+    const isClicked = clickedEstablecimientoId === establecimiento;
+    const isLayerSelected = selectedEstablecimientoLayerIds.has(establecimiento);
+
+    // Sin diagnóstico
+    if (diagnosticoSeleccionado.length === 0) {
+      const baseStyle = {
+        weight: 1,
+        color: "#000000",
+        fillOpacity: 0.5,
+        fillColor: "#0084ff",
+      };
+
+      const highlightStyle = {
+        weight: 4,
+        color: "#FF0000",
+        fillOpacity: 0.8,
+        fillColor: "#FF4444",
+      };
+
+      return isSearched || isClicked || isLayerSelected
+        ? highlightStyle
+        : baseStyle;
+    }
 
     // -------------------------------
-    //  ✨ DETECTAR DIAGNÓSTICOS
+    // 📊 CUANTILES (EESS)
     // -------------------------------
-    const diagnosticos = diagnosticoSeleccionado.map(d =>
-      d.toUpperCase().replace(/-|_| /g, "")
-    );
+    const valoresPositivos = Object.values(casosPorEstablecimiento)
+      .filter(v => typeof v === "number" && v > 0)
+      .sort((a, b) => a - b) as number[];
 
-    const isDiseaseSelected = diagnosticos.length > 0;
-
-    // Diagnóstico especial para TBC-TIA
-    const esTBC_TIA = diagnosticos.includes("TBCTIA") || diagnosticos.includes("TBCTIAEESS");
-
-    // -------------------------------
-    //  🎯 DEFINIR VALOR A PINTAR
-    // -------------------------------
-    const valorPintado = esTBC_TIA
-      ? (distritoData.TIA_100k ?? 0)
-      : (distritoData.total ?? 0);
-
-    // -------------------------------
-    //  🎨 ESCALA FIJA PARA TBC-TIA
-    // -------------------------------
-    const escalaTB = (valor: number) => {
-      if (valor > 75) return "#f21a0aff";     // rojo
-      if (valor > 50) return "#fa9b15ff";     // naranja
-      if (valor > 25) return "#fff134ff";     // amarillo
-      if (valor > 0)  return "#2eff1bff";     // verde
-      return "#9a9a9aff";
+    const getCuartil = (arr: number[], q: number) => {
+      const pos = (arr.length - 1) * q;
+      const base = Math.floor(pos);
+      const rest = pos - base;
+      return arr[base + 1] !== undefined
+        ? arr[base] + rest * (arr[base + 1] - arr[base])
+        : arr[base];
     };
 
-    // -------------------------------
-    //  🎨 ESCALA DINÁMICA para otros diagnósticos
-    // -------------------------------
-    const getValorDistrito = (d: string) => {
-      const data = casosPorDistrito[d];
-      if (!data) return 0;
-      return data.total ?? 0; // SOLO TOTAL
+    const Q1 = valoresPositivos.length ? getCuartil(valoresPositivos, 0.25) : 0;
+    const Q2 = valoresPositivos.length ? getCuartil(valoresPositivos, 0.5) : 0;
+    const Q3 = valoresPositivos.length ? getCuartil(valoresPositivos, 0.75) : 0;
+
+    const escalaCuantiles = (v: number) => {
+      if (v === 0) return "#9a9a9aff";      // 0 casos
+      if (v <= Q1) return "#2eff1bff";      // muy bajo
+      if (v <= Q2) return "#fff134ff";      // bajo
+      if (v <= Q3) return "#fa9b15ff";      // alto
+      return "#f21a0aff";                   // muy alto
     };
 
-    const valores = Object.keys(casosPorDistrito).map(getValorDistrito);
-    const minValor = Math.min(...valores);
-    const maxValor = Math.max(...valores);
+    const fillColor = escalaCuantiles(valor);
+    const fillOpacity = valor > 0 ? 0.8 : 0.2;
 
-    const escalaDinamica = (valor: number) => {
-      if (maxValor === minValor) return "#9a9a9aff";
-
-      const rango = maxValor - minValor;
-      const porcentaje = (valor - minValor) / rango;
-
-      if (porcentaje > 0.75) return "#f21a0aff";   // rojo
-      if (porcentaje > 0.50) return "#fa9b15ff";   // naranja
-      if (porcentaje > 0.25) return "#fff134ff";   // amarillo
-      return "#2eff1bff";                          // verde
-    };
-
-    // -------------------------------
-    //  🎨 COLOR FINAL
-    // -------------------------------
-    const fillColor = esTBC_TIA
-      ? escalaTB(valorPintado)
-      : escalaDinamica(valorPintado);
-
-    const fillOpacity = valorPintado > 0 ? 0.8 : 0.2;
-
-    // -------------------------------
-    //  🧩 ESTILOS BASE / HIGHLIGHT
-    // -------------------------------
     const baseStyle = {
       weight: 1,
       color: "#000000",
@@ -1950,23 +1989,15 @@ useEffect(() => {
     };
 
     const highlightStyle = {
-      weight: 3,
-      color: "#000000",
-      fillOpacity,
+      weight: 4,
+      color: "#FF0000",
+      fillOpacity: 0.8,
       fillColor,
     };
 
-    if (!isDiseaseSelected) {
-      return isSearched || isClicked || isLayerSelected
-        ? { ...highlightStyle, fillOpacity: 0.5, fillColor: "#f7e932" }
-        : { ...baseStyle, fillOpacity: 0.2, fillColor: "#E0E0E0" };
-    }
-
-    if (isSearched || isClicked || isLayerSelected) {
-      return { ...highlightStyle };
-    }
-
-    return { ...baseStyle };
+    return isSearched || isClicked || isLayerSelected
+      ? highlightStyle
+      : baseStyle;
   };
 
   const onEachDistrict = (feature: any, layer: LeafletLayer) => {
@@ -2014,22 +2045,26 @@ useEffect(() => {
         
         console.log("🖱️ Clic en:", clickedName, "Tipo:", geoJSONType);
         
-        // ⭐ COMPORTAMIENTO NUEVO: CLIC EN EL MAPA REEMPLAZA LA SELECCIÓN
+        // ⭐ COMPORTAMIENTO MEJORADO: CLIC EN EL MAPA REEMPLAZA LA SELECCIÓN
         if (geoJSONType === 'establecimientos') {
           // Activar loading
           setIsLoadingEstablecimiento(true);
           
-          // 1. Limpiar TODAS las selecciones anteriores
-          setSelectedDistrictLayerIds(new Set([clickedName]));
-          setClickedDistrictId(clickedName);
-          setSearchedDistrictId(null);
+          // 1. Limpiar TODAS las selecciones de DISTRITOS (opuesto)
+          setClickedDistrictId(null);
+          setSelectedDistrictLayerIds(new Set());
           
-          // 2. Actualizar selección en el panel
+          // 2. Establecer selección de ESTABLECIMIENTO actual
+          setClickedEstablecimientoId(clickedName);
+          setSearchedDistrictId(null);
+          setSelectedEstablecimientoLayerIds(new Set([clickedName]));
+          
+          // 3. Actualizar selección en el panel
           const newSelectedLayers = new Set(selectedLayers);
           
-          // Remover todos los establecimientos previamente seleccionados
+          // Remover todos los establecimientos y distritos previamente seleccionados
           Array.from(newSelectedLayers).forEach(id => {
-            if (id.startsWith('establecimiento-')) {
+            if (id.startsWith('establecimiento-') || id.startsWith('distrito-')) {
               newSelectedLayers.delete(id);
             }
           });
@@ -2039,9 +2074,9 @@ useEffect(() => {
           setSelectedLayers(newSelectedLayers);
           
           console.log("🏥 Establecimiento seleccionado (clic mapa):", clickedName);
-          console.log("📋 Nueva selección:", Array.from(new Set([clickedName])));
+          console.log("📋 Nueva selección establecimiento:", Array.from(new Set([clickedName])));
 
-          // 3. Crear popup para establecimiento
+          // 4. Crear popup para establecimiento
           const container = L.DomUtil.create("div");
           
           // Obtener casos para este establecimiento
@@ -2159,6 +2194,10 @@ useEffect(() => {
               root.unmount();
               delete (districtLayer as any)._reactRoot;
             }
+            
+            // ⭐ LIMPIAR SELECCIÓN AL CERRAR POPUP (opcional)
+            setClickedEstablecimientoId(null);
+            setSelectedEstablecimientoLayerIds(new Set());
           });
 
           // Abrir el popup inmediatamente
@@ -2173,17 +2212,22 @@ useEffect(() => {
           
           return;
         } else {
-          // Para distritos: mismo comportamiento
+          // Para distritos: mismo comportamiento mejorado
+          // 1. Limpiar TODAS las selecciones de ESTABLECIMIENTOS (opuesto)
+          setClickedEstablecimientoId(null);
+          setSelectedEstablecimientoLayerIds(new Set());
+          
+          // 2. Establecer selección de DISTRITO actual
           setClickedDistrictId(clickedName);
           setSearchedDistrictId(null);
           setSelectedDistrictLayerIds(new Set([clickedName])); // Solo este distrito
           
-          // Actualizar selección en el panel
+          // 3. Actualizar selección en el panel
           const newSelectedLayers = new Set(selectedLayers);
           
-          // Remover todos los distritos previamente seleccionados
+          // Remover todos los distritos y establecimientos previamente seleccionados
           Array.from(newSelectedLayers).forEach(id => {
-            if (id.startsWith('distrito-')) {
+            if (id.startsWith('distrito-') || id.startsWith('establecimiento-')) {
               newSelectedLayers.delete(id);
             }
           });
@@ -2281,17 +2325,25 @@ useEffect(() => {
           (districtLayer as any)._reactRoot = root;
         });
 
-        // Desmontar React
+        // Desmontar React cuando se cierra el popup
         districtLayer.on("popupclose", () => {
           const root = (districtLayer as any)._reactRoot;
           if (root) {
             root.unmount();
             delete (districtLayer as any)._reactRoot;
           }
+          
+          // ⭐ LIMPIAR SELECCIÓN AL CERRAR POPUP (opcional)
+          setClickedDistrictId(null);
+          setSelectedDistrictLayerIds(new Set());
         });
+        
+        // ⭐ Abrir popup inmediatamente después de configurarlo
+        districtLayer.openPopup();
       }
     });
   };
+  
 
   const filteredLayers = useMemo(() => {
       const searchTerm = layerSearchTerm.trim().toLowerCase();
@@ -2635,9 +2687,7 @@ useEffect(() => {
         )}
       </div>
     );
-  };
-
-  
+  };  
 
    return (
     <div className="map-container">
@@ -2674,17 +2724,15 @@ useEffect(() => {
           setClickedDistrictId={setClickedDistrictId}
           setSearchedDistrictId={setSearchedDistrictId}
           setSelectedDistrictLayerIds={setSelectedDistrictLayerIds}
+          setClickedEstablecimientoId={setClickedEstablecimientoId}
+          setSelectedEstablecimientoLayerIds={setSelectedEstablecimientoLayerIds}
+          geoJSONType={geoJSONType}
+          map={map}
         />
 
         {activeGeoJSON && (
           <GeoJSON
-            key={
-              JSON.stringify(Array.from(selectedLayers)) +
-              searchedDistrictId +
-              diagnosticoSeleccionado.join(",") +
-              geoJSONType + // Añade geoJSONType al key
-              JSON.stringify(Array.from(selectedDistrictLayerIds)) // Añade las selecciones
-            }
+            key={`${geoJSONType}-${JSON.stringify(Array.from(selectedLayers))}`}
             data={activeGeoJSON}
             style={getDistrictStyle}
             onEachFeature={onEachDistrict}
@@ -2787,25 +2835,18 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* BUSCADOR EN MAPA con Autocompletado */}
-        <div 
-          ref={mapSearchBarRef} 
-          className="map-search-bar-container"
-        >
+        {/* BUSCADOR EN MAPA */}
+        <div className="map-search-bar-container">
           <div className="map-search-bar">
             <input
               type="text"
-              placeholder="Departamento, provincia o distrito"
+              placeholder="Buscar distrito o establecimiento..."
               value={mapSearchTerm}
               onChange={handleMapSearchChange}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   handleMapSearch();
                 }
-              }}
-              onBlur={() => setTimeout(() => setIsSuggestionsOpen(false), 200)} 
-              onFocus={() => {
-                if (suggestionResults.length > 0) setIsSuggestionsOpen(true);
               }}
             />
             <button onClick={handleMapSearch}>🔍</button>
@@ -2836,7 +2877,7 @@ useEffect(() => {
           </button>
           <button title="Principal" onClick={() => window.location.href = 'http://${baseUrl}:5000'}>🖥️</button>
           <button title="Estadística" onClick={() => window.location.href = 'http://10.0.2.22/geoestadistica/'}>📊</button>
-          <button title="Docencia" onClick={() => window.location.href = 'http://10.0.20.235:2005/mapa_ris/'}>🎓</button>
+          <button title="Docencia" onClick={() => window.location.href = 'http://10.0.20.140:5024/mapa_ris/'}>🎓</button>
           <button title="Captura">🖼️</button>
           <button title="Ubicar Coordenada">📍</button>
           <button title="Guardar">💾</button>
