@@ -346,6 +346,108 @@ const VIGILANCIA_LAYER_DATA: Layer = {
     ]
 };
 
+const vistaPorRIS = {
+  "RIS 1": {
+    color: "#58d8ab",
+    establecimientos: [
+      "C.S. MIRONES",
+      "C.S. MIRONES BAJO",
+      "C.S. UNIDAD VECINAL N° 3",
+      "C.S. VILLA MARIA PERPETUO SOCORRO",
+      "C.S. CONDE DE LA VEGA",
+      "C.S. SAN SEBASTIAN",
+      "C.S. JUAN PEREZ CARRANZA",
+      "P.S. SANTA ROSA",
+      "P.S. RESCATE",
+      "P.S. PALERMO",
+      "P.S. JARDIN ROSA DE SANTA MARIA"
+    ]
+  },
+  "RIS 2": {
+    color: "#d8c161",
+    establecimientos: [
+      "C.S. BREÑA",
+      "P.S. CHACRA COLORADA",
+      "C.S. MAGDALENA",
+      "C.S. JESUS MARIA",
+      "C.S. SAN MIGUEL",
+      "P.S. HUACA PANDO"
+    ]
+  },
+  "RIS 3": {
+    color: "#cd74b5",
+    establecimientos: [
+      "C.S. SURQUILLO",
+      "C.S. LINCE",
+      "C.S. SAN ATANACIO DE PEDREGAL",
+      "C.S. VILLA VICTORIA PORVENIR",
+      "C.S. SAN ISIDRO",
+      "C.S. MIRAFLORES"
+    ]
+  },
+  "RIS 4": {
+    color: "#61b5cd",
+    establecimientos: [
+      "C.S. EL PORVENIR",
+      "C.S. MAX ARIAS",
+      "C.S. SAN LUIS",
+      "C.S. EL PINO",
+      "C.S. CERRO EL PINO",
+      "C.S. SAN COSME",
+      "C.S. SAN BORJA",
+      "P.S. SAN JUAN MASIAS"
+    ]
+  },
+  "RIS 5": {
+    color: "#a581ee",
+    establecimientos: [
+      "C.S. CHACARILLA DE OTERO",
+      "C.S. CAJA DE AGUA",
+      "C.S. ZARATE",
+      "C.S. CAMPOY",
+      "C.S. SAN FERNANDO",
+      "C.S. LA LIBERTAD",
+      "C.S. LA HUAYRONA",
+      "C.S. MANGOMARCA",
+      "C.S. SANTA ROSA DE LIMA",
+      "C.S. SANTA FE DE TOTORITA",
+      "C.S. DANIEL ALCIDES CARRION",
+      "P.S. AZCARRUNZ ALTO",
+      "P.S. 15 DE ENERO"
+    ]
+  },
+  "RIS 6": {
+    color: "#7da2da",
+    establecimientos: [
+      "C.S. GANIMEDES",
+      "C.S. SAN HILARION",
+      "C.S. HUASCAR II",
+      "C.S. HUASCAR XV",
+      "C.S. BAYOVAR",
+      "C.S. MEDALLA MILAGROSA",
+      "P.S. AYACUCHO",
+      "P.S. PROYECTOS ESPECIALES",
+      "C.S. SAGRADA FAMILIA"
+    ]
+  },
+  "RIS 7": {
+    color: "#cba378",
+    establecimientos: [
+      "C.S. JAIME ZUBIETA",
+      "C.S. JOSE CARLOS MARIATEGUI",
+      "C.S. CRUZ DE MOTUPE",
+      "C.S. SANTA MARIA",
+      "C.S. ENRIQUE MONTENEGRO",
+      "C.S. 10 DE OCTUBRE",
+      "C.S. JUAN PABLO II",
+      "P.S. TUPAC AMARU II",
+      "P.S. JOSE CARLOS MARIATEGUI V ETAPA",
+      "P.S. MARISCAL CACERES",
+      "P.S. CESAR VALLEJO"
+    ]
+  }
+};
+
 function App() {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [allDistricts, setAllDistricts] = useState<GeoJSONData | null>(null);
@@ -376,6 +478,8 @@ function App() {
   const [showCopyNotification, setShowCopyNotification] = useState(false);
   const [isLoadingEstablecimiento, setIsLoadingEstablecimiento] = useState(false);
 
+  const [isRISViewActive, setIsRISViewActive] = useState(false);
+  const [selectedRIS, setSelectedRIS] = useState<string | null>(null);
 
 //console.log("🟦 diagnosticoSeleccionado TYPE:", typeof diagnosticoSeleccionado);
 //console.log("🟦 diagnosticoSeleccionado VALUE:", diagnosticoSeleccionado);
@@ -386,9 +490,10 @@ console.log("🔄 Render - geoJSONType:", geoJSONType, "activeGeoJSON type:",
   activeGeoJSON === allDistricts ? "distritos" : 
   activeGeoJSON === allEstablecimientos ? "establecimientos" : "null");
 
+// Cambia la declaración del estado suggestionResults para incluir el tipo 'ris':
 const [suggestionResults, setSuggestionResults] = useState<Array<{
   name: string;
-  type: 'distrito' | 'establecimiento';
+  type: 'distrito' | 'establecimiento' | 'ris';
 }>>([]);
 
 const isSwitchingType = useRef(false);
@@ -724,6 +829,17 @@ const resetMapToDefault = () => {
     setSearchedDistrictId(null);
     setSelectedDistrictLayerIds(new Set());
     setSelectedEstablecimientoLayerIds(new Set());
+    setIsRISViewActive(false);
+    setSelectedRIS(null);
+
+    // Limpiar selección de RIS en el panel
+    const newSelectedLayers = new Set(selectedLayers);
+    Array.from(newSelectedLayers).forEach(id => {
+      if (id.startsWith('ris-') || id === 'ris-layer') {
+        newSelectedLayers.delete(id);
+      }
+    });
+    setSelectedLayers(newSelectedLayers);
     
     // Resetear búsqueda
     setMapSearchTerm('');
@@ -1198,16 +1314,26 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
               subLayers: estableSubLayers,
             };
 
-            // Agregar AMBAS capas al árbol
+            // 🆕 Crear capa RIS
+            const risSubLayers: Layer[] = Object.keys(vistaPorRIS).map(ris => ({
+              id: `ris-${ris}`,
+              name: ris,
+            }));
+
+            const risLayer: Layer = {
+              id: 'ris-layer',
+              name: 'RIS',
+              subLayers: risSubLayers,
+            };
+
+            // Agregar TODAS capas al árbol
             setLayers(currentLayers => [
               currentLayers[0], // Capa de vigilancia
               districtLayer,
-              estableLayer
+              estableLayer,
+              risLayer
             ]);
 
-            // ⭐⭐ CORRECCIÓN CRÍTICA: NO forzar distritos como activos
-            // Solo establecer distritos como activos si es el tipo por defecto
-            // y NO estamos ya en establecimientos
             if (geoJSONType === 'distritos') {
               setActiveGeoJSON(distritosData);
             } else if (geoJSONType === 'establecimientos') {
@@ -1265,6 +1391,16 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
   };
 
   const handleLayerSelection = async (layerId: string, isSelected: boolean) => {
+    // Si se está seleccionando algo que no es RIS, limpiar selección de RIS
+    if (!layerId.startsWith('ris-') && layerId !== 'ris-layer' && (selectedRIS || isRISViewActive)) {
+      // Solo limpiar si estamos seleccionando un diagnóstico, distrito o establecimiento
+      if (layerId.startsWith('diagnostico-') || layerId.startsWith('distrito-') || 
+          layerId.startsWith('establecimiento-') || layerId === 'distritos-layer' || 
+          layerId === 'establecimientos-layer') {
+        setIsRISViewActive(false);
+        clearRISSelection();
+      }
+    }
     const newSelectedLayers = new Set(selectedLayers);
     const newSelectedDistrictLayerIds = new Set(selectedDistrictLayerIds);
 
@@ -1470,6 +1606,19 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
       else newSelectedLayers.delete(id);
     });
 
+    // 8. Si es una RIS específica (empieza con 'ris-')
+    if (layerId.startsWith('ris-')) {
+      const risName = layerId.replace('ris-', '');
+      handleRISSelection(risName, isSelected);
+      return;
+    }
+
+    // 9. Si es la capa principal RIS (toggle general)
+    if (layerId === 'ris-layer') {
+      toggleRISView();
+      return;
+    }
+
     // Si la capa seleccionada es un distrito individual (formato viejo)
     if (allDistricts?.features.some(f => f.properties.NM_DIST === layerId)) {
       if (isSelected) {
@@ -1605,7 +1754,7 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
     
     if (value.trim() !== '') {
       const searchTermLower = value.trim().toLowerCase();
-      const suggestions: Array<{ name: string; type: 'distrito' | 'establecimiento' }> = [];
+      const suggestions: Array<{ name: string; type: 'distrito' | 'establecimiento' | 'ris' }> = [];
 
       // 🥇 1. DISTRITOS PRIMERO
       if (allDistricts) {
@@ -1627,6 +1776,19 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
           });
       }
 
+      // 🆕 3. RIS AL FINAL
+      Object.keys(vistaPorRIS)
+        .filter(ris => ris.toLowerCase().includes(searchTermLower))
+        .forEach(ris => {
+          suggestions.push({ name: ris, type: 'ris' });
+        });
+
+      // Ordenar: distritos → establecimientos → RIS
+      suggestions.sort((a, b) => {
+        const order = { 'distrito': 0, 'establecimiento': 1, 'ris': 2 };
+        return order[a.type] - order[b.type];
+      });
+
       setSuggestionResults(suggestions.slice(0, 10));
       setIsSuggestionsOpen(true);
     } else {
@@ -1641,7 +1803,27 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
     
     console.log(`🔄 handleGeoJSONChange: Cambiando de ${geoJSONType} a ${newType}`);
     
+    // Desactivar vista RIS si cambiamos a distritos
+    if (newType === 'distritos' && isRISViewActive) {
+      setIsRISViewActive(false);
+    }
+
     isSwitchingType.current = true;
+
+    // Limpiar selección de RIS específica si se cambia a distritos
+    if (newType === 'distritos' && (selectedRIS || isRISViewActive)) {
+      setSelectedRIS(null);
+      setIsRISViewActive(false);
+      
+      // Limpiar selección de RIS en el panel
+      const newSelectedLayers = new Set(selectedLayers);
+      Array.from(newSelectedLayers).forEach(id => {
+        if (id.startsWith('ris-') || id === 'ris-layer') {
+          newSelectedLayers.delete(id);
+        }
+      });
+      setSelectedLayers(newSelectedLayers);
+    }
     
     // 1. Cerrar todos los popups
     if (map) {
@@ -1753,7 +1935,7 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
   };
 
   const handleSuggestionSelect = async (
-    item: { name: string; type: 'distrito' | 'establecimiento' }
+    item: { name: string; type: 'distrito' | 'establecimiento' | 'ris' }
   ) => {
     console.log(`🔍 Sugerencia seleccionada: ${item.name} (${item.type})`);
 
@@ -1761,6 +1943,21 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
 
     setMapSearchTerm(item.name);
     setIsSuggestionsOpen(false);
+
+    // 🆕 Si es una RIS
+    if (item.type === 'ris') {
+      console.log(`🎯 Seleccionando RIS: ${item.name}`);
+      
+      // Activar vista RIS general si no está activa
+      if (!isRISViewActive) {
+        setIsRISViewActive(true);
+      }
+      
+      // Seleccionar la RIS específica
+      handleRISSelection(item.name, true);
+      
+      return;
+    }
 
     // 🗺️ 1. CAMBIAR GEOJSON SI ES NECESARIO
     if (item.type === 'distrito' && geoJSONType !== 'distritos') {
@@ -1825,10 +2022,182 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
     }, 150);
   };
 
+  // Función para seleccionar una RIS específica (con zoom y contorno resaltado)
+  const handleRISSelection = (risId: string, isSelected: boolean) => {
+    console.log(`🔘 RIS específica seleccionada: ${risId}, seleccionado: ${isSelected}`);
+    
+    if (isSelected) {
+      // Activar la RIS específica
+      setSelectedRIS(risId);
+      // Asegurar que la vista RIS general esté activa
+      if (!isRISViewActive) {
+        setIsRISViewActive(true);
+      }
+      
+      // Cambiar a vista de establecimientos si no está activa
+      if (geoJSONType !== 'establecimientos') {
+        handleGeoJSONChange('establecimientos');
+      }
+      
+      // Limpiar cualquier diagnóstico seleccionado
+      setDiagnosticoSeleccionado([]);
+      
+      // Limpiar datos de casos
+      setCasosPorEstablecimiento({});
+      
+      // Limpiar búsquedas anteriores
+      setMapSearchTerm('');
+      setSearchedDistrictId(null);
+      setClickedDistrictId(null);
+      setClickedEstablecimientoId(null);
+      setSelectedDistrictLayerIds(new Set());
+      setSelectedEstablecimientoLayerIds(new Set());
+      
+      // Hacer zoom a todos los establecimientos de esa RIS
+      if (map && allEstablecimientos) {
+        const risEstablecimientos = vistaPorRIS[risId as keyof typeof vistaPorRIS]?.establecimientos || [];
+        
+        if (risEstablecimientos.length > 0) {
+          // Filtrar los establecimientos que pertenecen a esta RIS
+          const features = allEstablecimientos.features.filter(feature =>
+            risEstablecimientos.includes(feature.properties.layer?.toUpperCase())
+          );
+          
+          if (features.length > 0) {
+            // Crear un FeatureCollection temporal para calcular bounds
+            const featureCollection: GeoJSONData = { 
+              type: "FeatureCollection", 
+              features 
+            };
+            
+            const tempLayer = L.geoJson(featureCollection as any);
+            const bounds = tempLayer.getBounds();
+            
+            // Ajustar el zoom para ver todo el bloque
+            map.fitBounds(bounds, { 
+              padding: [50, 50], 
+              maxZoom: 14,
+              animate: true 
+            });
+            
+            console.log(`🔍 Zoom aplicado a ${risId}`);
+          }
+        }
+      }
+      
+      // Actualizar la selección en el panel
+      const newSelectedLayers = new Set(selectedLayers);
+      
+      // Limpiar selecciones anteriores de RIS
+      Array.from(newSelectedLayers).forEach(id => {
+        if (id.startsWith('ris-')) {
+          newSelectedLayers.delete(id);
+        }
+      });
+      
+      // Agregar la RIS seleccionada
+      newSelectedLayers.add(`ris-${risId}`);
+      setSelectedLayers(newSelectedLayers);
+      
+    } else {
+      // Deseleccionar la RIS específica
+      setSelectedRIS(null);
+      
+      // Remover del panel
+      const newSelectedLayers = new Set(selectedLayers);
+      newSelectedLayers.delete(`ris-${risId}`);
+      setSelectedLayers(newSelectedLayers);
+      
+      // Volver a la vista general (pero mantener isRISViewActive)
+      if (map) {
+        map.setView(position, 12);
+      }
+    }
+  };
+
+  // Función para limpiar selección de RIS
+  const clearRISSelection = () => {
+    setSelectedRIS(null);
+    
+    // Limpiar selección de RIS en el panel
+    const newSelectedLayers = new Set(selectedLayers);
+    Array.from(newSelectedLayers).forEach(id => {
+      if (id.startsWith('ris-')) {
+        newSelectedLayers.delete(id);
+      }
+    });
+    setSelectedLayers(newSelectedLayers);
+    
+    console.log("🧹 Selección de RIS limpiada");
+  };
 
   const getDistrictStyle = (feature: any) => {
+    const establecimiento = feature.properties.layer?.toUpperCase();
+    
     // ===============================
-    // 🗺️ DISTRITOS (SIN CAMBIOS)
+    // 🏥 MODO 1: VISTA RIS GENERAL (base coloreada por RIS)
+    // ===============================
+    if (isRISViewActive && geoJSONType === "establecimientos") {
+      let risColor = null;
+      let risDelEstablecimiento: string | null = null;
+
+      for (const ris in vistaPorRIS) {
+        if (
+          vistaPorRIS[ris as keyof typeof vistaPorRIS]
+            .establecimientos.includes(establecimiento)
+        ) {
+          risColor = vistaPorRIS[ris as keyof typeof vistaPorRIS].color;
+          risDelEstablecimiento = ris;
+          break;
+        }
+      }
+
+      const isSearched = searchedDistrictId === establecimiento;
+      const isClicked = clickedEstablecimientoId === establecimiento;
+      const isLayerSelected =
+        selectedEstablecimientoLayerIds.has(establecimiento);
+
+      const perteneceARISSeleccionada =
+        selectedRIS && risDelEstablecimiento !== selectedRIS;
+
+      // 🎨 ESTILO BASE (vista RIS)
+      const baseStyle = {
+        weight: 1,
+        color: "#000000",
+        fillColor: risColor || "#cccccc",
+
+        // 👇 AQUÍ está la magia
+        fillOpacity:
+          selectedRIS && perteneceARISSeleccionada
+            ? 0.3            // 🔹 baja opacidad otras RIS
+            : 0.8,
+      };
+
+      // 🔴 Highlight normal
+      if (isSearched || isClicked || isLayerSelected) {
+        return {
+          ...baseStyle,
+          weight: 4,
+          color: "#FF0000",
+          fillOpacity: 0.9,
+        };
+      }
+
+      // 🖤 RIS seleccionada → borde grueso
+      if (selectedRIS && risDelEstablecimiento === selectedRIS) {
+        return {
+          ...baseStyle,
+          weight: 3,
+          color: "#000000",
+          fillOpacity: 0.8,
+        };
+      }
+
+      return baseStyle;
+    }
+
+    // ===============================
+    // 🗺️ DISTRITOS
     // ===============================
     if (geoJSONType === "distritos") {
       const distrito = feature.properties.NM_DIST?.toUpperCase();
@@ -1922,7 +2291,6 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
     // ===============================
     // 🏥 ESTABLECIMIENTOS (CUANTILES)
     // ===============================
-    const establecimiento = feature.properties.layer?.toUpperCase();
     const valor = casosPorEstablecimiento[establecimiento] || 0;
 
     const isSearched = searchedDistrictId === establecimiento;
@@ -2009,6 +2377,22 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
     if (name) {
       let tooltipContent = name;
       
+      // Mostrar información de RIS cuando esté activa
+      if ((isRISViewActive || selectedRIS) && geoJSONType === 'establecimientos') {
+        // Buscar a qué RIS pertenece
+        let risName = null;
+        for (const ris in vistaPorRIS) {
+          if (vistaPorRIS[ris as keyof typeof vistaPorRIS].establecimientos.includes(name.toUpperCase())) {
+            risName = ris;
+            break;
+          }
+        }
+        
+        if (risName) {
+          tooltipContent = `${name}<br/><small>${risName}${selectedRIS === risName ? ' (Seleccionada)' : ''}</small>`;
+        }
+      }
+
       // Si hay diagnóstico seleccionado, mostrar información adicional en el tooltip
       if (diagnosticoSeleccionado.length > 0) {
         const diag = diagnosticoSeleccionado[diagnosticoSeleccionado.length - 1];
@@ -2024,6 +2408,16 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
           if (casos > 0) {
             tooltipContent = `${name}<br/><small>${diagNombre}: ${casos} casos</small>`;
           }
+        } else if (isRISViewActive && geoJSONType === 'establecimientos') {
+          // Buscar a qué RIS pertenece
+          let risName = null;
+          for (const ris in vistaPorRIS) {
+            if (vistaPorRIS[ris as keyof typeof vistaPorRIS].establecimientos.includes(name)) {
+              risName = ris;
+              break;
+            }
+          }
+          tooltipContent = risName ? `${name}<br/><small>${risName}</small>` : name;
         }
       }
       
@@ -2689,7 +3083,59 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
     );
   };  
 
-   return (
+  // Función para activar/desactivar vista RIS general
+  const toggleRISView = () => {
+    const newRISState = !isRISViewActive;
+    setIsRISViewActive(newRISState);
+    
+    // Si estamos activando RIS, limpiar la RIS específica seleccionada
+    if (newRISState) {
+      clearRISSelection(); // Usar la función de limpieza
+      
+      // Asegurarse de que estamos en establecimientos
+      if (geoJSONType !== 'establecimientos') {
+        handleGeoJSONChange('establecimientos');
+      }
+      
+      // Limpiar cualquier diagnóstico seleccionado
+      setDiagnosticoSeleccionado([]);
+      
+      // Limpiar datos de casos
+      setCasosPorEstablecimiento({});
+      
+      // Limpiar búsquedas
+      setMapSearchTerm('');
+      setSearchedDistrictId(null);
+      
+      console.log("✅ Vista RIS general activada");
+    } else {
+      // Si estamos desactivando RIS, limpiar todo
+      clearRISSelection();
+      console.log("❌ Vista RIS general desactivada");
+    }
+  };
+
+  // Agrega este componente después de los otros componentes pero antes del return:
+  const RISLegend = () => {
+    return (
+      <div className="ris-legend">
+        <h4>Leyenda RIS</h4>
+        <div className="ris-legend-items">
+          {Object.entries(vistaPorRIS).map(([ris, data]) => (
+            <div key={ris} className="ris-legend-item">
+              <div 
+                className="ris-color-box" 
+                style={{ backgroundColor: data.color }}
+              />
+              <span className="ris-name">{ris}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
     <div className="map-container">
       <MapContainer
         center={position}
@@ -2859,10 +3305,13 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
                   key={`${item.type}-${item.name}`} 
                   onClick={() => handleSuggestionSelect(item)}
                   className="suggestion-item"
+                  data-type={item.type}
                 >
                   <span className="suggestion-name">{item.name}</span>
                   <span className={`suggestion-type ${item.type}`}>
-                    {item.type === 'distrito' ? '🗺️ Distrito' : '🏥 Establecimiento'}
+                    {item.type === 'distrito' ? '🗺️ Distrito' : 
+                    item.type === 'establecimiento' ? '🏥 Establecimiento' : 
+                    '🏢 RIS'}
                   </span>
                 </li>
               ))}
@@ -2875,10 +3324,17 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
           <button title="Mapa Base" onClick={() => setBaseMapSelectorOpen(true)}>
             🗺️
           </button>
-          <button title="Principal" onClick={() => window.location.href = 'http://${baseUrl}:5000'}>🖥️</button>
+          <button title="Principal" onClick={() => window.location.href = 'http://10.0.20.140:5000'}>🖥️</button>
+          <button title="Dengue" onClick={() => window.location.href = 'http://10.0.20.140:5006'}>🦟</button>
           <button title="Estadística" onClick={() => window.location.href = 'http://10.0.2.22/geoestadistica/'}>📊</button>
           <button title="Docencia" onClick={() => window.location.href = 'http://10.0.20.140:5024/mapa_ris/'}>🎓</button>
-          <button title="Captura">🖼️</button>
+          <button 
+            title={isRISViewActive ? "Desactivar" : "Vista RIS"} 
+            onClick={toggleRISView}
+            className={isRISViewActive ? "active" : ""}
+          >
+            {isRISViewActive ? "🏢" : "🏢"}
+          </button>        
           <button title="Ubicar Coordenada">📍</button>
           <button title="Guardar">💾</button>
           <button title="Compartir" onClick={handleShare}>🔗</button>
@@ -2895,16 +3351,20 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
 
         <MouseCoordinates />
 
-        <Legend 
-          selectedLayerNames={diagnosticoSeleccionado.map(getDisplayNameForDiagnostico)}
-          selectedDistrictNames={
-            [...new Set([
-              clickedDistrictId, 
-              ...Array.from(selectedDistrictLayerIds),
-              searchedDistrictId
-            ].filter(Boolean) as string[])]
-          }
-        />
+        {isRISViewActive ? (
+          <RISLegend />
+        ) : (
+          <Legend 
+            selectedLayerNames={diagnosticoSeleccionado.map(getDisplayNameForDiagnostico)}
+            selectedDistrictNames={
+              [...new Set([
+                clickedDistrictId, 
+                ...Array.from(selectedDistrictLayerIds),
+                searchedDistrictId
+              ].filter(Boolean) as string[])]
+            }
+          />
+        )}
 
       </MapContainer>
 

@@ -67,7 +67,11 @@ const LayerItem: React.FC<LayerItemProps> = ({
   };
 
   return (
-    <li className="layer-item">
+    <li 
+      className={`layer-item ${isExpanded ? 'expanded' : ''} ${layer.id.startsWith('ris-') ? 'ris-item' : ''} ${selectedLayers.has(layer.id) ? 'selected' : ''}`}
+      data-ris={layer.id.startsWith('ris-') ? 'true' : 'false'}
+      data-layer-id={layer.id}
+    >
       <div className="layer-header" onClick={handleToggleExpand}>
         <span
           className={`arrow ${hasSubLayers ? 'clickable' : ''} ${isExpanded ? 'expanded' : ''}`}

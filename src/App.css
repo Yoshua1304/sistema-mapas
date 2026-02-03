@@ -1172,3 +1172,88 @@ path.leaflet-interactive[fill-opacity="0"] {
 .suggestion-type.establecimiento {
   background-color: #2196F3;
 }
+
+/* === VISTA RIS === */
+
+/* Estilo para botón RIS activo */
+.map-tools button.active {
+  background-color: #195c97;
+  color: white;
+  box-shadow: 0 0 10px rgba(25, 92, 151, 0.5);
+}
+
+/* Leyenda RIS */
+.ris-legend {
+  position: absolute;
+  bottom: 325px;
+  right: 75px;
+  z-index: 1010;
+  background-color: white;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  max-width: 250px;
+  border: 2px solid #195c97;
+}
+
+.ris-legend h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: #195c97;
+  font-size: 14px;
+  font-weight: bold;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 5px;
+}
+
+.ris-legend-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ris-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ris-color-box {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid #555;
+  flex-shrink: 0;
+}
+
+.ris-name {
+  font-size: 12px;
+  color: #333;
+  font-weight: 500;
+}
+
+/* Indica cuando la vista RIS está activa */
+.ris-active-indicator {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: #195c97;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  z-index: 1010;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+/* === ESTILOS PARA SUGERENCIAS DE RIS EN BÚSQUEDA === */
+
+.suggestion-type.ris {
+  background-color: #9c27b0; /* Color morado para RIS */
+}
+
+/* Icono para RIS en sugerencias */
+.suggestion-item[data-type="ris"] .suggestion-type::before {
+  margin-right: 4px;
+}
