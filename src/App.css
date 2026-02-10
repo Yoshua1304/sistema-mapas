@@ -21,7 +21,7 @@ body, html, #root {
   width: 320px;
   height: 72vh;
   background-color: rgba(255, 255, 255, 0.95);
-  border: 1px solid #ccc;
+  /* border: 1px solid #ccc; */
   border-radius: 4px;
   box-shadow: 0 4px 8px rgba(0,0,0,0.2);
   z-index: 1020;
@@ -31,7 +31,7 @@ body, html, #root {
 }
 
 .sidebar-floating:not(.open) {
-  transform: translate(-280px, -50%);
+  transform: translate(-285px, -50%);
 }
 
 .sidebar-content {
@@ -1256,4 +1256,89 @@ path.leaflet-interactive[fill-opacity="0"] {
 /* Icono para RIS en sugerencias */
 .suggestion-item[data-type="ris"] .suggestion-type::before {
   margin-right: 4px;
+}
+
+/* Estilos para marcadores de gota */
+.drop-location-marker {
+  background: transparent;
+  border: none;
+}
+
+/* Animación de pulso para los iconos de ubicación */
+@keyframes pulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 0.7;
+  }
+}
+
+/* Estilo para popups de ubicaciones */
+.leaflet-popup-content {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.leaflet-popup-content h4 {
+  display: flex;
+  align-items: center;
+}
+
+/* Mejoras para botón activo */
+.map-tools button.active {
+  background-color: #3498db;
+  color: white;
+  border-color: #2980b9;
+  transform: scale(1.1);
+  transition: all 0.2s ease;
+}
+
+/* Efecto hover para botones */
+.map-tools button:hover {
+  background-color: #ecf0f1;
+  transform: translateY(-2px);
+}
+
+/* Estilo para notificaciones */
+.copy-notification {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: #2ecc71;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.copy-notification-icon {
+  font-size: 20px;
+  font-weight: bold;
 }

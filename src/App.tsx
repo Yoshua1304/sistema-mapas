@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { MapContainer, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, GeoJSON, useMapEvents, Marker, Popup } from 'react-leaflet';
 import { DomEvent, Layer as LeafletLayer } from 'leaflet';
 import * as L from 'leaflet';
 import proj4 from 'proj4';
@@ -448,6 +448,76 @@ const vistaPorRIS = {
   }
 };
 
+// Ubicaciones exactas de establecimientos
+const UBICACIONES_EESS = [
+  { RIS: "RIS 1", EESS: "CS MIRONES", LATITUD: -12.05115049, LONGITUD: -77.0675682 },
+  { RIS: "RIS 1", EESS: "CS MIRONES BAJO", LATITUD: -12.03581375, LONGITUD: -77.07205233 },
+  { RIS: "RIS 1", EESS: "CS UV3", LATITUD: -12.0515232, LONGITUD: -77.08232163 },
+  { RIS: "RIS 1", EESS: "CS VILLA MARIA PERPETUO SOCORRO", LATITUD: -12.03781932, LONGITUD: -77.05458196 },
+  { RIS: "RIS 1", EESS: "CS CONDE DE LA VEGA", LATITUD: -12.0390351, LONGITUD: -77.05041587 },
+  { RIS: "RIS 1", EESS: "CS SAN SEBASTIAN", LATITUD: -12.04262081, LONGITUD: -77.0386836 },
+  { RIS: "RIS 1", EESS: "CS JUAN PEREZ CARRANZA", LATITUD: -12.05358283, LONGITUD: -77.02265133 },
+  { RIS: "RIS 1", EESS: "PS SANTA ROSA", LATITUD: -12.03685197, LONGITUD: -77.05980381 },
+  { RIS: "RIS 1", EESS: "PS RESCATE", LATITUD: -12.0413021, LONGITUD: -77.06231177 },
+  { RIS: "RIS 1", EESS: "PS PALERMO", LATITUD: -12.04124172, LONGITUD: -77.06881564 },
+  { RIS: "RIS 1", EESS: "PS JARDIN ROSA SANTA MARIA", LATITUD: -12.04447059, LONGITUD: -77.0144486 },
+  { RIS: "RIS 1", EESS: "CS RAUL PATRUCCO PUIG", LATITUD: -12.05303966, LONGITUD: -77.02281427 },
+  { RIS: "RIS 1", EESS: "CS CONTROL DE ZOONOSIS", LATITUD: -12.05004544, LONGITUD: -77.06231346 },
+  { RIS: "RIS 2", EESS: "CS BREÑA", LATITUD: -12.06402343, LONGITUD: -77.05783435 },
+  { RIS: "RIS 2", EESS: "PS CHACRA COLORADA", LATITUD: -12.05409826, LONGITUD: -77.04807823 },
+  { RIS: "RIS 2", EESS: "CMI MAGDALENA", LATITUD: -12.08851868, LONGITUD: -77.06864125 },
+  { RIS: "RIS 2", EESS: "CS JESUS MARIA", LATITUD: -12.07785547, LONGITUD: -77.05332289 },
+  { RIS: "RIS 2", EESS: "CS SAN MIGUEL", LATITUD: -12.08133774, LONGITUD: -77.09849647 },
+  { RIS: "RIS 2", EESS: "PS HUACA PANDO", LATITUD: -12.06150729, LONGITUD: -77.08327064 },
+  { RIS: "RIS 3", EESS: "CMI SURQUILLO", LATITUD: -12.11847534, LONGITUD: -77.02231508 },
+  { RIS: "RIS 3", EESS: "CS LINCE", LATITUD: -12.08184318, LONGITUD: -77.03197496 },
+  { RIS: "RIS 3", EESS: "CS PEDREGAL", LATITUD: -12.12111454, LONGITUD: -76.99889745 },
+  { RIS: "RIS 3", EESS: "CS VILLA MARIA PERPETUO SOCORRO", LATITUD: -12.03781932, LONGITUD: -77.05458196 },
+  { RIS: "RIS 3", EESS: "CS SAN ISIDRO", LATITUD: -12.10690345, LONGITUD: -77.05512739 },
+  { RIS: "RIS 3", EESS: "CS MIRAFLORES", LATITUD: -12.11869548, LONGITUD: -77.03663821 },
+  { RIS: "RIS 4", EESS: "CMI EL PORVENIR", LATITUD: -12.06781998, LONGITUD: -77.02084676 },
+  { RIS: "RIS 4", EESS: "CS MAX ARIAS", LATITUD: -12.06116686, LONGITUD: -77.03208156 },
+  { RIS: "RIS 4", EESS: "CS SAN LUIS", LATITUD: -12.07570502, LONGITUD: -76.99709293 },
+  { RIS: "RIS 4", EESS: "CS EL PINO", LATITUD: -12.0671073, LONGITUD: -76.99860413 },
+  { RIS: "RIS 4", EESS: "PS CLAS EL PINO", LATITUD: -12.06606111, LONGITUD: -77.00243276 },
+  { RIS: "RIS 4", EESS: "CS SAN COSME", LATITUD: -12.06191812, LONGITUD: -77.00685204 },
+  { RIS: "RIS 4", EESS: "CS SAN BORJA", LATITUD: -12.10186335, LONGITUD: -76.99344022 },
+  { RIS: "RIS 4", EESS: "PS SAN JUAN MASIAS", LATITUD: -12.0842461, LONGITUD: -77.00249795 },
+  { RIS: "RIS 5", EESS: "CS CHACARILLA DE OTERO", LATITUD: -12.02107076, LONGITUD: -77.00691011 },
+  { RIS: "RIS 5", EESS: "CS CAJA DE AGUA", LATITUD: -12.02684766, LONGITUD: -77.01498068 },
+  { RIS: "RIS 5", EESS: "CS ZARATE", LATITUD: -12.02317364, LONGITUD: -76.99459818 },
+  { RIS: "RIS 5", EESS: "CS CAMPOY", LATITUD: -12.02148445, LONGITUD: -76.96009225 },
+  { RIS: "RIS 5", EESS: "CS SAN FERNANDO", LATITUD: -12.00256078, LONGITUD: -77.01065512 },
+  { RIS: "RIS 5", EESS: "CS LA LIBERTAD", LATITUD: -12.00416236, LONGITUD: -76.99583966 },
+  { RIS: "RIS 5", EESS: "CS LA HUAYRONA", LATITUD: -11.99398033, LONGITUD: -77.00657779 },
+  { RIS: "RIS 5", EESS: "CS MANGOMARCA", LATITUD: -12.01066547, LONGITUD: -76.97961412 },
+  { RIS: "RIS 5", EESS: "CS SANTA ROSA DE LIMA", LATITUD: -12.00544841, LONGITUD: -77.01636018 },
+  { RIS: "RIS 5", EESS: "CS SANTA FE DE TOTORITAS", LATITUD: -11.99709086, LONGITUD: -76.99602166 },
+  { RIS: "RIS 5", EESS: "CS DANIEL ALCIDES CARRION", LATITUD: -12.02319353, LONGITUD: -76.97702318 },
+  { RIS: "RIS 5", EESS: "PS AZCARRUNZ ALTO", LATITUD: -12.01728075, LONGITUD: -77.00101645 },
+  { RIS: "RIS 5", EESS: "PS 15 DE ENERO", LATITUD: -12.011204, LONGITUD: -77.01866313 },
+  { RIS: "RIS 6", EESS: "CS GANIMEDES", LATITUD: -11.98326684, LONGITUD: -77.01149793 },
+  { RIS: "RIS 6", EESS: "CS SAN HILARION", LATITUD: -11.99571104, LONGITUD: -77.01593552 },
+  { RIS: "RIS 6", EESS: "CS HUASCAR II", LATITUD: -11.96680502, LONGITUD: -77.01100034 },
+  { RIS: "RIS 6", EESS: "CS HUASCAR XV", LATITUD: -11.95569639, LONGITUD: -77.00239477 },
+  { RIS: "RIS 6", EESS: "CS BAYOVAR", LATITUD: -11.95224235, LONGITUD: -76.99164257 },
+  { RIS: "RIS 6", EESS: "CS MEDALLA MILAGROSA", LATITUD: -11.97707853, LONGITUD: -77.00605693 },
+  { RIS: "RIS 6", EESS: "PS AYACUCHO", LATITUD: -11.98740914, LONGITUD: -77.01713516 },
+  { RIS: "RIS 6", EESS: "PS PROYECTOS ESPECIALES", LATITUD: -11.95600613, LONGITUD: -76.99243814 },
+  { RIS: "RIS 6", EESS: "CS SAGRADA FAMILIA", LATITUD: -11.97663223, LONGITUD: -76.9888084 },
+  { RIS: "RIS 7", EESS: "CS JAIME ZUBIETA", LATITUD: -11.96333017, LONGITUD: -76.98892219 },
+  { RIS: "RIS 7", EESS: "CS JOSE CARLOS MARIATEGUI", LATITUD: -11.94521013, LONGITUD: -76.98441212 },
+  { RIS: "RIS 7", EESS: "CS CRUZ DE MOTUPE", LATITUD: -11.94084687, LONGITUD: -76.97469345 },
+  { RIS: "RIS 7", EESS: "CS SANTA MARIA", LATITUD: -11.96518596, LONGITUD: -76.97600222 },
+  { RIS: "RIS 7", EESS: "CS ENRIQUE MONTENEGRO", LATITUD: -11.93725021, LONGITUD: -76.97116578 },
+  { RIS: "RIS 7", EESS: "CS 10 DE OCTUBRE", LATITUD: -11.94511956, LONGITUD: -76.98770861 },
+  { RIS: "RIS 7", EESS: "CS JUAN PABLO II", LATITUD: -11.94471337, LONGITUD: -76.99061119 },
+  { RIS: "RIS 7", EESS: "PS TUPAC AMARU II", LATITUD: -11.95592582, LONGITUD: -76.97582037 },
+  { RIS: "RIS 7", EESS: "PS JC MARIATEGUI V ETAPA", LATITUD: -11.93131732, LONGITUD: -76.99045182 },
+  { RIS: "RIS 7", EESS: "PS MARISCAL CACERES", LATITUD: -11.94944309, LONGITUD: -76.98119464 },
+  { RIS: "RIS 7", EESS: "PS CESAR VALLEJOS", LATITUD: -11.93967372, LONGITUD: -76.96571601 }
+];
+
 function App() {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [allDistricts, setAllDistricts] = useState<GeoJSONData | null>(null);
@@ -480,6 +550,8 @@ function App() {
 
   const [isRISViewActive, setIsRISViewActive] = useState(false);
   const [selectedRIS, setSelectedRIS] = useState<string | null>(null);
+  const [showEESSLocations, setShowEESSLocations] = useState(false);
+
 
 //console.log("🟦 diagnosticoSeleccionado TYPE:", typeof diagnosticoSeleccionado);
 //console.log("🟦 diagnosticoSeleccionado VALUE:", diagnosticoSeleccionado);
@@ -3135,6 +3207,169 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
     );
   };
 
+  // Componente para mostrar ubicaciones exactas de EESS
+  const EESSLocations = () => {
+    // Función para crear icono de gota con color del RIS
+    const createDropIcon = (color: string) => {
+      return L.divIcon({
+        html: `
+          <div style="
+            position: relative;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+          ">
+            <!-- Sombra/efecto de profundidad -->
+            <div style="
+              position: absolute;
+              width: 24px;
+              height: 24px;
+              background-color: ${color};
+              border-radius: 50% 50% 50% 0;
+              transform: rotate(-45deg);
+              box-shadow: 
+                0 2px 4px rgba(0,0,0,0.3),
+                inset 0 -3px 0 rgba(0,0,0,0.2);
+              border: 2px solid white;
+            "></div>
+            
+            <!-- Punto interior -->
+            <div style="
+              position: absolute;
+              width: 8px;
+              height: 8px;
+              background-color: white;
+              border-radius: 50%;
+              top: 7px;
+              left: 12px;
+              transform: rotate(45deg);
+              box-shadow: 0 0 2px rgba(0,0,0,0.3);
+            "></div>
+            
+            <!-- Resplandor exterior -->
+            <div style="
+              position: absolute;
+              width: 32px;
+              height: 32px;
+              background-color: ${color}40;
+              border-radius: 50%;
+              z-index: -1;
+              animation: pulse 2s infinite;
+            "></div>
+          </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 32], // Ancla en la punta de la gota
+        popupAnchor: [0, -28],
+        className: 'drop-location-marker'
+      });
+    };
+
+    return (
+      <>
+        {UBICACIONES_EESS.map((eess, index) => {
+          // Buscar el color del RIS correspondiente
+          let risColor = "#db343e"; // Rojo por defecto
+          let risNombre = "";
+          
+          // Buscar en vistaPorRIS por nombre completo del establecimiento
+          for (const ris in vistaPorRIS) {
+            if (vistaPorRIS[ris as keyof typeof vistaPorRIS]
+                .establecimientos.some(est => 
+                  est.toUpperCase().includes(eess.EESS) || 
+                  eess.EESS.toUpperCase().includes(est)
+                )) {
+              risColor = vistaPorRIS[ris as keyof typeof vistaPorRIS].color;
+              risNombre = ris;
+              break;
+            }
+          }
+
+          return (
+            <Marker
+              key={index}
+              position={[eess.LATITUD, eess.LONGITUD]}
+              icon={createDropIcon(risColor)}
+            >
+              <Popup maxWidth={300}>
+                <div style={{ 
+                  padding: '10px',
+                  fontFamily: 'Arial, sans-serif'
+                }}>
+                  <h4 style={{ 
+                    margin: '0 0 10px 0', 
+                    color: '#2c3e50',
+                    borderBottom: '2px solid #db343e',
+                    paddingBottom: '5px'
+                  }}>
+                    <i className="fas fa-hospital-alt" style={{ marginRight: '8px', color: risColor }}></i>
+                    {eess.EESS}
+                  </h4>
+                  
+                  <div style={{ marginBottom: '8px' }}>
+                    <strong style={{ color: '#7f8c8d' }}>
+                      <i className="fas fa-map-marker-alt" style={{ marginRight: '6px', color: risColor }}></i>
+                      RIS:
+                    </strong>
+                    <span style={{ 
+                      marginLeft: '8px',
+                      color: risColor,
+                      fontWeight: 'bold',
+                      backgroundColor: `${risColor}20`,
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      fontSize: '14px'
+                    }}>
+                      {risNombre || eess.RIS}
+                    </span>
+                  </div>
+                  
+                  <div style={{ 
+                    marginBottom: '12px',
+                    backgroundColor: '#f8f9fa',
+                    padding: '8px',
+                    borderRadius: '6px',
+                    fontSize: '13px'
+                  }}>
+                    <strong style={{ color: '#7f8c8d', display: 'block', marginBottom: '4px' }}>
+                      <i className="fas fa-globe-americas" style={{ marginRight: '6px' }}></i>
+                      Coordenadas:
+                    </strong>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <div>
+                        <span style={{ fontSize: '11px', color: '#95a5a6' }}>Latitud:</span><br />
+                        <code style={{ fontSize: '12px', color: '#2c3e50' }}>{eess.LATITUD.toFixed(6)}</code>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '11px', color: '#95a5a6' }}>Longitud:</span><br />
+                        <code style={{ fontSize: '12px', color: '#2c3e50' }}>{eess.LONGITUD.toFixed(6)}</code>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div style={{ 
+                    fontSize: '12px', 
+                    color: '#7f8c8d', 
+                    borderTop: '1px solid #eee', 
+                    paddingTop: '8px',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}>
+                    <i className="fas fa-info-circle" style={{ marginRight: '6px' }}></i>
+                    <span>Ubicación exacta del establecimiento de salud</span>
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+      </>
+    );
+  };
+
   return (
     <div className="map-container">
       <MapContainer
@@ -3335,8 +3570,13 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
           >
             {isRISViewActive ? "🏢" : "🏢"}
           </button>        
-          <button title="Ubicar Coordenada">📍</button>
-          <button title="Guardar">💾</button>
+          <button 
+            title={showEESSLocations ? "Ocultar Ubicaciones EESS" : "Mostrar Ubicaciones EESS"} 
+            onClick={() => setShowEESSLocations(!showEESSLocations)}
+            className={showEESSLocations ? "active" : ""}
+          >
+            {showEESSLocations ? "📍" : "📍"}
+          </button>
           <button title="Compartir" onClick={handleShare}>🔗</button>
         </div>
 
@@ -3365,6 +3605,8 @@ const handleDiagnosticoSelect = async (diagnostico: string, checked: boolean) =>
             }
           />
         )}
+
+        {showEESSLocations && <EESSLocations />}
 
       </MapContainer>
 
